@@ -6,6 +6,7 @@ declare global {
   interface Window {
     hudApi: {
       onHudState: (callback: (state: HudState) => void) => () => void;
+      getInitialState: () => Promise<HudState>;
       setMode: (mode: HudMode) => Promise<void>;
       toggleTopmost: () => Promise<void>;
     };

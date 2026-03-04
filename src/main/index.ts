@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { AbletonOscBridge } from './osc-bridge';
 import { PrefStore } from './prefs';
 import type { HudMode, HudState } from '../shared/types';
+import { createDefaultHudState, HUD_CHANNELS, HudModeSchema, HudStateSchema } from '../shared/ipc';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,32 +15,74 @@ let latestHudState: HudState | null = null;
 let bridge: AbletonOscBridge | null = null;
 let mode: HudMode = 'elapsed';
 
+const WINDOW_CONTENT_WIDTH = 370;
+const WINDOW_CONTENT_HEIGHT = 180;
+
 const prefStore = new PrefStore();
+const rendererDebugPort = process.env.AOSC_RENDERER_DEBUG_PORT;
+
+if (rendererDebugPort) {
+  const parsedPort = Number.parseInt(rendererDebugPort, 10);
+  if (Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= 65535) {
+    app.commandLine.appendSwitch('remote-debugging-port', String(parsedPort));
+  }
+}
+
+function resolveAlwaysOnTop(): boolean {
+  return Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isAlwaysOnTop());
+}
+
+function withWindowState(state: HudState): HudState {
+  return {
+    ...state,
+    alwaysOnTop: resolveAlwaysOnTop()
+  };
+}
 
 async function persistPrefs(): Promise<void> {
   if (!mainWindow || mainWindow.isDestroyed()) {
     return;
   }
 
+  const bounds = mainWindow.getBounds();
+  const [contentWidth, contentHeight] = mainWindow.getContentSize();
+
   await prefStore.save({
     mode,
     alwaysOnTop: mainWindow.isAlwaysOnTop(),
-    windowBounds: mainWindow.getBounds()
+    windowBounds: {
+      x: bounds.x,
+      y: bounds.y,
+      width: contentWidth,
+      height: contentHeight
+    }
   });
 }
 
 function sendStateToWindow(state: HudState): void {
-  latestHudState = state;
+  const parsedState = HudStateSchema.safeParse(withWindowState(state));
+  if (!parsedState.success) {
+    return;
+  }
+
+  latestHudState = parsedState.data;
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('hud:state', state);
+    mainWindow.webContents.send(HUD_CHANNELS.state, latestHudState);
   }
 }
 
 async function createWindow(): Promise<void> {
   const prefs = await prefStore.load();
-  const windowBounds = prefs.windowBounds ?? {
-    width: 420,
-    height: 180
+  const windowBounds = prefs.windowBounds;
+  const initialBounds = {
+    width: windowBounds?.width ?? WINDOW_CONTENT_WIDTH,
+    height: windowBounds?.height ?? WINDOW_CONTENT_HEIGHT,
+    ...(windowBounds
+      ? {
+          x: windowBounds.x,
+          y: windowBounds.y
+        }
+      : {})
   };
 
   const preloadCandidates = [
@@ -54,10 +97,10 @@ async function createWindow(): Promise<void> {
   }
 
   mainWindow = new BrowserWindow({
-    ...windowBounds,
-    minWidth: 320,
-    minHeight: 140,
+    ...initialBounds,
+    useContentSize: true,
     resizable: true,
+    titleBarStyle: 'default',
     autoHideMenuBar: true,
     alwaysOnTop: prefs.alwaysOnTop,
     webPreferences: {
@@ -84,9 +127,8 @@ async function createWindow(): Promise<void> {
   });
 
   mainWindow.webContents.on('did-finish-load', () => {
-    if (latestHudState) {
-      mainWindow?.webContents.send('hud:state', latestHudState);
-    }
+    const initialState = latestHudState ? withWindowState(latestHudState) : createDefaultHudState(mode, resolveAlwaysOnTop());
+    mainWindow?.webContents.send(HUD_CHANNELS.state, initialState);
   });
 
   mainWindow.on('closed', () => {
@@ -95,21 +137,32 @@ async function createWindow(): Promise<void> {
 }
 
 function registerIpcHandlers(): void {
-  ipcMain.removeHandler('hud:set-mode');
-  ipcMain.handle('hud:set-mode', async (_event, nextMode: HudMode) => {
-    mode = nextMode;
-    bridge?.setMode(nextMode);
+  ipcMain.removeHandler(HUD_CHANNELS.getInitialState);
+  ipcMain.handle(HUD_CHANNELS.getInitialState, () => {
+    return latestHudState ? withWindowState(latestHudState) : createDefaultHudState(mode, resolveAlwaysOnTop());
+  });
+
+  ipcMain.removeHandler(HUD_CHANNELS.setMode);
+  ipcMain.handle(HUD_CHANNELS.setMode, async (_event, nextMode: HudMode) => {
+    const parsedMode = HudModeSchema.parse(nextMode);
+    mode = parsedMode;
+    bridge?.setMode(parsedMode);
     await persistPrefs();
   });
 
-  ipcMain.removeHandler('hud:toggle-topmost');
-  ipcMain.handle('hud:toggle-topmost', async () => {
+  ipcMain.removeHandler(HUD_CHANNELS.toggleTopmost);
+  ipcMain.handle(HUD_CHANNELS.toggleTopmost, async () => {
     if (!mainWindow || mainWindow.isDestroyed()) {
       return;
     }
 
     mainWindow.setAlwaysOnTop(!mainWindow.isAlwaysOnTop());
     await persistPrefs();
+
+    const nextState = latestHudState
+      ? withWindowState(latestHudState)
+      : createDefaultHudState(mode, resolveAlwaysOnTop());
+    sendStateToWindow(nextState);
   });
 }
 

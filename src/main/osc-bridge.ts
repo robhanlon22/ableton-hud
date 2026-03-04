@@ -47,6 +47,16 @@ function toStringValue(value: unknown): string {
   return typeof resolved === 'string' ? resolved : String(resolved ?? '');
 }
 
+function toColorValue(value: unknown): number | null {
+  const parsed = Number(argValue(value));
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  // Live color values can arrive as signed ints; normalize to 24-bit RGB.
+  return (Math.round(parsed) >>> 0) & 0xffffff;
+}
+
 function defaultCounterParts(): CounterParts {
   return {
     bar: 0,
@@ -65,7 +75,13 @@ export class AbletonOscBridge {
   private mode: HudMode;
   private selectedTrack: number | null = null;
   private activeClip: { track: number; clip: number } | null = null;
+  private trackName: string | null = null;
+  private trackColor: number | null = null;
   private clipName: string | null = null;
+  private clipColor: number | null = null;
+  private activeScene: number | null = null;
+  private sceneName: string | null = null;
+  private sceneColor: number | null = null;
   private clipMeta: ClipTimingMeta = {
     length: 4,
     loopStart: 0,
@@ -136,6 +152,8 @@ export class AbletonOscBridge {
     this.clearClipSubscription();
     if (this.selectedTrack !== null) {
       this.send('/live/track/stop_listen/playing_slot_index', [this.selectedTrack]);
+      this.send('/live/track/stop_listen/name', [this.selectedTrack]);
+      this.send('/live/track/stop_listen/color', [this.selectedTrack]);
     }
     this.send('/live/view/stop_listen/selected_track');
     this.send('/live/song/stop_listen/signature_numerator');
@@ -184,11 +202,39 @@ export class AbletonOscBridge {
         return;
       }
 
+      case '/live/track/get/name': {
+        const track = toNumber(args[0], -1);
+        if (this.selectedTrack !== null && track === this.selectedTrack) {
+          this.trackName = toStringValue(args[1]);
+          this.emit();
+        }
+        return;
+      }
+
+      case '/live/track/get/color': {
+        const track = toNumber(args[0], -1);
+        if (this.selectedTrack !== null && track === this.selectedTrack) {
+          this.trackColor = toColorValue(args[1]);
+          this.emit();
+        }
+        return;
+      }
+
       case '/live/clip/get/name': {
         const track = toNumber(args[0], -1);
         const clip = toNumber(args[1], -1);
         if (this.isActiveClip(track, clip)) {
           this.clipName = toStringValue(args[2]);
+          this.emit();
+        }
+        return;
+      }
+
+      case '/live/clip/get/color': {
+        const track = toNumber(args[0], -1);
+        const clip = toNumber(args[1], -1);
+        if (this.isActiveClip(track, clip)) {
+          this.clipColor = toColorValue(args[2]);
           this.emit();
         }
         return;
@@ -229,6 +275,24 @@ export class AbletonOscBridge {
         const clip = toNumber(args[1], -1);
         if (this.isActiveClip(track, clip)) {
           this.clipMeta.looping = toBoolean(args[2]);
+          this.emit();
+        }
+        return;
+      }
+
+      case '/live/scene/get/name': {
+        const scene = toNumber(args[0], -1);
+        if (this.activeScene !== null && scene === this.activeScene) {
+          this.sceneName = toStringValue(args[1]);
+          this.emit();
+        }
+        return;
+      }
+
+      case '/live/scene/get/color': {
+        const scene = toNumber(args[0], -1);
+        if (this.activeScene !== null && scene === this.activeScene) {
+          this.sceneColor = toColorValue(args[1]);
           this.emit();
         }
         return;
@@ -285,13 +349,21 @@ export class AbletonOscBridge {
 
     if (this.selectedTrack !== null) {
       this.send('/live/track/stop_listen/playing_slot_index', [this.selectedTrack]);
+      this.send('/live/track/stop_listen/name', [this.selectedTrack]);
+      this.send('/live/track/stop_listen/color', [this.selectedTrack]);
     }
 
     this.selectedTrack = trackIndex;
+    this.trackName = null;
+    this.trackColor = null;
     this.clearClipSubscription();
 
     this.send('/live/track/start_listen/playing_slot_index', [trackIndex]);
     this.send('/live/track/get/playing_slot_index', [trackIndex]);
+    this.send('/live/track/start_listen/name', [trackIndex]);
+    this.send('/live/track/get/name', [trackIndex]);
+    this.send('/live/track/start_listen/color', [trackIndex]);
+    this.send('/live/track/get/color', [trackIndex]);
     this.emit();
   }
 
@@ -314,6 +386,10 @@ export class AbletonOscBridge {
 
     this.activeClip = { track: this.selectedTrack, clip: slotIndex };
     this.clipName = null;
+    this.clipColor = null;
+    this.activeScene = slotIndex;
+    this.sceneName = null;
+    this.sceneColor = null;
     this.clipMeta = {
       length: 4,
       loopStart: 0,
@@ -325,10 +401,15 @@ export class AbletonOscBridge {
     this.send('/live/clip/start_listen/playing_position', [this.selectedTrack, slotIndex]);
     this.send('/live/clip/get/playing_position', [this.selectedTrack, slotIndex]);
     this.send('/live/clip/get/name', [this.selectedTrack, slotIndex]);
+    this.send('/live/clip/get/color', [this.selectedTrack, slotIndex]);
     this.send('/live/clip/get/length', [this.selectedTrack, slotIndex]);
     this.send('/live/clip/get/loop_start', [this.selectedTrack, slotIndex]);
     this.send('/live/clip/get/loop_end', [this.selectedTrack, slotIndex]);
     this.send('/live/clip/get/looping', [this.selectedTrack, slotIndex]);
+    this.send('/live/scene/start_listen/name', [slotIndex]);
+    this.send('/live/scene/get/name', [slotIndex]);
+    this.send('/live/scene/start_listen/color', [slotIndex]);
+    this.send('/live/scene/get/color', [slotIndex]);
 
     this.emit();
   }
@@ -390,9 +471,22 @@ export class AbletonOscBridge {
       this.send('/live/clip/stop_listen/playing_position', [this.activeClip.track, this.activeClip.clip]);
     }
 
+    this.clearSceneSubscription();
     this.activeClip = null;
     this.clipName = null;
+    this.clipColor = null;
     this.resetClipRunState();
+  }
+
+  private clearSceneSubscription(): void {
+    if (this.activeScene !== null) {
+      this.send('/live/scene/stop_listen/name', [this.activeScene]);
+      this.send('/live/scene/stop_listen/color', [this.activeScene]);
+    }
+
+    this.activeScene = null;
+    this.sceneName = null;
+    this.sceneColor = null;
   }
 
   private isActiveClip(track: number, clip: number): boolean {
@@ -405,9 +499,6 @@ export class AbletonOscBridge {
     const isDownbeat = beatInBar === 1;
 
     let counterParts = defaultCounterParts();
-    let cycleLabel: string | null = null;
-    let isLoopingClip = false;
-    let isIntroPhase = false;
     let isLastBar = false;
     let lastBarSource: LastBarSource = null;
 
@@ -415,16 +506,11 @@ export class AbletonOscBridge {
       const currentPosition = this.currentPosition;
       const launchPosition = this.launchPosition ?? currentPosition;
       const loopSpanValid = hasValidLoopSpan(this.clipMeta);
-      isLoopingClip = loopSpanValid;
 
       if (loopSpanValid) {
         const hasLoopIntro = launchPosition < this.clipMeta.loopStart - EPSILON;
         const inLoopSection = this.loopWrapCount > 0 || currentPosition >= this.clipMeta.loopStart - EPSILON;
-        isIntroPhase = hasLoopIntro && !inLoopSection;
-
-        if (!isIntroPhase) {
-          cycleLabel = `L${Math.max(1, this.loopWrapCount + 1)}`;
-        }
+        const isIntroPhase = hasLoopIntro && !inLoopSection;
 
         const remainingToLoopEnd = Math.max(this.clipMeta.loopEnd - currentPosition, 0);
         isLastBar = computeIsLastBar(remainingToLoopEnd, timingGrid.beatsPerBar);
@@ -456,14 +542,17 @@ export class AbletonOscBridge {
       connected: this.connected,
       isPlaying: this.isPlaying,
       trackIndex: this.activeClip?.track ?? this.selectedTrack,
+      trackName: this.trackName,
+      trackColor: this.trackColor,
       clipIndex: this.activeClip?.clip ?? null,
       clipName: this.clipName,
+      clipColor: this.clipColor,
+      sceneName: this.sceneName,
+      sceneColor: this.sceneColor,
+      alwaysOnTop: false,
       mode: this.mode,
       counterText: formatCounterParts(counterParts),
       counterParts,
-      cycleLabel,
-      isLoopingClip,
-      isIntroPhase,
       lastBarSource,
       beatInBar,
       isDownbeat,

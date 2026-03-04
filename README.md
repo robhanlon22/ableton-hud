@@ -9,6 +9,12 @@ It follows the selected track's currently playing Session clip and displays:
 - Last-bar color warning in both modes
 - Loop-cycle labels (`L1`, `L2`, ...) once playback is in the loop section
 
+UI stack:
+
+- React renderer
+- Tailwind CSS with an Ableton-inspired token palette
+- shadcn-style component primitives
+
 Behavior details:
 
 - Non-loop clips:
@@ -40,6 +46,17 @@ npm install
 npm run dev
 ```
 
+Debug build with inspect ports:
+
+```bash
+npm run dev:debug
+```
+
+This auto-picks free ports starting from:
+
+- Main process inspector: `9230` (override with `AOSC_MAIN_DEBUG_PORT`)
+- Renderer Chrome DevTools Protocol: `9222` (override with `AOSC_RENDERER_DEBUG_PORT`)
+
 ## Validation
 
 ```bash
@@ -47,6 +64,11 @@ npm test
 npm run typecheck
 npm run build
 ```
+
+`npm test` runs both:
+
+- node timing/counter unit tests
+- jsdom renderer component tests
 
 ## Build macOS `.app`
 
