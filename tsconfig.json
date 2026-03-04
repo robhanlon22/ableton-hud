@@ -15,5 +15,11 @@
     "noEmit": true,
     "baseUrl": "."
   },
-  "include": ["src", "electron.vite.config.ts", "vitest.config.ts"]
+  "include": [
+    "src",
+    "electron.vite.config.ts",
+    "eslint.config.mts",
+    "tailwind.config.ts",
+    "vitest.config.ts"
+  ]
 }

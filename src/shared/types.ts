@@ -1,4 +1,9 @@
-export type HudMode = 'elapsed' | 'remaining';
+export interface ClipTimingMeta {
+  length: number;
+  loopEnd: number;
+  looping: boolean;
+  loopStart: number;
+}
 
 export interface CounterParts {
   bar: number;
@@ -6,40 +11,35 @@ export interface CounterParts {
   sixteenth: number;
 }
 
-export type LastBarSource = 'loop_end' | 'clip_end' | null;
+export type HudMode = "elapsed" | "remaining";
 
 export interface HudState {
-  connected: boolean;
-  isPlaying: boolean;
-  trackIndex: number | null;
-  trackName: string | null;
-  trackColor: number | null;
-  clipIndex: number | null;
-  clipName: string | null;
-  clipColor: number | null;
-  sceneName: string | null;
-  sceneColor: number | null;
   alwaysOnTop: boolean;
-  mode: HudMode;
-  counterText: string;
-  counterParts: CounterParts;
-  lastBarSource: LastBarSource;
+  beatFlashToken: number;
   beatInBar: number;
+  clipColor: null | number;
+  clipIndex: null | number;
+  clipName: null | string;
+  connected: boolean;
+  counterParts: CounterParts;
+  counterText: string;
   isDownbeat: boolean;
   isLastBar: boolean;
-  beatFlashToken: number;
+  isPlaying: boolean;
+  lastBarSource: LastBarSource;
+  mode: HudMode;
+  sceneColor: null | number;
+  sceneName: null | string;
+  trackColor: null | number;
+  trackIndex: null | number;
+  trackName: null | string;
 }
 
-export interface ClipTimingMeta {
-  length: number;
-  loopStart: number;
-  loopEnd: number;
-  looping: boolean;
-}
+export type LastBarSource = "clip_end" | "loop_end" | null;
 
 export interface TimingGrid {
-  beatsPerBar: number;
   beatLength: number;
-  sixteenthLength: number;
+  beatsPerBar: number;
   beatsPerDisplayBar: number;
+  sixteenthLength: number;
 }

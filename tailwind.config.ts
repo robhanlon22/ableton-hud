@@ -1,36 +1,39 @@
-import type { Config } from 'tailwindcss';
+import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: ['class'],
-  content: ['./src/renderer/index.html', './src/renderer/src/**/*.{ts,tsx}'],
+  content: ["./src/renderer/index.html", "./src/renderer/src/**/*.{ts,tsx}"],
+  darkMode: "class",
+  plugins: [],
   theme: {
     extend: {
+      boxShadow: {
+        downbeat:
+          "0 0 0 1px rgba(159, 216, 109, 0.74), 0 0 36px rgba(159, 216, 109, 0.34)",
+        pulse:
+          "0 0 0 1px rgba(159, 216, 109, 0.5), 0 0 24px rgba(159, 216, 109, 0.28)",
+        warningPulse:
+          "0 0 0 1px rgba(255, 106, 106, 0.66), 0 0 36px rgba(255, 106, 106, 0.36)",
+      },
       colors: {
         ableton: {
-          bg: '#1c1f26',
-          surface: '#262b33',
-          panel: '#2c3139',
-          panelAlt: '#232830',
-          border: '#3a4049',
-          text: '#d4d9df',
-          muted: '#8f98a3',
-          success: '#9fd86d',
-          warning: '#ff6a6a',
-          accent: '#e4b05d'
-        }
+          accent: "#e4b05d",
+          bg: "#1c1f26",
+          border: "#3a4049",
+          muted: "#8f98a3",
+          panel: "#2c3139",
+          panelAlt: "#232830",
+          success: "#9fd86d",
+          surface: "#262b33",
+          text: "#d4d9df",
+          warning: "#ff6a6a",
+        },
       },
       fontFamily: {
-        ui: ['Avenir Next', 'Helvetica Neue', 'Segoe UI', 'sans-serif'],
-        mono: ['SF Mono', 'IBM Plex Mono', 'Menlo', 'monospace']
+        mono: ["SF Mono", "IBM Plex Mono", "Menlo", "monospace"],
+        ui: ["Avenir Next", "Helvetica Neue", "Segoe UI", "sans-serif"],
       },
-      boxShadow: {
-        pulse: '0 0 0 1px rgba(159, 216, 109, 0.5), 0 0 24px rgba(159, 216, 109, 0.28)',
-        downbeat: '0 0 0 1px rgba(159, 216, 109, 0.74), 0 0 36px rgba(159, 216, 109, 0.34)',
-        warningPulse: '0 0 0 1px rgba(255, 106, 106, 0.66), 0 0 36px rgba(255, 106, 106, 0.36)'
-      }
-    }
+    },
   },
-  plugins: []
 };
 
 export default config;

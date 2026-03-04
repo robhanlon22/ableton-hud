@@ -1,0 +1,19 @@
+repos:
+  - repo: local
+    hooks:
+      - id: prettier-write
+        name: prettier --write --ignore-unknown
+        language: system
+        entry: pnpm exec prettier --write --ignore-unknown
+        types: [file]
+      - id: eslint-fix
+        name: eslint --fix
+        language: system
+        entry: pnpm exec eslint --fix
+        types_or: [ts, tsx, javascript, jsx]
+      - id: tsc-noemit
+        name: tsc --noEmit
+        language: system
+        entry: pnpm exec tsc --noEmit
+        pass_filenames: false
+        always_run: true

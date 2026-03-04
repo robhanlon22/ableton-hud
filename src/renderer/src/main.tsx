@@ -1,5 +1,12 @@
-import { createRoot } from 'react-dom/client';
-import { HudApp } from './app/hud-app';
-import './index.css';
+import { createRoot } from "react-dom/client";
 
-createRoot(document.getElementById('root') as HTMLElement).render(<HudApp />);
+import { HudApp } from "./app/hud-app";
+import "./index.css";
+
+const rootElement = document.getElementById("root");
+
+if (!rootElement) {
+  throw new Error("Root element not found");
+}
+
+createRoot(rootElement).render(<HudApp />);

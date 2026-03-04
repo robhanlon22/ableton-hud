@@ -1,5 +1,5 @@
 onlyBuiltDependencies:
-  - '@serialport/bindings-cpp'
+  - "@serialport/bindings-cpp"
   - electron
   - electron-winstaller
   - esbuild
