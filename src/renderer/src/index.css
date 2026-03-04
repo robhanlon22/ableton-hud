@@ -1,21 +1,26 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../../../tailwind.config.ts";
 
 :root {
   color-scheme: dark;
 }
 
-* {
-  @apply box-border;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 html,
 body,
 #root {
-  @apply h-full w-full;
+  height: 100%;
+  width: 100%;
 }
 
 body {
-  @apply m-0 bg-ableton-bg font-ui text-ableton-text;
+  margin: 0;
+  background-color: #1c1f26;
+  color: #d4d9df;
+  font-family: 'Avenir Next', 'Helvetica Neue', 'Segoe UI', sans-serif;
 }
