@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AOSC HUD</title>
+  </head>
+  <body>
+    <main id="app" class="hud">
+      <header class="hud__header">
+        <div>
+          <div class="hud__label">Clip</div>
+          <div id="clip-name" class="hud__clip">Waiting for clip...</div>
+        </div>
+        <div id="status-pill" class="hud__status">DISCONNECTED</div>
+      </header>
+
+      <section class="hud__counter" id="counter-panel">
+        <div id="counter-label" class="hud__counter-label">Bars Elapsed</div>
+        <div id="counter-value" class="hud__counter-value">0.00</div>
+        <div id="beat-value" class="hud__beat">Beat 1</div>
+      </section>
+
+      <footer class="hud__controls">
+        <button id="mode-toggle" class="hud__btn" type="button">Mode: Elapsed</button>
+        <button id="topmost-toggle" class="hud__btn" type="button">Toggle Topmost</button>
+      </footer>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
