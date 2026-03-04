@@ -1,38 +1,41 @@
 # AOSC HUD
 
-A small, always-on-top desktop HUD for Ableton Live that talks directly to [AbletonOSC](https://github.com/ideoforms/AbletonOSC).
+Desktop timing HUD for Ableton Live via [AbletonOSC](https://github.com/ideoforms/AbletonOSC).
 
-It follows the selected track's currently playing Session clip and displays:
+It follows the selected track's currently playing Session slot/clip and shows a compact musical counter UI.
 
-- `Bar:Beat:16th` musical readout (elapsed by default, with a remaining toggle)
-- Beat pulse flash on every beat with a stronger downbeat pulse
-- Last-bar color warning in both modes
-- Loop-cycle labels (`L1`, `L2`, ...) once playback is in the loop section
+## Current Feature Set
 
-UI stack:
+- Musical counter in `Bar:Beat:16th` format.
+- Toggle between:
+  - `Elapsed` mode (counts up from launch or loop start)
+  - `Remaining` mode (counts down to clip end or loop end)
+- Last-bar warning color behavior.
+- Beat flash animation with stronger emphasis on downbeat.
+- Header metadata pills:
+  - clip name
+  - track name
+  - scene name
+- Each metadata pill uses Ableton-provided color (with auto-contrast text).
+- Status icon badge (icon-only): playing, stopped, disconnected.
+- Float/normal toggle (always-on-top on/off).
+- Resizable window with persisted position and content size.
+  - default content size: `370x180`
+  - native full-width macOS title bar.
+- Clip handoff smoothing to avoid brief no-clip flicker during track transitions.
 
-- React renderer
-- Tailwind CSS with an Ableton-inspired token palette
-- shadcn-style component primitives
+Notes:
 
-Behavior details:
-
-- Non-loop clips:
-  - elapsed mode counts from launch to clip end
-  - remaining mode counts down to clip end
-- Looping clips:
-  - elapsed mode resets each loop cycle
-  - remaining mode counts down to next `loop_end`
-  - last-bar warning is based on `loop_end`
-  - if the clip starts before `loop_start`, cycle labels stay hidden during intro
+- No loop-cycle counter is displayed.
+- Empty metadata names still render as empty pills (for stable visual layout).
 
 ## Requirements
 
 - macOS
 - Ableton Live with AbletonOSC installed and running
-- Node.js 22+ (tested with newer)
+- Node.js 22+
 
-## OSC Assumptions (v1)
+## OSC Assumptions
 
 Ports are hardcoded:
 
@@ -46,16 +49,16 @@ npm install
 npm run dev
 ```
 
-Debug build with inspect ports:
+## Debug Dev Mode
 
 ```bash
 npm run dev:debug
 ```
 
-This auto-picks free ports starting from:
+This auto-selects free ports (starting from the values below):
 
-- Main process inspector: `9230` (override with `AOSC_MAIN_DEBUG_PORT`)
-- Renderer Chrome DevTools Protocol: `9222` (override with `AOSC_RENDERER_DEBUG_PORT`)
+- Main process inspector: `9230` (override start with `AOSC_MAIN_DEBUG_PORT`)
+- Renderer CDP (DevTools protocol): `9222` (override start with `AOSC_RENDERER_DEBUG_PORT`)
 
 ## Validation
 
@@ -65,9 +68,9 @@ npm run typecheck
 npm run build
 ```
 
-`npm test` runs both:
+`npm test` runs:
 
-- node timing/counter unit tests
+- node timing/counter tests
 - jsdom renderer component tests
 
 ## Build macOS `.app`
@@ -76,8 +79,7 @@ npm run build
 npm run dist:mac
 ```
 
-Output:
+This runs a universal (`--universal`) macOS dir build via `electron-builder`.
+Expected output is in `dist/` (for example `dist/mac-universal/AOSC HUD.app`).
 
-- `dist/mac-arm64/AOSC HUD.app`
-
-This build is unsigned. On first launch, use Control-click -> Open in Finder.
+The app is unsigned. First launch may require Control-click -> Open in Finder.
