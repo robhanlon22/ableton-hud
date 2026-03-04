@@ -5,6 +5,7 @@
   "main": "out/main/index.js",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.30.3",
   "scripts": {
     "dev": "electron-vite dev",
     "dev:debug": "sh ./scripts/dev-debug.sh",
@@ -12,7 +13,7 @@
     "preview": "electron-vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "dist:mac": "npm run build && electron-builder --mac dir --universal"
+    "dist:mac": "pnpm run build && electron-builder --mac dir --universal"
   },
   "build": {
     "appId": "com.rob.aosc.hud",

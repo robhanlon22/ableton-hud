@@ -45,14 +45,14 @@ Ports are hardcoded:
 ## Development
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 ## Debug Dev Mode
 
 ```bash
-npm run dev:debug
+pnpm run dev:debug
 ```
 
 This auto-selects free ports (starting from the values below):
@@ -63,12 +63,12 @@ This auto-selects free ports (starting from the values below):
 ## Validation
 
 ```bash
-npm test
-npm run typecheck
-npm run build
+pnpm test
+pnpm run typecheck
+pnpm run build
 ```
 
-`npm test` runs:
+`pnpm test` runs:
 
 - node timing/counter tests
 - jsdom renderer component tests
@@ -76,7 +76,7 @@ npm run build
 ## Build macOS `.app`
 
 ```bash
-npm run dist:mac
+pnpm run dist:mac
 ```
 
 This runs a universal (`--universal`) macOS dir build via `electron-builder`.
