@@ -1,5 +1,5 @@
 {
-  "name": "aosc-hud",
+  "name": "ableton-hud",
   "version": "0.1.0",
   "description": "Always-on-top AbletonOSC clip timing HUD",
   "main": "out/main/index.js",
