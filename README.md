@@ -1,4 +1,4 @@
-# AOSC HUD
+# Ableton HUD
 
 Desktop timing HUD for Ableton Live via [AbletonOSC](https://github.com/ideoforms/AbletonOSC).
 
@@ -80,6 +80,6 @@ pnpm run dist:mac
 ```
 
 This runs a universal (`--universal`) macOS dir build via `electron-builder`.
-Expected output is in `dist/` (for example `dist/mac-universal/AOSC HUD.app`).
+Expected output is in `dist/` (for example `dist/mac-universal/Ableton HUD.app`).
 
 The app is unsigned. First launch may require Control-click -> Open in Finder.
