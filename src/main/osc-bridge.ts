@@ -575,6 +575,11 @@ export class AbletonOscBridge {
   }
 }
 
+/**
+ * Unwraps OSC argument payloads that use `{ value }` envelopes.
+ * @param value - The raw OSC argument value.
+ * @returns The unwrapped value when present, otherwise the original input.
+ */
 function argValue(value: unknown): unknown {
   if (value && typeof value === "object" && "value" in value) {
     return (value as { value: unknown }).value;
@@ -582,6 +587,10 @@ function argValue(value: unknown): unknown {
   return value;
 }
 
+/**
+ * Creates zeroed counter parts for initial HUD state.
+ * @returns A counter parts object with all fields set to `0`.
+ */
 function defaultCounterParts(): CounterParts {
   return {
     bar: 0,
@@ -590,6 +599,11 @@ function defaultCounterParts(): CounterParts {
   };
 }
 
+/**
+ * Converts an OSC argument to a boolean value.
+ * @param value - The raw OSC argument value.
+ * @returns The normalized boolean representation.
+ */
 function toBoolean(value: unknown): boolean {
   const resolved = argValue(value);
   if (typeof resolved === "boolean") {
@@ -605,6 +619,11 @@ function toBoolean(value: unknown): boolean {
   return false;
 }
 
+/**
+ * Converts an OSC color value to a normalized 24-bit RGB integer.
+ * @param value - The raw OSC argument value.
+ * @returns A normalized RGB integer, or `null` when parsing fails.
+ */
 function toColorValue(value: unknown): null | number {
   const parsed = Number(argValue(value));
   if (!Number.isFinite(parsed)) {
@@ -615,11 +634,22 @@ function toColorValue(value: unknown): null | number {
   return (Math.round(parsed) >>> 0) & 0xffffff;
 }
 
+/**
+ * Converts an OSC argument to a finite number.
+ * @param value - The raw OSC argument value.
+ * @param fallback - The value returned when parsing fails.
+ * @returns The parsed number or the fallback.
+ */
 function toNumber(value: unknown, fallback = 0): number {
   const parsed = Number(argValue(value));
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+/**
+ * Converts an OSC argument to a string when possible.
+ * @param value - The raw OSC argument value.
+ * @returns The parsed string, or an empty string for unsupported values.
+ */
 function toStringValue(value: unknown): string {
   const resolved = argValue(value);
   if (typeof resolved === "string") {

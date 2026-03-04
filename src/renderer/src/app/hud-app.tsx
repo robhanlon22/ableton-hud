@@ -37,6 +37,10 @@ type ClipColorState = Pick<
 
 type StatusKind = "disconnected" | "playing" | "stopped";
 
+/**
+ * Connects the HUD surface to window APIs and local view state.
+ * @returns The live HUD application element.
+ */
 export function HudApp(): React.JSX.Element {
   const [hudState, setHudState] = useState<HudState>(() =>
     createDefaultHudState(),
@@ -184,12 +188,13 @@ export function HudApp(): React.JSX.Element {
   );
 }
 
-export function HudSurface({
-  isFlashActive,
-  onToggleMode,
-  onToggleTopmost,
-  state,
-}: HudSurfaceProps): React.JSX.Element {
+/**
+ * Renders the presentational HUD surface for a single state snapshot.
+ * @param props - HUD render props including state and action handlers.
+ * @returns The HUD surface element.
+ */
+export function HudSurface(props: HudSurfaceProps): React.JSX.Element {
+  const { isFlashActive, onToggleMode, onToggleTopmost, state } = props;
   const status = statusKind(state);
   const clipStyle = metadataPillStyle(state.clipColor);
   const trackStyle = metadataPillStyle(state.trackColor);
@@ -334,6 +339,12 @@ export function HudSurface({
   );
 }
 
+/**
+ * Resolves the clip color shown during transient clip/track handoffs.
+ * @param previousHeldColor - The last non-null clip color currently held.
+ * @param nextState - The newest clip color-related playback state.
+ * @returns The clip color to render, or `null` when nothing should be held.
+ */
 export function resolveHeldClipColor(
   previousHeldColor: null | number,
   nextState: ClipColorState,
@@ -349,6 +360,12 @@ export function resolveHeldClipColor(
   return nextState.clipColor ?? previousHeldColor;
 }
 
+/**
+ * Determines whether a null clip update should be delayed during track handoff.
+ * @param previous - The previously rendered HUD state.
+ * @param next - The next incoming HUD state.
+ * @returns `true` when a temporary null clip should be held, otherwise `false`.
+ */
 export function shouldHoldNullClipTransition(
   previous: HudState,
   next: HudState,
@@ -369,6 +386,11 @@ export function shouldHoldNullClipTransition(
   return previous.trackIndex !== next.trackIndex;
 }
 
+/**
+ * Picks a readable foreground color for a metadata pill background.
+ * @param color - RGB color value used for the pill background.
+ * @returns A hex foreground color string with better contrast.
+ */
 function clipTextColor(color: number): string {
   const luminance = relativeLuminance(color);
   const whiteContrast = contrastRatio(luminance, 1);
@@ -376,16 +398,32 @@ function clipTextColor(color: number): string {
   return whiteContrast >= darkContrast ? "#ffffff" : "#101216";
 }
 
+/**
+ * Computes WCAG-style contrast ratio from two luminance values.
+ * @param l1 - First relative luminance value.
+ * @param l2 - Second relative luminance value.
+ * @returns The contrast ratio between the two luminance values.
+ */
 function contrastRatio(l1: number, l2: number): number {
   const lighter = Math.max(l1, l2);
   const darker = Math.min(l1, l2);
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+/**
+ * Normalizes nullable metadata labels for UI display.
+ * @param value - Nullable name value from HUD state.
+ * @returns A trimmed display string, or an empty string when absent.
+ */
 function displayName(value: null | string): string {
   return value?.trim() ?? "";
 }
 
+/**
+ * Computes flash animation duration for the current musical position.
+ * @param state - HUD state used to derive downbeat and last-bar emphasis.
+ * @returns The flash duration in milliseconds.
+ */
 function flashDuration(state: HudState): number {
   if (state.isLastBar && state.isDownbeat) {
     return 320;
@@ -396,6 +434,11 @@ function flashDuration(state: HudState): number {
   return 150;
 }
 
+/**
+ * Builds inline styles for a metadata pill from an optional clip color.
+ * @param color - Nullable RGB color value from Ableton metadata.
+ * @returns Inline style properties, or `undefined` when no color exists.
+ */
 function metadataPillStyle(color: null | number): CSSProperties | undefined {
   if (color === null) {
     return undefined;
@@ -413,10 +456,21 @@ function metadataPillStyle(color: null | number): CSSProperties | undefined {
   };
 }
 
+/**
+ * Converts HUD mode enum values into user-facing labels.
+ * @param mode - Current HUD counter mode.
+ * @returns The label to render for the mode toggle button.
+ */
 function modeLabel(mode: HudMode): string {
   return mode === "elapsed" ? "Elapsed" : "Remaining";
 }
 
+/**
+ * Selects panel highlight classes for the active beat flash state.
+ * @param state - HUD state containing downbeat/last-bar flags.
+ * @param isFlashActive - Whether flash styling should currently be shown.
+ * @returns A space-delimited class string for flash styling.
+ */
 function panelFlashClass(state: HudState, isFlashActive: boolean): string {
   if (!isFlashActive) {
     return "";
@@ -434,6 +488,11 @@ function panelFlashClass(state: HudState, isFlashActive: boolean): string {
   return "border-[#4a5a45] bg-[#272f25]";
 }
 
+/**
+ * Converts an RGB color into a relative luminance value.
+ * @param color - RGB color value encoded as a number.
+ * @returns The computed relative luminance.
+ */
 function relativeLuminance(color: number): number {
   const r = (color >> 16) & 0xff;
   const g = (color >> 8) & 0xff;
@@ -445,6 +504,11 @@ function relativeLuminance(color: number): number {
   );
 }
 
+/**
+ * Converts an sRGB color channel to linear-light space.
+ * @param channel - 8-bit sRGB channel value.
+ * @returns The linearized channel value.
+ */
 function srgbToLinear(channel: number): number {
   const normalized = channel / 255;
   if (normalized <= 0.04045) {
@@ -453,6 +517,11 @@ function srgbToLinear(channel: number): number {
   return ((normalized + 0.055) / 1.055) ** 2.4;
 }
 
+/**
+ * Returns the icon used for a given transport status.
+ * @param status - Transport status to visualize.
+ * @returns The status icon element.
+ */
 function statusIcon(status: StatusKind): React.JSX.Element {
   if (status === "playing") {
     return <Play aria-hidden className="h-3.5 w-3.5 fill-current" />;
@@ -463,6 +532,11 @@ function statusIcon(status: StatusKind): React.JSX.Element {
   return <WifiOff aria-hidden className="h-3.5 w-3.5" />;
 }
 
+/**
+ * Maps transport and connection state to a compact status kind.
+ * @param state - HUD state snapshot.
+ * @returns The derived status kind.
+ */
 function statusKind(state: HudState): StatusKind {
   if (!state.connected) {
     return "disconnected";
@@ -473,6 +547,11 @@ function statusKind(state: HudState): StatusKind {
   return "stopped";
 }
 
+/**
+ * Maps a status kind to the corresponding user-facing label.
+ * @param status - Status kind returned by {@link statusKind}.
+ * @returns A short status label for accessibility text.
+ */
 function statusLabel(status: StatusKind): string {
   if (status === "playing") {
     return "Playing";
@@ -483,6 +562,11 @@ function statusLabel(status: StatusKind): string {
   return "Disconnected";
 }
 
+/**
+ * Chooses badge variant colors from the current transport state.
+ * @param state - HUD state used to determine visual badge variant.
+ * @returns The badge variant name for the status indicator.
+ */
 function statusVariant(
   state: HudState,
 ): "neutral" | "offline" | "success" | "warning" {

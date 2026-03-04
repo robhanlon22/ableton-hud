@@ -39,6 +39,12 @@ export const HudStateSchema: z.ZodType<HudState> = z.object({
   trackName: z.string().nullable(),
 });
 
+/**
+ * Creates the initial HUD state used before OSC data arrives.
+ * @param mode - The initial counter mode.
+ * @param alwaysOnTop - Whether the window should start topmost.
+ * @returns A fully populated default HUD state.
+ */
 export function createDefaultHudState(
   mode: HudMode = "elapsed",
   alwaysOnTop = false,

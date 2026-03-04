@@ -1,6 +1,8 @@
 import { includeIgnoreFile } from "@eslint/compat";
 import js from "@eslint/js";
+import jsdoc from "eslint-plugin-jsdoc";
 import perfectionist from "eslint-plugin-perfectionist";
+import tsdoc from "eslint-plugin-tsdoc";
 import { defineConfig } from "eslint/config";
 import globals from "globals";
 import { dirname, resolve } from "node:path";
@@ -19,9 +21,15 @@ export default defineConfig([
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
     plugins: { js },
   },
+  jsdoc.configs["flat/recommended-typescript-error"],
   perfectionist.configs["recommended-natural"],
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
+  {
+    files: ["**/*.{ts,mts,cts,tsx}"],
+    plugins: { tsdoc },
+    rules: { "tsdoc/syntax": "error" },
+  },
   {
     files: ["**/*.{js,mjs,cjs}"],
     ...tseslint.configs.disableTypeChecked,

@@ -35,6 +35,9 @@ if (rendererDebugPort) {
   }
 }
 
+/**
+ *
+ */
 async function createWindow(): Promise<void> {
   const prefs = await prefStore.load();
   const windowBounds = prefs.windowBounds;
@@ -107,6 +110,9 @@ async function createWindow(): Promise<void> {
   });
 }
 
+/**
+ *
+ */
 async function persistPrefs(): Promise<void> {
   if (!mainWindow || mainWindow.isDestroyed()) {
     return;
@@ -127,6 +133,9 @@ async function persistPrefs(): Promise<void> {
   });
 }
 
+/**
+ *
+ */
 function registerIpcHandlers(): void {
   ipcMain.removeHandler(HUD_CHANNELS.getInitialState);
   ipcMain.handle(HUD_CHANNELS.getInitialState, () => {
@@ -159,12 +168,20 @@ function registerIpcHandlers(): void {
   });
 }
 
+/**
+ * Resolves the current always-on-top state of the main window.
+ * @returns `true` when the main window exists and is topmost.
+ */
 function resolveAlwaysOnTop(): boolean {
   return Boolean(
     mainWindow && !mainWindow.isDestroyed() && mainWindow.isAlwaysOnTop(),
   );
 }
 
+/**
+ * Sends sanitized HUD state to the renderer process.
+ * @param state - The next HUD state to validate and broadcast.
+ */
 function sendStateToWindow(state: HudState): void {
   const parsedState = HudStateSchema.safeParse(withWindowState(state));
   if (!parsedState.success) {
@@ -177,6 +194,11 @@ function sendStateToWindow(state: HudState): void {
   }
 }
 
+/**
+ * Adds live window flags to a HUD state snapshot.
+ * @param state - The HUD state to augment.
+ * @returns The provided state with the latest window-derived fields.
+ */
 function withWindowState(state: HudState): HudState {
   return {
     ...state,

@@ -10,6 +10,11 @@ import {
   shouldHoldNullClipTransition,
 } from "./hud-app";
 
+/**
+ * Creates a HUD state fixture with sensible defaults for tests.
+ * @param overrides - Partial state values to override in the default fixture.
+ * @returns A complete HUD state object for rendering assertions.
+ */
 function makeState(overrides: Partial<HudState> = {}): HudState {
   return {
     ...createDefaultHudState(),

@@ -25,13 +25,15 @@ export interface BadgeProps
     React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof badgeVariants> {}
 
-function Badge({
-  className,
-  variant,
-  ...props
-}: BadgeProps): React.JSX.Element {
+/**
+ * Renders a compact status badge with variant styling.
+ * @param props - Badge props including class names, variant, and HTML attributes.
+ * @returns A styled badge element.
+ */
+function Badge(props: BadgeProps): React.JSX.Element {
+  const { className, variant, ...restProps } = props;
   return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    <div className={cn(badgeVariants({ variant }), className)} {...restProps} />
   );
 }
 
