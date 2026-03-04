@@ -3,18 +3,12 @@ import {
   computeBeatInBar,
   computeBeatsPerBar,
   computeIsLastBar,
-  computeRemainingBeats,
-  createElapsedAccumulator,
-  updateElapsedAccumulator
+  createTimingGrid,
+  formatCounterParts,
+  hasValidLoopSpan,
+  toElapsedCounterParts,
+  toRemainingCounterParts
 } from './counter';
-import type { ClipTimingMeta } from '../shared/types';
-
-const loopClip: ClipTimingMeta = {
-  length: 8,
-  loopStart: 0,
-  loopEnd: 4,
-  looping: true
-};
 
 describe('counter', () => {
   it('computes beats per bar from signature', () => {
@@ -22,58 +16,74 @@ describe('counter', () => {
     expect(computeBeatsPerBar(7, 8)).toBe(3.5);
   });
 
-  it('tracks elapsed beats across normal increments', () => {
-    let acc = createElapsedAccumulator();
-    acc = updateElapsedAccumulator(acc, 0, loopClip);
-    acc = updateElapsedAccumulator(acc, 1, loopClip);
-    acc = updateElapsedAccumulator(acc, 2.5, loopClip);
-    expect(acc.elapsedBeats).toBeCloseTo(2.5, 5);
+  it('builds timing grid from signature', () => {
+    const grid = createTimingGrid(4, 4);
+    expect(grid.beatsPerBar).toBe(4);
+    expect(grid.beatLength).toBe(1);
+    expect(grid.sixteenthLength).toBe(0.25);
+    expect(grid.beatsPerDisplayBar).toBe(4);
   });
 
-  it('tracks elapsed beats across loop wrap', () => {
-    let acc = createElapsedAccumulator();
-    acc = updateElapsedAccumulator(acc, 3.75, loopClip);
-    acc = updateElapsedAccumulator(acc, 0.25, loopClip);
-    expect(acc.elapsedBeats).toBeCloseTo(0.5, 5);
+  it('computes beat in bar using zero-based AbletonOSC beat ticks', () => {
+    expect(computeBeatInBar(0, 4)).toBe(1);
+    expect(computeBeatInBar(1, 4)).toBe(2);
+    expect(computeBeatInBar(3, 4)).toBe(4);
+    expect(computeBeatInBar(4, 4)).toBe(1);
   });
 
-  it('resets elapsed beats on relaunch-like jump', () => {
-    const nonLoopClip: ClipTimingMeta = {
-      length: 8,
-      loopStart: 0,
-      loopEnd: 8,
-      looping: false
-    };
+  it('formats elapsed values as bar:beat:16th', () => {
+    const grid = createTimingGrid(4, 4);
 
-    let acc = createElapsedAccumulator();
-    acc = updateElapsedAccumulator(acc, 3, nonLoopClip);
-    acc = updateElapsedAccumulator(acc, 4, nonLoopClip);
-    acc = updateElapsedAccumulator(acc, 0.1, nonLoopClip);
-    expect(acc.elapsedBeats).toBeCloseTo(0, 5);
+    expect(formatCounterParts(toElapsedCounterParts(0, grid))).toBe('1:1:1');
+    expect(formatCounterParts(toElapsedCounterParts(0.24, grid))).toBe('1:1:1');
+    expect(formatCounterParts(toElapsedCounterParts(0.25, grid))).toBe('1:1:2');
+    expect(formatCounterParts(toElapsedCounterParts(0.5, grid))).toBe('1:1:3');
+    expect(formatCounterParts(toElapsedCounterParts(0.99, grid))).toBe('1:1:4');
+    expect(formatCounterParts(toElapsedCounterParts(1, grid))).toBe('1:2:1');
+    expect(formatCounterParts(toElapsedCounterParts(4, grid))).toBe('2:1:1');
   });
 
-  it('computes remaining beats for looping and one-shot clips', () => {
-    expect(computeRemainingBeats(2.25, loopClip)).toBeCloseTo(1.75, 5);
+  it('formats remaining values with zero endpoint', () => {
+    const grid = createTimingGrid(4, 4);
 
-    const oneShot: ClipTimingMeta = {
-      length: 8,
-      loopStart: 0,
-      loopEnd: 8,
-      looping: false
-    };
-    expect(computeRemainingBeats(7.25, oneShot)).toBeCloseTo(0.75, 5);
+    expect(formatCounterParts(toRemainingCounterParts(0, grid))).toBe('0:0:0');
+    expect(formatCounterParts(toRemainingCounterParts(3.75, grid))).toBe('1:4:4');
+    expect(formatCounterParts(toRemainingCounterParts(4, grid))).toBe('2:1:1');
   });
 
-  it('computes beat in bar using AbletonOSC beat counter semantics', () => {
-    expect(computeBeatInBar(1, 4)).toBe(1);
-    expect(computeBeatInBar(4, 4)).toBe(4);
-    expect(computeBeatInBar(5, 4)).toBe(1);
+  it('detects loop span validity', () => {
+    expect(
+      hasValidLoopSpan({
+        length: 8,
+        loopStart: 0,
+        loopEnd: 4,
+        looping: true
+      })
+    ).toBe(true);
+
+    expect(
+      hasValidLoopSpan({
+        length: 8,
+        loopStart: 2,
+        loopEnd: 2,
+        looping: true
+      })
+    ).toBe(false);
+
+    expect(
+      hasValidLoopSpan({
+        length: 8,
+        loopStart: 0,
+        loopEnd: 4,
+        looping: false
+      })
+    ).toBe(false);
   });
 
-  it('detects last bar threshold', () => {
-    expect(computeIsLastBar(0.99)).toBe(true);
-    expect(computeIsLastBar(1.0)).toBe(true);
-    expect(computeIsLastBar(1.01)).toBe(false);
-    expect(computeIsLastBar(0)).toBe(false);
+  it('detects last bar from remaining beats', () => {
+    expect(computeIsLastBar(0.99, 4)).toBe(true);
+    expect(computeIsLastBar(4, 4)).toBe(true);
+    expect(computeIsLastBar(4.1, 4)).toBe(false);
+    expect(computeIsLastBar(0, 4)).toBe(false);
   });
 });

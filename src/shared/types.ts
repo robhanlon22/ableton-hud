@@ -1,5 +1,13 @@
 export type HudMode = 'elapsed' | 'remaining';
 
+export interface CounterParts {
+  bar: number;
+  beat: number;
+  sixteenth: number;
+}
+
+export type LastBarSource = 'loop_end' | 'clip_end' | null;
+
 export interface HudState {
   connected: boolean;
   isPlaying: boolean;
@@ -7,8 +15,14 @@ export interface HudState {
   clipIndex: number | null;
   clipName: string | null;
   mode: HudMode;
-  barsValue: number;
+  counterText: string;
+  counterParts: CounterParts;
+  cycleLabel: string | null;
+  isLoopingClip: boolean;
+  isIntroPhase: boolean;
+  lastBarSource: LastBarSource;
   beatInBar: number;
+  isDownbeat: boolean;
   isLastBar: boolean;
   beatFlashToken: number;
 }
@@ -20,7 +34,9 @@ export interface ClipTimingMeta {
   looping: boolean;
 }
 
-export interface ElapsedAccumulator {
-  prevPosition: number | null;
-  elapsedBeats: number;
+export interface TimingGrid {
+  beatsPerBar: number;
+  beatLength: number;
+  sixteenthLength: number;
+  beatsPerDisplayBar: number;
 }

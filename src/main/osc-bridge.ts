@@ -1,13 +1,15 @@
 import OSC, { type OscMessage, type UDPPort } from 'osc';
 import {
+  EPSILON,
   computeBeatInBar,
-  computeBeatsPerBar,
   computeIsLastBar,
-  computeRemainingBeats,
-  createElapsedAccumulator,
-  updateElapsedAccumulator
+  createTimingGrid,
+  formatCounterParts,
+  hasValidLoopSpan,
+  toElapsedCounterParts,
+  toRemainingCounterParts
 } from './counter';
-import type { ClipTimingMeta, ElapsedAccumulator, HudMode, HudState } from '../shared/types';
+import type { ClipTimingMeta, CounterParts, HudMode, HudState, LastBarSource } from '../shared/types';
 
 const OSC_HOST = '127.0.0.1';
 const OSC_SEND_PORT = 11000;
@@ -45,6 +47,14 @@ function toStringValue(value: unknown): string {
   return typeof resolved === 'string' ? resolved : String(resolved ?? '');
 }
 
+function defaultCounterParts(): CounterParts {
+  return {
+    bar: 0,
+    beat: 0,
+    sixteenth: 0
+  };
+}
+
 export class AbletonOscBridge {
   private readonly port: UDPPort;
   private readonly connectionHeartbeatMs = 5000;
@@ -66,9 +76,13 @@ export class AbletonOscBridge {
   private signatureNumerator = 4;
   private signatureDenominator = 4;
   private isPlaying = false;
-  private beatCounter = 1;
+  private beatCounter = 0;
   private beatFlashToken = 0;
-  private elapsedAccumulator: ElapsedAccumulator = createElapsedAccumulator();
+
+  private launchPosition: number | null = null;
+  private currentPosition: number | null = null;
+  private previousPosition: number | null = null;
+  private loopWrapCount = 0;
 
   private connected = false;
   private lastMessageAt = 0;
@@ -134,11 +148,6 @@ export class AbletonOscBridge {
 
   setMode(mode: HudMode): void {
     this.mode = mode;
-    this.emit();
-  }
-
-  setOnState(nextOnState: (state: HudState) => void): void {
-    this.onState = nextOnState;
     this.emit();
   }
 
@@ -229,8 +238,7 @@ export class AbletonOscBridge {
         const track = toNumber(args[0], -1);
         const clip = toNumber(args[1], -1);
         if (this.isActiveClip(track, clip)) {
-          const position = toNumber(args[2], 0);
-          this.elapsedAccumulator = updateElapsedAccumulator(this.elapsedAccumulator, position, this.clipMeta);
+          this.handlePlayingPosition(toNumber(args[2], 0));
           this.emit();
         }
         return;
@@ -255,7 +263,7 @@ export class AbletonOscBridge {
       }
 
       case '/live/song/get/beat': {
-        this.beatCounter = Math.max(1, Math.round(toNumber(args[0], this.beatCounter)));
+        this.beatCounter = Math.max(0, Math.round(toNumber(args[0], this.beatCounter)));
         this.beatFlashToken += 1;
         this.emit();
         return;
@@ -312,7 +320,7 @@ export class AbletonOscBridge {
       loopEnd: 4,
       looping: false
     };
-    this.elapsedAccumulator = createElapsedAccumulator();
+    this.resetClipRunState();
 
     this.send('/live/clip/start_listen/playing_position', [this.selectedTrack, slotIndex]);
     this.send('/live/clip/get/playing_position', [this.selectedTrack, slotIndex]);
@@ -325,6 +333,58 @@ export class AbletonOscBridge {
     this.emit();
   }
 
+  private resetClipRunState(): void {
+    this.launchPosition = null;
+    this.currentPosition = null;
+    this.previousPosition = null;
+    this.loopWrapCount = 0;
+  }
+
+  private handlePlayingPosition(position: number): void {
+    if (this.currentPosition === null) {
+      this.launchPosition = position;
+      this.currentPosition = position;
+      this.previousPosition = position;
+      this.loopWrapCount = 0;
+      return;
+    }
+
+    const previous = this.currentPosition;
+    if (position < previous - EPSILON) {
+      if (this.isNaturalLoopWrap(previous, position)) {
+        this.loopWrapCount += 1;
+      } else {
+        // Relaunch or transport jump on the same clip: reset elapsed baseline.
+        this.launchPosition = position;
+        this.loopWrapCount = 0;
+      }
+    }
+
+    this.previousPosition = previous;
+    this.currentPosition = position;
+    if (this.launchPosition === null) {
+      this.launchPosition = position;
+    }
+  }
+
+  private isNaturalLoopWrap(previousPosition: number, currentPosition: number): boolean {
+    if (!hasValidLoopSpan(this.clipMeta)) {
+      return false;
+    }
+
+    const loopSpan = this.clipMeta.loopEnd - this.clipMeta.loopStart;
+    const wrappedDelta = currentPosition + loopSpan - previousPosition;
+
+    return (
+      previousPosition >= this.clipMeta.loopStart - EPSILON &&
+      previousPosition <= this.clipMeta.loopEnd + EPSILON &&
+      currentPosition >= this.clipMeta.loopStart - EPSILON &&
+      currentPosition <= this.clipMeta.loopEnd + EPSILON &&
+      wrappedDelta >= -EPSILON &&
+      wrappedDelta <= loopSpan + 1
+    );
+  }
+
   private clearClipSubscription(): void {
     if (this.activeClip) {
       this.send('/live/clip/stop_listen/playing_position', [this.activeClip.track, this.activeClip.clip]);
@@ -332,7 +392,7 @@ export class AbletonOscBridge {
 
     this.activeClip = null;
     this.clipName = null;
-    this.elapsedAccumulator = createElapsedAccumulator();
+    this.resetClipRunState();
   }
 
   private isActiveClip(track: number, clip: number): boolean {
@@ -340,20 +400,55 @@ export class AbletonOscBridge {
   }
 
   private emit(): void {
-    const beatsPerBar = computeBeatsPerBar(this.signatureNumerator, this.signatureDenominator);
-    const beatInBar = computeBeatInBar(this.beatCounter, beatsPerBar);
+    const timingGrid = createTimingGrid(this.signatureNumerator, this.signatureDenominator);
+    const beatInBar = computeBeatInBar(this.beatCounter, timingGrid.beatsPerBar);
+    const isDownbeat = beatInBar === 1;
 
-    let barsValue = 0;
+    let counterParts = defaultCounterParts();
+    let cycleLabel: string | null = null;
+    let isLoopingClip = false;
+    let isIntroPhase = false;
     let isLastBar = false;
+    let lastBarSource: LastBarSource = null;
 
-    if (this.activeClip) {
-      if (this.mode === 'elapsed') {
-        barsValue = this.elapsedAccumulator.elapsedBeats / beatsPerBar;
+    if (this.activeClip && this.currentPosition !== null) {
+      const currentPosition = this.currentPosition;
+      const launchPosition = this.launchPosition ?? currentPosition;
+      const loopSpanValid = hasValidLoopSpan(this.clipMeta);
+      isLoopingClip = loopSpanValid;
+
+      if (loopSpanValid) {
+        const hasLoopIntro = launchPosition < this.clipMeta.loopStart - EPSILON;
+        const inLoopSection = this.loopWrapCount > 0 || currentPosition >= this.clipMeta.loopStart - EPSILON;
+        isIntroPhase = hasLoopIntro && !inLoopSection;
+
+        if (!isIntroPhase) {
+          cycleLabel = `L${Math.max(1, this.loopWrapCount + 1)}`;
+        }
+
+        const remainingToLoopEnd = Math.max(this.clipMeta.loopEnd - currentPosition, 0);
+        isLastBar = computeIsLastBar(remainingToLoopEnd, timingGrid.beatsPerBar);
+        lastBarSource = 'loop_end';
+
+        if (this.mode === 'elapsed') {
+          const elapsedBeats = isIntroPhase
+            ? Math.max(currentPosition - launchPosition, 0)
+            : Math.max(currentPosition - this.clipMeta.loopStart, 0);
+          counterParts = toElapsedCounterParts(elapsedBeats, timingGrid);
+        } else {
+          counterParts = toRemainingCounterParts(remainingToLoopEnd, timingGrid);
+        }
       } else {
-        const position = this.elapsedAccumulator.prevPosition ?? 0;
-        const remainingBeats = computeRemainingBeats(position, this.clipMeta);
-        barsValue = remainingBeats / beatsPerBar;
-        isLastBar = computeIsLastBar(barsValue);
+        const remainingToClipEnd = Math.max(this.clipMeta.length - currentPosition, 0);
+        isLastBar = computeIsLastBar(remainingToClipEnd, timingGrid.beatsPerBar);
+        lastBarSource = 'clip_end';
+
+        if (this.mode === 'elapsed') {
+          const elapsedBeats = Math.max(currentPosition - launchPosition, 0);
+          counterParts = toElapsedCounterParts(elapsedBeats, timingGrid);
+        } else {
+          counterParts = toRemainingCounterParts(remainingToClipEnd, timingGrid);
+        }
       }
     }
 
@@ -364,8 +459,14 @@ export class AbletonOscBridge {
       clipIndex: this.activeClip?.clip ?? null,
       clipName: this.clipName,
       mode: this.mode,
-      barsValue,
+      counterText: formatCounterParts(counterParts),
+      counterParts,
+      cycleLabel,
+      isLoopingClip,
+      isIntroPhase,
+      lastBarSource,
       beatInBar,
+      isDownbeat,
       isLastBar,
       beatFlashToken: this.beatFlashToken
     };

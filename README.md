@@ -4,9 +4,21 @@ A small, always-on-top desktop HUD for Ableton Live that talks directly to [Able
 
 It follows the selected track's currently playing Session clip and displays:
 
-- Bars elapsed (default), with a toggle to bars remaining
-- Beat pulse flash
-- Last-bar color change in countdown mode
+- `Bar:Beat:16th` musical readout (elapsed by default, with a remaining toggle)
+- Beat pulse flash on every beat with a stronger downbeat pulse
+- Last-bar color warning in both modes
+- Loop-cycle labels (`L1`, `L2`, ...) once playback is in the loop section
+
+Behavior details:
+
+- Non-loop clips:
+  - elapsed mode counts from launch to clip end
+  - remaining mode counts down to clip end
+- Looping clips:
+  - elapsed mode resets each loop cycle
+  - remaining mode counts down to next `loop_end`
+  - last-bar warning is based on `loop_end`
+  - if the clip starts before `loop_start`, cycle labels stay hidden during intro
 
 ## Requirements
 
