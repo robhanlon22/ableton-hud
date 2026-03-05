@@ -29,7 +29,7 @@
 
 ## Testing Guidelines
 
-- Frameworks: Vitest + Testing Library (unit/integration), Playwright (Electron E2E).
+- Frameworks: Vitest Browser Mode (`@vitest/browser` + `@vitest/browser-playwright` + `vitest-browser-react`) for unit/integration, Playwright for Electron E2E.
 - Coverage is mandatory and strict: `coverage.thresholds.{100:true, perFile:true}` in `vitest.config.ts`.
 - Do not bypass coverage with ignore pragmas for runtime code; improve design/tests instead.
 - Test structure is strict: always follow `arrange -> act -> assert` in that order.
@@ -38,6 +38,7 @@
   - `vi.fn()` for spies/mocks (not ad hoc inline functions).
   - `vi.stubGlobal()` for globals (instead of `Object.defineProperty(window, ...)`).
   - `vi.stubEnv()` for environment variables (instead of mutating `process.env` directly).
+- For renderer tests, prefer `render` from `vitest-browser-react` and async browser-safe assertions/interactions.
 - Typical local gate:
   - `pnpm exec eslint .`
   - `pnpm exec tsc --noEmit`
