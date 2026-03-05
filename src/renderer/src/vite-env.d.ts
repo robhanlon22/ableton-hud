@@ -9,6 +9,7 @@ declare global {
       onHudState: (callback: (state: HudState) => void) => () => void;
       setMode: (mode: HudMode) => Promise<void>;
       toggleTopmost: () => Promise<void>;
+      toggleTrackLock: () => Promise<void>;
     };
   }
 }

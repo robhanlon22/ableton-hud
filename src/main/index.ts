@@ -21,6 +21,7 @@ let mainWindow: BrowserWindow | null = null;
 let latestHudState: HudState | null = null;
 let bridge: AbletonOscBridge | null = null;
 let mode: HudMode = "elapsed";
+let trackLocked = false;
 
 const WINDOW_CONTENT_WIDTH = 370;
 const WINDOW_CONTENT_HEIGHT = 180;
@@ -101,7 +102,7 @@ async function createWindow(): Promise<void> {
   mainWindow.webContents.on("did-finish-load", () => {
     const initialState = latestHudState
       ? withWindowState(latestHudState)
-      : createDefaultHudState(mode, resolveAlwaysOnTop());
+      : createDefaultHudState(mode, resolveAlwaysOnTop(), trackLocked);
     mainWindow?.webContents.send(HUD_CHANNELS.state, initialState);
   });
 
@@ -124,6 +125,7 @@ async function persistPrefs(): Promise<void> {
   await prefStore.save({
     alwaysOnTop: mainWindow.isAlwaysOnTop(),
     mode,
+    trackLocked,
     windowBounds: {
       height: contentHeight,
       width: contentWidth,
@@ -141,7 +143,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(HUD_CHANNELS.getInitialState, () => {
     return latestHudState
       ? withWindowState(latestHudState)
-      : createDefaultHudState(mode, resolveAlwaysOnTop());
+      : createDefaultHudState(mode, resolveAlwaysOnTop(), trackLocked);
   });
 
   ipcMain.removeHandler(HUD_CHANNELS.setMode);
@@ -149,6 +151,16 @@ function registerIpcHandlers(): void {
     const parsedMode = HudModeSchema.parse(nextMode);
     mode = parsedMode;
     bridge?.setMode(parsedMode);
+    await persistPrefs();
+  });
+
+  ipcMain.removeHandler(HUD_CHANNELS.toggleTrackLock);
+  ipcMain.handle(HUD_CHANNELS.toggleTrackLock, async () => {
+    if (!bridge) {
+      return;
+    }
+
+    trackLocked = bridge.toggleTrackLock();
     await persistPrefs();
   });
 
@@ -163,7 +175,7 @@ function registerIpcHandlers(): void {
 
     const nextState = latestHudState
       ? withWindowState(latestHudState)
-      : createDefaultHudState(mode, resolveAlwaysOnTop());
+      : createDefaultHudState(mode, resolveAlwaysOnTop(), trackLocked);
     sendStateToWindow(nextState);
   });
 }
@@ -209,8 +221,9 @@ function withWindowState(state: HudState): HudState {
 void app.whenReady().then(async () => {
   const prefs = await prefStore.load();
   mode = prefs.mode;
+  trackLocked = prefs.trackLocked;
 
-  bridge = new AbletonOscBridge(mode, sendStateToWindow);
+  bridge = new AbletonOscBridge(mode, sendStateToWindow, trackLocked);
   bridge.start();
 
   registerIpcHandlers();

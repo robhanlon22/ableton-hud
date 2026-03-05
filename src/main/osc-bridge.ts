@@ -49,6 +49,7 @@ export class AbletonOscBridge {
 
   private mode: HudMode;
   private onState: (state: HudState) => void;
+  private pendingSelectedTrack: null | number = null;
   private readonly port: UDPPort;
   private previousPosition: null | number = null;
   private sceneColor: null | number = null;
@@ -59,11 +60,17 @@ export class AbletonOscBridge {
   private signatureNumerator = 4;
 
   private trackColor: null | number = null;
+  private trackLocked: boolean;
   private trackName: null | string = null;
 
-  constructor(mode: HudMode, onState: (state: HudState) => void) {
+  constructor(
+    mode: HudMode,
+    onState: (state: HudState) => void,
+    trackLocked = false,
+  ) {
     this.mode = mode;
     this.onState = onState;
+    this.trackLocked = trackLocked;
     this.port = new OSC.UDPPort({
       localAddress: OSC_HOST,
       localPort: OSC_LISTEN_PORT,
@@ -75,6 +82,22 @@ export class AbletonOscBridge {
 
   setMode(mode: HudMode): void {
     this.mode = mode;
+    this.emit();
+  }
+
+  setTrackLocked(trackLocked: boolean): void {
+    if (this.trackLocked === trackLocked) {
+      return;
+    }
+
+    this.trackLocked = trackLocked;
+    if (!trackLocked && this.pendingSelectedTrack !== null) {
+      const pendingTrack = this.pendingSelectedTrack;
+      this.pendingSelectedTrack = null;
+      this.applySelectedTrack(pendingTrack);
+      return;
+    }
+
     this.emit();
   }
 
@@ -128,6 +151,38 @@ export class AbletonOscBridge {
     this.send("/live/song/stop_listen/beat");
 
     this.port.close();
+  }
+
+  toggleTrackLock(): boolean {
+    this.setTrackLocked(!this.trackLocked);
+    return this.trackLocked;
+  }
+
+  private applySelectedTrack(trackIndex: number): void {
+    if (this.selectedTrack === trackIndex) {
+      return;
+    }
+
+    if (this.selectedTrack !== null) {
+      this.send("/live/track/stop_listen/playing_slot_index", [
+        this.selectedTrack,
+      ]);
+      this.send("/live/track/stop_listen/name", [this.selectedTrack]);
+      this.send("/live/track/stop_listen/color", [this.selectedTrack]);
+    }
+
+    this.selectedTrack = trackIndex;
+    this.trackName = null;
+    this.trackColor = null;
+    this.clearClipSubscription();
+
+    this.send("/live/track/start_listen/playing_slot_index", [trackIndex]);
+    this.send("/live/track/get/playing_slot_index", [trackIndex]);
+    this.send("/live/track/start_listen/name", [trackIndex]);
+    this.send("/live/track/get/name", [trackIndex]);
+    this.send("/live/track/start_listen/color", [trackIndex]);
+    this.send("/live/track/get/color", [trackIndex]);
+    this.emit();
   }
 
   private bootstrap(): void {
@@ -259,6 +314,7 @@ export class AbletonOscBridge {
       sceneName: this.sceneName,
       trackColor: this.trackColor,
       trackIndex: this.activeClip?.track ?? this.selectedTrack,
+      trackLocked: this.trackLocked,
       trackName: this.trackName,
     };
 
@@ -512,30 +568,17 @@ export class AbletonOscBridge {
       return;
     }
 
-    if (this.selectedTrack === trackIndex) {
+    if (
+      this.trackLocked &&
+      this.selectedTrack !== null &&
+      this.selectedTrack !== trackIndex
+    ) {
+      this.pendingSelectedTrack = trackIndex;
       return;
     }
 
-    if (this.selectedTrack !== null) {
-      this.send("/live/track/stop_listen/playing_slot_index", [
-        this.selectedTrack,
-      ]);
-      this.send("/live/track/stop_listen/name", [this.selectedTrack]);
-      this.send("/live/track/stop_listen/color", [this.selectedTrack]);
-    }
-
-    this.selectedTrack = trackIndex;
-    this.trackName = null;
-    this.trackColor = null;
-    this.clearClipSubscription();
-
-    this.send("/live/track/start_listen/playing_slot_index", [trackIndex]);
-    this.send("/live/track/get/playing_slot_index", [trackIndex]);
-    this.send("/live/track/start_listen/name", [trackIndex]);
-    this.send("/live/track/get/name", [trackIndex]);
-    this.send("/live/track/start_listen/color", [trackIndex]);
-    this.send("/live/track/get/color", [trackIndex]);
-    this.emit();
+    this.pendingSelectedTrack = null;
+    this.applySelectedTrack(trackIndex);
   }
 
   private isActiveClip(track: number, clip: number): boolean {

@@ -17,6 +17,7 @@ interface HudApiController {
   listenerCount: () => number;
   setMode: ReturnType<typeof vi.fn>;
   toggleTopmost: ReturnType<typeof vi.fn>;
+  toggleTrackLock: ReturnType<typeof vi.fn>;
 }
 
 const NOOP_LISTENER = (state: HudState): void => {
@@ -60,6 +61,7 @@ function installRejectedHudApiMock(): void {
     onHudState: vi.fn(() => vi.fn()),
     setMode: vi.fn(() => Promise.resolve()),
     toggleTopmost: vi.fn(() => Promise.resolve()),
+    toggleTrackLock: vi.fn(() => Promise.resolve()),
   });
 }
 
@@ -76,6 +78,7 @@ function installResolvedHudApiMock(initialState: HudState): HudApiController {
     void mode;
     return Promise.resolve();
   });
+  const toggleTrackLock = vi.fn(() => Promise.resolve());
   const toggleTopmost = vi.fn(() => Promise.resolve());
 
   stubHudApi({
@@ -90,6 +93,7 @@ function installResolvedHudApiMock(initialState: HudState): HudApiController {
     },
     setMode,
     toggleTopmost,
+    toggleTrackLock,
   });
 
   return {
@@ -99,6 +103,7 @@ function installResolvedHudApiMock(initialState: HudState): HudApiController {
     listenerCount: () => subscriptions,
     setMode,
     toggleTopmost,
+    toggleTrackLock,
   };
 }
 
@@ -187,12 +192,14 @@ describe("HudApp integration", () => {
       view.container,
       "button[aria-label='Set window floating']",
     ).click();
+    requiredByTestId(view.container, "track-lock-toggle").click();
 
     // assert
     expect(
       requiredByTestId(view.container, "mode-toggle").textContent,
     ).toContain("Remaining");
     expect(hudApi.setMode).toHaveBeenCalledWith("elapsed");
+    expect(hudApi.toggleTrackLock).toHaveBeenCalledTimes(1);
     expect(hudApi.toggleTopmost).toHaveBeenCalledTimes(1);
   });
 
@@ -363,6 +370,7 @@ describe("HudApp integration", () => {
       }),
       setMode: vi.fn(() => Promise.resolve()),
       toggleTopmost: vi.fn(() => Promise.resolve()),
+      toggleTrackLock: vi.fn(() => Promise.resolve()),
     });
 
     // act
@@ -391,6 +399,7 @@ describe("HudApp integration", () => {
       onHudState: vi.fn(() => unsubscribe),
       setMode: vi.fn(() => Promise.resolve()),
       toggleTopmost: vi.fn(() => Promise.resolve()),
+      toggleTrackLock: vi.fn(() => Promise.resolve()),
     });
 
     // act
@@ -413,6 +422,7 @@ describe("HudApp integration", () => {
       onHudState: vi.fn(() => unsubscribe),
       setMode: vi.fn(() => Promise.resolve()),
       toggleTopmost: vi.fn(() => Promise.resolve()),
+      toggleTrackLock: vi.fn(() => Promise.resolve()),
     });
 
     // act

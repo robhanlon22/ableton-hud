@@ -14,6 +14,7 @@ interface HudApi {
   onHudState: (callback: (state: HudState) => void) => () => void;
   setMode: (mode: HudMode) => Promise<void>;
   toggleTopmost: () => Promise<void>;
+  toggleTrackLock: () => Promise<void>;
 }
 
 interface HudApiWithE2E extends HudApi {
@@ -62,6 +63,10 @@ function createIpcHudApi(): HudApi {
 
     toggleTopmost: async (): Promise<void> => {
       await ipcRenderer.invoke(HUD_CHANNELS.toggleTopmost);
+    },
+
+    toggleTrackLock: async (): Promise<void> => {
+      await ipcRenderer.invoke(HUD_CHANNELS.toggleTrackLock);
     },
   };
 }
@@ -113,6 +118,15 @@ function createMockHudApi(): HudApiWithE2E {
       mockState = {
         ...mockState,
         alwaysOnTop: !mockState.alwaysOnTop,
+      };
+      emitMockState();
+      return Promise.resolve();
+    },
+
+    toggleTrackLock: (): Promise<void> => {
+      mockState = {
+        ...mockState,
+        trackLocked: !mockState.trackLocked,
       };
       emitMockState();
       return Promise.resolve();

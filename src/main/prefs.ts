@@ -15,18 +15,21 @@ const BoundsSchema = z.object({
 const PrefsSchema = z.object({
   alwaysOnTop: z.boolean().default(true),
   mode: z.enum(["elapsed", "remaining"]).default("elapsed"),
+  trackLocked: z.boolean().default(false),
   windowBounds: BoundsSchema.optional(),
 });
 
 export interface HudPreferences {
   alwaysOnTop: boolean;
   mode: HudMode;
+  trackLocked: boolean;
   windowBounds?: Rectangle;
 }
 
 const DEFAULT_PREFS: HudPreferences = {
   alwaysOnTop: true,
   mode: "elapsed",
+  trackLocked: false,
 };
 
 export class PrefStore {

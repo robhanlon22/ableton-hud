@@ -32,6 +32,7 @@ export interface HudState {
   sceneName: null | string;
   trackColor: null | number;
   trackIndex: null | number;
+  trackLocked: boolean;
   trackName: null | string;
 }
 

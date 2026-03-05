@@ -7,6 +7,7 @@ export const HUD_CHANNELS = {
   setMode: "hud:set-mode",
   state: "hud:state",
   toggleTopmost: "hud:toggle-topmost",
+  toggleTrackLock: "hud:toggle-track-lock",
 } as const;
 
 export const HudModeSchema = z.enum(["elapsed", "remaining"]);
@@ -36,6 +37,7 @@ export const HudStateSchema: z.ZodType<HudState> = z.object({
   sceneName: z.string().nullable(),
   trackColor: z.number().int().min(0).max(0xffffff).nullable(),
   trackIndex: z.number().int().nullable(),
+  trackLocked: z.boolean(),
   trackName: z.string().nullable(),
 });
 
@@ -43,11 +45,13 @@ export const HudStateSchema: z.ZodType<HudState> = z.object({
  * Creates the initial HUD state used before OSC data arrives.
  * @param mode - The initial counter mode.
  * @param alwaysOnTop - Whether the window should start topmost.
+ * @param trackLocked - Whether track selection starts locked.
  * @returns A fully populated default HUD state.
  */
 export function createDefaultHudState(
   mode: HudMode = "elapsed",
   alwaysOnTop = false,
+  trackLocked = false,
 ): HudState {
   return {
     alwaysOnTop,
@@ -72,6 +76,7 @@ export function createDefaultHudState(
     sceneName: null,
     trackColor: null,
     trackIndex: null,
+    trackLocked,
     trackName: null,
   };
 }

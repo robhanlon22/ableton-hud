@@ -1,4 +1,12 @@
-import { Pin, PinOff, Play, Square, WifiOff } from "lucide-react";
+import {
+  Lock,
+  LockOpen,
+  Pin,
+  PinOff,
+  Play,
+  Square,
+  WifiOff,
+} from "lucide-react";
 import {
   type CSSProperties,
   useEffect,
@@ -28,6 +36,7 @@ export interface HudSurfaceProps {
   isFlashActive: boolean;
   onToggleMode: () => void;
   onToggleTopmost: () => void;
+  onToggleTrackLock: () => void;
   state: HudState;
 }
 
@@ -157,6 +166,10 @@ export function HudApp(): React.JSX.Element {
     void window.hudApi.toggleTopmost();
   };
 
+  const onToggleTrackLock = (): void => {
+    void window.hudApi.toggleTrackLock();
+  };
+
   const renderState = useMemo(() => {
     const hasActiveClip =
       hudState.trackIndex !== null && hudState.clipIndex !== null;
@@ -178,6 +191,7 @@ export function HudApp(): React.JSX.Element {
       isFlashActive={isFlashActive}
       onToggleMode={onToggleMode}
       onToggleTopmost={onToggleTopmost}
+      onToggleTrackLock={onToggleTrackLock}
       state={renderState}
     />
   );
@@ -189,7 +203,13 @@ export function HudApp(): React.JSX.Element {
  * @returns The HUD surface element.
  */
 export function HudSurface(props: HudSurfaceProps): React.JSX.Element {
-  const { isFlashActive, onToggleMode, onToggleTopmost, state } = props;
+  const {
+    isFlashActive,
+    onToggleMode,
+    onToggleTopmost,
+    onToggleTrackLock,
+    state,
+  } = props;
   const status = statusKind(state);
   const clipStyle = metadataPillStyle(state.clipColor);
   const trackStyle = metadataPillStyle(state.trackColor);
@@ -306,6 +326,27 @@ export function HudSurface(props: HudSurfaceProps): React.JSX.Element {
               variant="ghost"
             >
               {modeLabel(state.mode)}
+            </Button>
+            <Button
+              aria-label={
+                state.trackLocked ? "Unlock track lock" : "Lock track selection"
+              }
+              className={cn(
+                "h-7 w-7 rounded-full border p-0 transition-colors",
+                state.trackLocked
+                  ? "border-amber-400/80 bg-amber-400/20 text-amber-300 hover:bg-amber-400/30"
+                  : "border-ableton-border bg-transparent text-ableton-muted hover:border-zinc-500 hover:bg-transparent hover:text-ableton-text",
+              )}
+              data-testid="track-lock-toggle"
+              onClick={onToggleTrackLock}
+              title={state.trackLocked ? "LOCKED" : "UNLOCKED"}
+              variant="ghost"
+            >
+              {state.trackLocked ? (
+                <Lock className="h-3.5 w-3.5" />
+              ) : (
+                <LockOpen className="h-3.5 w-3.5" />
+              )}
             </Button>
             <Button
               aria-label={

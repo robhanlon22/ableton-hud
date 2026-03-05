@@ -63,6 +63,7 @@ describe("HudSurface", () => {
         isFlashActive={false}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
         state={makeState()}
       />,
     );
@@ -89,6 +90,7 @@ describe("HudSurface", () => {
         isFlashActive={false}
         onToggleMode={onToggleMode}
         onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
         state={makeState({ mode: "elapsed" })}
       />,
     );
@@ -103,6 +105,7 @@ describe("HudSurface", () => {
         isFlashActive={true}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
         state={makeState({ isLastBar: true })}
       />,
     );
@@ -118,6 +121,7 @@ describe("HudSurface", () => {
         isFlashActive={false}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
         state={makeState({
           clipColor: 0xffd000,
           sceneColor: 0x008c66,
@@ -142,6 +146,7 @@ describe("HudSurface", () => {
         isFlashActive={false}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
         state={makeState({ clipName: null, sceneName: null, trackName: null })}
       />,
     );
@@ -157,6 +162,7 @@ describe("HudSurface", () => {
         isFlashActive={false}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
         state={makeState({ alwaysOnTop: true })}
       />,
     );
@@ -168,12 +174,34 @@ describe("HudSurface", () => {
     expect(topmostButton.getAttribute("title")).toBe("FLOAT");
   });
 
+  it("renders track lock metadata and triggers toggle callback", async () => {
+    const onToggleTrackLock = vi.fn();
+    const view = await render(
+      <HudSurface
+        isFlashActive={false}
+        onToggleMode={vi.fn()}
+        onToggleTopmost={vi.fn()}
+        onToggleTrackLock={onToggleTrackLock}
+        state={makeState({ trackLocked: true })}
+      />,
+    );
+
+    const lockButton = requiredElement(
+      view.container,
+      "button[aria-label='Unlock track lock']",
+    );
+    expect(lockButton.getAttribute("title")).toBe("LOCKED");
+    lockButton.click();
+    expect(onToggleTrackLock).toHaveBeenCalledTimes(1);
+  });
+
   it("renders remaining mode label", async () => {
     const view = await render(
       <HudSurface
         isFlashActive={false}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
         state={makeState({ mode: "remaining" })}
       />,
     );
@@ -189,6 +217,7 @@ describe("HudSurface", () => {
         isFlashActive={false}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
         state={makeState({ connected: false, isPlaying: false })}
       />,
     );
@@ -202,6 +231,7 @@ describe("HudSurface", () => {
         isFlashActive={false}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
         state={makeState({
           connected: true,
           isLastBar: false,
@@ -221,6 +251,7 @@ describe("HudSurface", () => {
         isFlashActive={true}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
         state={makeState({ isDownbeat: true, isLastBar: true })}
       />,
     );
@@ -236,6 +267,7 @@ describe("HudSurface", () => {
         isFlashActive={true}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
         state={makeState({ isDownbeat: false, isLastBar: true })}
       />,
     );
@@ -247,6 +279,7 @@ describe("HudSurface", () => {
         isFlashActive={true}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
         state={makeState({ isDownbeat: true, isLastBar: false })}
       />,
     );
@@ -258,6 +291,7 @@ describe("HudSurface", () => {
         isFlashActive={true}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
         state={makeState({ isDownbeat: false, isLastBar: false })}
       />,
     );

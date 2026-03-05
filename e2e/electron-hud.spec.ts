@@ -126,6 +126,12 @@ test.describe("Electron HUD", () => {
 
     try {
       await waitForHudBootstrap(app);
+      const initialState: HudState = {
+        ...createDefaultHudState("elapsed", true),
+        connected: true,
+        counterText: "2:1:1",
+      };
+      await injectHudStateUntilRendered(app, initialState);
       const modeToggle = app.page.getByTestId("mode-toggle");
       await expect(modeToggle).toHaveText("Elapsed");
 
@@ -141,6 +147,12 @@ test.describe("Electron HUD", () => {
 
     try {
       await waitForHudBootstrap(app);
+      const initialState: HudState = {
+        ...createDefaultHudState("elapsed", true),
+        connected: true,
+        counterText: "2:1:1",
+      };
+      await injectHudStateUntilRendered(app, initialState);
       const toggleButton = app.page.getByRole("button", {
         name: /Set window (normal|floating)/,
       });
@@ -149,6 +161,21 @@ test.describe("Electron HUD", () => {
       await toggleButton.click();
 
       await expect(toggleButton).toHaveAttribute("title", "NORMAL");
+    } finally {
+      await closeHudApp(app);
+    }
+  });
+
+  test("toggles track lock button title", async () => {
+    const app = await launchHudApp();
+
+    try {
+      await waitForHudBootstrap(app);
+      const lockButton = app.page.getByTestId("track-lock-toggle");
+      await expect(lockButton).toHaveAttribute("title", "UNLOCKED");
+
+      await lockButton.click();
+      await expect(lockButton).toHaveAttribute("title", "LOCKED");
     } finally {
       await closeHudApp(app);
     }
