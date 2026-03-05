@@ -71,6 +71,16 @@ function createIpcHudApi(): HudApi {
  * @returns Mock HUD API with optional state injection helper.
  */
 function createMockHudApi(): HudApiWithE2E {
+  ipcRenderer.on(HUD_CHANNELS.state, (_event, state: HudState) => {
+    const parsedState = HudStateSchema.safeParse(state);
+    if (!parsedState.success) {
+      return;
+    }
+
+    mockState = parsedState.data;
+    emitMockState();
+  });
+
   return {
     __injectState: (state: HudState): Promise<void> => {
       mockState = HudStateSchema.parse(state);

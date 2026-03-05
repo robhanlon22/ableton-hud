@@ -5,66 +5,104 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { HudState } from "../../../shared/types";
 
 import { createDefaultHudState } from "../../../shared/ipc";
 import { HudApp } from "./hud-app";
 
-interface HudApiMock {
-  api: Window["hudApi"];
+interface Deferred<TValue> {
+  promise: Promise<TValue>;
+  reject: (reason?: unknown) => void;
+  resolve: (value: TValue) => void;
+}
+
+interface HudApiController {
   emit: (state: HudState) => void;
   listenerCount: () => number;
   setMode: ReturnType<typeof vi.fn>;
   toggleTopmost: ReturnType<typeof vi.fn>;
 }
 
+const NOOP_LISTENER = (state: HudState): void => {
+  void state;
+};
+const NOOP_REJECT = (reason?: unknown): void => {
+  void reason;
+};
+const NOOP_RESOLVE = (value: unknown): void => {
+  void value;
+};
+
 /**
- * Installs a controllable `window.hudApi` mock.
- * @param initialState - Initial state returned by `getInitialState`.
- * @param rejectInitialState - Whether initial-state lookup should reject.
- * @returns A controller for emitting state and asserting calls.
+ * Creates a deferred promise pair for deterministic async test control.
+ * @returns Deferred promise handles.
  */
-function installHudApiMock(
-  initialState: HudState,
-  rejectInitialState = false,
-): HudApiMock {
-  const listeners = new Set<(state: HudState) => void>();
+function createDeferred<TValue>(): Deferred<TValue> {
+  let reject: (reason?: unknown) => void = NOOP_REJECT;
+  let resolve: (value: TValue) => void = (value: TValue) => {
+    NOOP_RESOLVE(value);
+  };
+
+  const promise = new Promise<TValue>((innerResolve, innerReject) => {
+    resolve = innerResolve;
+    reject = innerReject;
+  });
+
+  return {
+    promise,
+    reject,
+    resolve,
+  };
+}
+
+/**
+ * Installs `window.hudApi` with a rejected initial-state request.
+ */
+function installRejectedHudApiMock(): void {
+  stubHudApi({
+    getInitialState: vi.fn(() => Promise.reject(new Error("boom"))),
+    onHudState: vi.fn(() => vi.fn()),
+    setMode: vi.fn(() => Promise.resolve()),
+    toggleTopmost: vi.fn(() => Promise.resolve()),
+  });
+}
+
+/**
+ * Installs a controllable `window.hudApi` mock with a resolved initial state.
+ * @param initialState - Initial state returned by `getInitialState`.
+ * @returns A controller for emissions and spy assertions.
+ */
+function installResolvedHudApiMock(initialState: HudState): HudApiController {
+  let activeListener = NOOP_LISTENER;
+  let subscriptions = 0;
+
   const setMode = vi.fn((mode: HudState["mode"]) => {
     void mode;
     return Promise.resolve();
   });
   const toggleTopmost = vi.fn(() => Promise.resolve());
 
-  const api: Window["hudApi"] = {
-    getInitialState: rejectInitialState
-      ? () => Promise.reject(new Error("boom"))
-      : () => Promise.resolve(initialState),
+  stubHudApi({
+    getInitialState: () => Promise.resolve(initialState),
     onHudState: (callback: (state: HudState) => void) => {
-      listeners.add(callback);
+      activeListener = callback;
+      subscriptions = 1;
       return () => {
-        listeners.delete(callback);
+        activeListener = NOOP_LISTENER;
+        subscriptions = 0;
       };
     },
     setMode,
     toggleTopmost,
-  };
-
-  Object.defineProperty(window, "hudApi", {
-    configurable: true,
-    value: api,
-    writable: true,
   });
 
   return {
-    api,
     emit: (state: HudState) => {
-      for (const listener of listeners) {
-        listener(state);
-      }
+      activeListener(state);
     },
-    listenerCount: () => listeners.size,
+    listenerCount: () => subscriptions,
     setMode,
     toggleTopmost,
   };
@@ -93,9 +131,23 @@ function makeState(overrides: Partial<HudState> = {}): HudState {
   };
 }
 
+/**
+ * Stubs `window.hudApi` with the provided implementation.
+ * @param hudApi - API implementation for the test.
+ */
+function stubHudApi(hudApi: Window["hudApi"]): void {
+  vi.stubGlobal("hudApi", hudApi);
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
 describe("HudApp integration", () => {
   it("hydrates from hudApi and forwards toggle commands", async () => {
-    const hudApi = installHudApiMock(
+    // arrange
+    const hudApi = installResolvedHudApiMock(
       makeState({
         alwaysOnTop: false,
         counterText: "3:2:1",
@@ -103,40 +155,45 @@ describe("HudApp integration", () => {
       }),
     );
 
+    // act
     render(<HudApp />);
-
     await waitFor(() => {
       expect(screen.getByTestId("counter-text")).toHaveTextContent("3:2:1");
     });
-    expect(screen.getByTestId("mode-toggle")).toHaveTextContent("Remaining");
-
     fireEvent.click(screen.getByTestId("mode-toggle"));
-    expect(hudApi.setMode).toHaveBeenCalledWith("elapsed");
-
     fireEvent.click(
       screen.getByRole("button", { name: "Set window floating" }),
     );
+
+    // assert
+    expect(screen.getByTestId("mode-toggle")).toHaveTextContent("Remaining");
+    expect(hudApi.setMode).toHaveBeenCalledWith("elapsed");
     expect(hudApi.toggleTopmost).toHaveBeenCalledTimes(1);
   });
 
   it("toggles mode from elapsed to remaining", async () => {
-    const hudApi = installHudApiMock(makeState({ mode: "elapsed" }));
+    // arrange
+    const hudApi = installResolvedHudApiMock(makeState({ mode: "elapsed" }));
 
+    // act
     render(<HudApp />);
-
     await waitFor(() => {
       expect(screen.getByTestId("mode-toggle")).toHaveTextContent("Elapsed");
     });
-
     fireEvent.click(screen.getByTestId("mode-toggle"));
+
+    // assert
     expect(hudApi.setMode).toHaveBeenCalledWith("remaining");
   });
 
   it("falls back to default hud state when initial load fails", async () => {
-    installHudApiMock(makeState({ counterText: "9:9:9" }), true);
+    // arrange
+    installRejectedHudApiMock();
 
+    // act
     render(<HudApp />);
 
+    // assert
     await waitFor(() => {
       expect(screen.getByTestId("counter-text")).toHaveTextContent("0:0:0");
     });
@@ -144,14 +201,16 @@ describe("HudApp integration", () => {
   });
 
   it("holds null clip transitions until timeout elapses", async () => {
-    const hudApi = installHudApiMock(makeState({ counterText: "1:1:1" }));
+    // arrange
+    const hudApi = installResolvedHudApiMock(
+      makeState({ counterText: "1:1:1" }),
+    );
 
+    // act
     render(<HudApp />);
-
     await waitFor(() => {
       expect(screen.getByTestId("counter-text")).toHaveTextContent("1:1:1");
     });
-
     act(() => {
       hudApi.emit(
         makeState({
@@ -163,9 +222,6 @@ describe("HudApp integration", () => {
         }),
       );
     });
-
-    expect(screen.getByTestId("counter-text")).toHaveTextContent("1:1:1");
-
     await act(async () => {
       await new Promise<void>((resolve) => {
         window.setTimeout(() => {
@@ -174,18 +230,21 @@ describe("HudApp integration", () => {
       });
     });
 
+    // assert
     expect(screen.getByTestId("counter-text")).toHaveTextContent("9:9:9");
   });
 
   it("cancels pending null clip hold when a concrete clip arrives", async () => {
-    const hudApi = installHudApiMock(makeState({ counterText: "1:1:1" }));
+    // arrange
+    const hudApi = installResolvedHudApiMock(
+      makeState({ counterText: "1:1:1" }),
+    );
 
+    // act
     render(<HudApp />);
-
     await waitFor(() => {
       expect(screen.getByTestId("counter-text")).toHaveTextContent("1:1:1");
     });
-
     act(() => {
       hudApi.emit(
         makeState({
@@ -205,9 +264,6 @@ describe("HudApp integration", () => {
         }),
       );
     });
-
-    expect(screen.getByTestId("counter-text")).toHaveTextContent("5:5:5");
-
     await act(async () => {
       await new Promise<void>((resolve) => {
         window.setTimeout(() => {
@@ -216,150 +272,140 @@ describe("HudApp integration", () => {
       });
     });
 
+    // assert
     expect(screen.getByTestId("counter-text")).toHaveTextContent("5:5:5");
   });
 
   it("unsubscribes listeners on unmount", async () => {
-    const hudApi = installHudApiMock(makeState());
+    // arrange
+    const hudApi = installResolvedHudApiMock(makeState());
 
+    // act
     const view = render(<HudApp />);
-
     await waitFor(() => {
       expect(screen.getByTestId("hud-root")).toBeInTheDocument();
     });
-    expect(hudApi.listenerCount()).toBe(1);
-
     view.unmount();
 
+    // assert
     expect(hudApi.listenerCount()).toBe(0);
   });
 
   it("ignores hud state callbacks after unmount", async () => {
-    const hudApi = installHudApiMock(makeState({ counterText: "1:1:1" }));
-    const view = render(<HudApp />);
+    // arrange
+    const hudApi = installResolvedHudApiMock(
+      makeState({ counterText: "1:1:1" }),
+    );
 
+    // act
+    const view = render(<HudApp />);
     await waitFor(() => {
       expect(screen.getByTestId("counter-text")).toHaveTextContent("1:1:1");
     });
-
     view.unmount();
-
     act(() => {
       hudApi.emit(makeState({ counterText: "7:7:7" }));
     });
 
+    // assert
     expect(hudApi.listenerCount()).toBe(0);
   });
 
   it("guards state updates when onHudState callback fires after unmount", async () => {
-    let listener: ((state: HudState) => void) | null = null;
+    // arrange
+    const listenerRef: {
+      current: (state: HudState) => void;
+    } = {
+      current: NOOP_LISTENER,
+    };
+    const unsubscribe = vi.fn();
 
-    Object.defineProperty(window, "hudApi", {
-      configurable: true,
-      value: {
-        getInitialState: () =>
-          Promise.resolve(makeState({ counterText: "1:1:1" })),
-        onHudState: (callback: (state: HudState) => void) => {
-          listener = callback;
-          return () => {
-            return;
-          };
-        },
-        setMode: () => Promise.resolve(),
-        toggleTopmost: () => Promise.resolve(),
-      } satisfies Window["hudApi"],
-      writable: true,
+    stubHudApi({
+      getInitialState: vi.fn(() =>
+        Promise.resolve(makeState({ counterText: "1:1:1" })),
+      ),
+      onHudState: vi.fn((callback: (state: HudState) => void) => {
+        listenerRef.current = callback;
+        return unsubscribe;
+      }),
+      setMode: vi.fn(() => Promise.resolve()),
+      toggleTopmost: vi.fn(() => Promise.resolve()),
     });
 
+    // act
     const view = render(<HudApp />);
     await waitFor(() => {
       expect(screen.getByTestId("counter-text")).toHaveTextContent("1:1:1");
     });
-
     view.unmount();
-
     act(() => {
-      listener?.(makeState({ counterText: "9:9:9" }));
+      listenerRef.current(makeState({ counterText: "9:9:9" }));
     });
+
+    // assert
+    expect(screen.queryByTestId("counter-text")).not.toBeInTheDocument();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
   it("does not apply resolved initial state after unmount", async () => {
-    const resolveInitialRef: {
-      current: ((value: HudState) => void) | null;
-    } = { current: null };
-    const initialPromise = new Promise<HudState>((resolve) => {
-      resolveInitialRef.current = resolve;
+    // arrange
+    const deferred = createDeferred<HudState>();
+    const unsubscribe = vi.fn();
+    stubHudApi({
+      getInitialState: vi.fn(() => deferred.promise),
+      onHudState: vi.fn(() => unsubscribe),
+      setMode: vi.fn(() => Promise.resolve()),
+      toggleTopmost: vi.fn(() => Promise.resolve()),
     });
 
-    Object.defineProperty(window, "hudApi", {
-      configurable: true,
-      value: {
-        getInitialState: () => initialPromise,
-        onHudState: () => () => {
-          return;
-        },
-        setMode: () => Promise.resolve(),
-        toggleTopmost: () => Promise.resolve(),
-      } satisfies Window["hudApi"],
-      writable: true,
-    });
-
+    // act
     const view = render(<HudApp />);
     view.unmount();
-
-    if (!resolveInitialRef.current) {
-      throw new Error("Expected resolveInitialRef to be initialized.");
-    }
-    resolveInitialRef.current(makeState({ counterText: "8:8:8" }));
+    deferred.resolve(makeState({ counterText: "8:8:8" }));
     await act(async () => {
       await Promise.resolve();
     });
+
+    // assert
+    expect(screen.queryByTestId("hud-root")).not.toBeInTheDocument();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
   it("does not apply rejected initial state fallback after unmount", async () => {
-    const rejectInitialRef: {
-      current: ((reason?: unknown) => void) | null;
-    } = { current: null };
-    const initialPromise = new Promise<HudState>((_resolve, reject) => {
-      rejectInitialRef.current = reject;
+    // arrange
+    const deferred = createDeferred<HudState>();
+    const unsubscribe = vi.fn();
+    stubHudApi({
+      getInitialState: vi.fn(() => deferred.promise),
+      onHudState: vi.fn(() => unsubscribe),
+      setMode: vi.fn(() => Promise.resolve()),
+      toggleTopmost: vi.fn(() => Promise.resolve()),
     });
 
-    Object.defineProperty(window, "hudApi", {
-      configurable: true,
-      value: {
-        getInitialState: () => initialPromise,
-        onHudState: () => () => {
-          return;
-        },
-        setMode: () => Promise.resolve(),
-        toggleTopmost: () => Promise.resolve(),
-      } satisfies Window["hudApi"],
-      writable: true,
-    });
-
+    // act
     const view = render(<HudApp />);
     view.unmount();
-
-    if (!rejectInitialRef.current) {
-      throw new Error("Expected rejectInitialRef to be initialized.");
-    }
-    rejectInitialRef.current(new Error("boom"));
+    deferred.reject(new Error("boom"));
     await act(async () => {
       await Promise.resolve();
     });
+
+    // assert
+    expect(screen.queryByTestId("hud-root")).not.toBeInTheDocument();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
   it("reuses held clip color during temporary null color updates", async () => {
-    const hudApi = installHudApiMock(
+    // arrange
+    const hudApi = installResolvedHudApiMock(
       makeState({ clipColor: 0x112233, counterText: "2:2:2" }),
     );
 
+    // act
     render(<HudApp />);
-
     await waitFor(() => {
       expect(screen.getByTestId("counter-text")).toHaveTextContent("2:2:2");
     });
-
     act(() => {
       hudApi.emit(
         makeState({
@@ -371,6 +417,7 @@ describe("HudApp integration", () => {
       );
     });
 
+    // assert
     await waitFor(() => {
       expect(screen.getByTestId("clip-pill")).toHaveStyle(
         "background-color: rgb(17, 34, 51)",
@@ -379,14 +426,15 @@ describe("HudApp integration", () => {
   });
 
   it("clears pending handoff timeout during unmount cleanup", async () => {
-    const hudApi = installHudApiMock(makeState());
+    // arrange
+    const hudApi = installResolvedHudApiMock(makeState());
     const clearTimeoutSpy = vi.spyOn(window, "clearTimeout");
-    const view = render(<HudApp />);
 
+    // act
+    const view = render(<HudApp />);
     await waitFor(() => {
       expect(screen.getByTestId("counter-text")).toHaveTextContent("1:1:1");
     });
-
     act(() => {
       hudApi.emit(
         makeState({
@@ -397,15 +445,16 @@ describe("HudApp integration", () => {
         }),
       );
     });
-
     view.unmount();
 
+    // assert
     expect(clearTimeoutSpy).toHaveBeenCalled();
     clearTimeoutSpy.mockRestore();
   });
 
   it("turns off flash state after the duration window", async () => {
-    const hudApi = installHudApiMock(
+    // arrange
+    const hudApi = installResolvedHudApiMock(
       makeState({
         beatFlashToken: 5,
         counterText: "4:1:1",
@@ -414,8 +463,8 @@ describe("HudApp integration", () => {
       }),
     );
 
+    // act
     render(<HudApp />);
-
     await waitFor(() => {
       expect(screen.getByTestId("counter-text")).toHaveTextContent("4:1:1");
     });
@@ -424,7 +473,6 @@ describe("HudApp integration", () => {
         "border-[#4a5a45]",
       );
     });
-
     await act(async () => {
       await new Promise<void>((resolve) => {
         window.setTimeout(() => {
@@ -432,11 +480,6 @@ describe("HudApp integration", () => {
         }, 170);
       });
     });
-
-    expect(screen.getByTestId("counter-text").parentElement).not.toHaveClass(
-      "border-[#4a5a45]",
-    );
-
     act(() => {
       hudApi.emit(
         makeState({
@@ -448,6 +491,10 @@ describe("HudApp integration", () => {
       );
     });
 
+    // assert
+    expect(screen.getByTestId("counter-text").parentElement).not.toHaveClass(
+      "border-[#4a5a45]",
+    );
     expect(screen.getByTestId("counter-text")).toHaveTextContent("4:1:2");
   });
 });

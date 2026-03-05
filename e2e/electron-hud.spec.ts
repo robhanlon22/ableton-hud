@@ -14,10 +14,6 @@ import { createDefaultHudState } from "../src/shared/ipc";
 
 const MAIN_ENTRY = resolve(process.cwd(), "out/main/index.js");
 
-interface HudApiWithInjection {
-  __injectState?: (state: HudState) => Promise<void>;
-}
-
 interface RunningHudApp {
   electronApp: ElectronApplication;
   page: Page;
@@ -38,16 +34,16 @@ async function closeHudApp(app: RunningHudApp): Promise<void> {
 
 /**
  * Pushes a HUD state directly into the renderer IPC subscription channel.
- * @param page - Renderer page handle used to call preload test hooks.
+ * @param app - Running app handles used for main-process event injection.
  * @param payload - HUD state payload to inject.
  */
-async function injectHudState(page: Page, payload: HudState): Promise<void> {
-  await page.evaluate(async (nextState) => {
-    const hudApi = window.hudApi as HudApiWithInjection;
-    if (!hudApi.__injectState) {
-      throw new Error("Expected hudApi.__injectState in E2E mock mode.");
-    }
-    await hudApi.__injectState(nextState);
+async function injectHudState(
+  app: RunningHudApp,
+  payload: HudState,
+): Promise<void> {
+  await app.electronApp.evaluate(({ BrowserWindow }, nextState) => {
+    const mainWindow = BrowserWindow.getAllWindows()[0];
+    mainWindow.webContents.send("hud:state", nextState);
   }, payload);
 }
 
@@ -63,7 +59,7 @@ async function injectHudStateUntilRendered(
   await expect
     .poll(
       async () => {
-        await injectHudState(app.page, payload);
+        await injectHudState(app, payload);
         return app.page.getByTestId("counter-text").textContent();
       },
       {
@@ -148,16 +144,11 @@ test.describe("Electron HUD", () => {
       const toggleButton = app.page.getByRole("button", {
         name: /Set window (normal|floating)/,
       });
-      const initialTitle = await toggleButton.getAttribute("title");
-      const expectedInitialTitle =
-        initialTitle === "FLOAT" ? "FLOAT" : "NORMAL";
-      await expect(toggleButton).toHaveAttribute("title", expectedInitialTitle);
+      await expect(toggleButton).toHaveAttribute("title", "FLOAT");
 
       await toggleButton.click();
 
-      const expectedAfterToggle =
-        expectedInitialTitle === "FLOAT" ? "NORMAL" : "FLOAT";
-      await expect(toggleButton).toHaveAttribute("title", expectedAfterToggle);
+      await expect(toggleButton).toHaveAttribute("title", "NORMAL");
     } finally {
       await closeHudApp(app);
     }
