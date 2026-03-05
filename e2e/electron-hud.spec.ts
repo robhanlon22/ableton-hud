@@ -161,8 +161,11 @@ test.describe("Electron HUD", () => {
   });
 
   test("launches a window and renders default counter", async () => {
+    // arrange
+    // act
     const app = await launchHudApp({ livePort: fakeServer.port });
 
+    // assert
     try {
       await expect(app.page.getByTestId("hud-root")).toBeVisible();
       await expect(app.page.getByTestId("counter-text")).toBeVisible();
@@ -177,8 +180,11 @@ test.describe("Electron HUD", () => {
   });
 
   test("toggles counter mode from elapsed to remaining", async () => {
+    // arrange
+    // act
     const app = await launchHudApp({ livePort: fakeServer.port });
 
+    // assert
     try {
       await waitForHudBootstrap(app);
       const modeToggle = app.page.getByTestId("mode-toggle");
@@ -192,8 +198,11 @@ test.describe("Electron HUD", () => {
   });
 
   test("toggles always-on-top button title", async () => {
+    // arrange
+    // act
     const app = await launchHudApp({ livePort: fakeServer.port });
 
+    // assert
     try {
       await waitForHudBootstrap(app);
       const toggleButton = app.page.getByRole("button", {
@@ -210,8 +219,11 @@ test.describe("Electron HUD", () => {
   });
 
   test("toggles track lock button title", async () => {
+    // arrange
+    // act
     const app = await launchHudApp({ livePort: fakeServer.port });
 
+    // assert
     try {
       await waitForHudBootstrap(app);
       const lockButton = app.page.getByTestId("track-lock-toggle");
@@ -225,8 +237,11 @@ test.describe("Electron HUD", () => {
   });
 
   test("toggles compact mode and resizes window to counter panel", async () => {
+    // arrange
+    // act
     const app = await launchHudApp({ livePort: fakeServer.port });
 
+    // assert
     try {
       await waitForHudBootstrap(app);
       const initialSize = await readWindowContentSize(app);
@@ -261,9 +276,12 @@ test.describe("Electron HUD", () => {
   });
 
   test("restores full size after compact relaunch cycle", async () => {
+    // arrange
     const app = await launchHudApp({ livePort: fakeServer.port });
+    // act
     const stableHome = app.tempHome;
 
+    // assert
     try {
       await waitForHudBootstrap(app);
       await app.electronApp.evaluate(({ BrowserWindow }) => {
@@ -312,8 +330,11 @@ test.describe("Electron HUD", () => {
   });
 
   test("renders fake transport payload from websocket server", async () => {
+    // arrange
+    // act
     const app = await launchHudApp({ livePort: fakeServer.port });
 
+    // assert
     try {
       await waitForHudBootstrap(app);
 
@@ -357,8 +378,11 @@ test.describe("Electron HUD", () => {
     );
 
     test("applies fullscreen overlay policy from persisted alwaysOnTop on launch", async () => {
+      // arrange
+      // act
       const app = await launchHudApp({ livePort: fakeServer.port });
 
+      // assert
       try {
         await waitForHudBootstrap(app);
         await expect
@@ -373,8 +397,11 @@ test.describe("Electron HUD", () => {
     });
 
     test("applies and clears fullscreen overlay policy via hud:toggle-topmost IPC", async () => {
+      // arrange
+      // act
       const app = await launchHudApp({ livePort: fakeServer.port });
 
+      // assert
       try {
         await waitForHudBootstrap(app);
         const toggleButton = app.page.getByRole("button", {

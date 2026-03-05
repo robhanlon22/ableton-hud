@@ -28,6 +28,7 @@ describe("preload hudApi", () => {
   });
 
   it("exposes hudApi and routes ipc calls", async () => {
+    // arrange
     const statePayload = {
       alwaysOnTop: true,
       beatFlashToken: 0,
@@ -63,8 +64,10 @@ describe("preload hudApi", () => {
       return Promise.resolve(undefined);
     });
 
+    // act
     await import("./index");
 
+    // assert
     expect(exposeInMainWorldMock).toHaveBeenCalledTimes(1);
     const api = exposeInMainWorldMock.mock.calls[0][1] as {
       getInitialState: () => Promise<unknown>;
@@ -99,6 +102,7 @@ describe("preload hudApi", () => {
   });
 
   it("forwards only valid hud state payloads from ipc listener", async () => {
+    // arrange
     const callback = vi.fn();
     const statePayload = {
       alwaysOnTop: true,
@@ -144,8 +148,10 @@ describe("preload hudApi", () => {
         connected: true,
       },
     );
+    // act
     listener({}, statePayload);
 
+    // assert
     expect(callback).toHaveBeenCalledTimes(1);
     expect(callback).toHaveBeenCalledWith(statePayload);
   });

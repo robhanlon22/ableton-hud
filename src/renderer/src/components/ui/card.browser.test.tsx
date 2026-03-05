@@ -6,6 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./card";
 
 describe("Card primitives", () => {
   it("renders all card slots including title", async () => {
+    // arrange
     await render(
       <Card data-testid="card-root">
         <CardHeader>
@@ -17,8 +18,10 @@ describe("Card primitives", () => {
     );
 
     const root = page.getByTestId("card-root");
+    // act
     const title = page.getByText("Timing HUD");
 
+    // assert
     await expect.element(root).toHaveClass("rounded-md");
     await expect.element(title).toHaveTextContent("Timing HUD");
     await expect.element(title).toHaveClass("uppercase");

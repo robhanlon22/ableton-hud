@@ -276,29 +276,38 @@ describe("AbletonLiveBridge", () => {
   });
 
   it("resolves host/port config and installs ws fallback", async () => {
+    // arrange
+    // act
     const { harness } = await createBridge({
       host: "10.0.0.25",
       port: "9999",
       websocketUndefined: true,
     });
 
+    // assert
     expect(harness.options).toEqual({ host: "10.0.0.25", port: 9999 });
     expect(globalThis.WebSocket).toBe(wsCtorMock);
   });
 
   it("falls back to default port for invalid env input", async () => {
+    // arrange
+    // act
     const { harness } = await createBridge({ port: "70000" });
 
+    // assert
     expect(harness.options).toEqual({ host: "127.0.0.1", port: 9001 });
   });
 
   it("registers connect and disconnect handlers and controls start/stop", async () => {
+    // arrange
     const { bridge, harness, onState } = await createBridge();
 
     bridge.start();
     bridge.start();
+    // act
     await flushMicrotasks();
 
+    // assert
     expect(harness.instance.connect).toHaveBeenCalledTimes(1);
 
     const connectHandler = harness.eventHandlers.get("connect");
@@ -317,17 +326,21 @@ describe("AbletonLiveBridge", () => {
   });
 
   it("handles connect failure by emitting disconnected state", async () => {
+    // arrange
     const { bridge, harness, onState } = await createBridge();
     harness.instance.connect.mockRejectedValueOnce(new Error("boom"));
 
     bridge.start();
+    // act
     await flushMicrotasks();
 
+    // assert
     expect(onState).toHaveBeenCalled();
     expect(onState.mock.lastCall?.[0].connected).toBe(false);
   });
 
   it("updates mode and toggles track lock", async () => {
+    // arrange
     const { bridge, onState } = await createBridge();
     const emitSpy = vi.spyOn(bridge, "emit");
 
@@ -335,8 +348,10 @@ describe("AbletonLiveBridge", () => {
     bridge.setMode("remaining");
 
     const toggled = bridge.toggleTrackLock();
+    // act
     const toggledBack = bridge.toggleTrackLock();
 
+    // assert
     expect(toggled).toBe(true);
     expect(toggledBack).toBe(false);
     expect(emitSpy).toHaveBeenCalled();
@@ -344,6 +359,7 @@ describe("AbletonLiveBridge", () => {
   });
 
   it("applies pending selected track when unlocking", async () => {
+    // arrange
     const { bridge } = await createBridge();
     bridge.trackLocked = true;
     bridge.pendingSelectedTrack = 8;
@@ -351,14 +367,18 @@ describe("AbletonLiveBridge", () => {
       .spyOn(bridge, "applySelectedTrack")
       .mockImplementation(() => resolved(undefined));
 
+    // act
     bridge.setTrackLocked(false);
 
+    // assert
     expect(applySpy).toHaveBeenCalledWith(8);
     expect(bridge.pendingSelectedTrack).toBeNull();
   });
 
   it("resolves track indexes from ids and path payloads", async () => {
+    // arrange
     const { bridge } = await createBridge();
+    // act
     bridge.safeSongTracks = vi.fn(() =>
       resolved([
         createLiveTrack({ id: 42, path: "live_set tracks 3" }),
@@ -366,6 +386,7 @@ describe("AbletonLiveBridge", () => {
       ]),
     );
 
+    // assert
     expect(await bridge.resolveTrackIndex(42)).toBe(3);
     expect(await bridge.resolveTrackIndex(77)).toBe(11);
     expect(await bridge.resolveTrackIndex(19)).toBe(19);
@@ -379,6 +400,7 @@ describe("AbletonLiveBridge", () => {
   });
 
   it("handles selected-track guard paths and payload resolution", async () => {
+    // arrange
     const { bridge } = await createBridge();
     const applySpy = vi
       .spyOn(bridge, "applySelectedTrack")
@@ -388,8 +410,10 @@ describe("AbletonLiveBridge", () => {
 
     bridge.handleSelectedTrack(-1);
     bridge.handleSelectedTrack(2);
+    // act
     bridge.handleSelectedTrack(4);
 
+    // assert
     expect(bridge.pendingSelectedTrack).toBe(4);
     expect(applySpy).toHaveBeenCalledWith(2);
 
@@ -403,6 +427,7 @@ describe("AbletonLiveBridge", () => {
   });
 
   it("applies selected track and wires observer updates", async () => {
+    // arrange
     const { bridge } = await createBridge();
     const listeners = new Map<string, Observer>();
     const cleanup = vi.fn(() => undefined);
@@ -432,8 +457,10 @@ describe("AbletonLiveBridge", () => {
     await bridge.applySelectedTrack(1);
     listeners.get("name")?.("Lead");
     listeners.get("color")?.(16777215);
+    // act
     listeners.get("playing_slot_index")?.(5);
 
+    // assert
     expect(bridge.selectedTrack).toBe(1);
     expect(bridge.trackName).toBe("Lead");
     expect(bridge.trackColor).toBe(16777215);
@@ -443,11 +470,14 @@ describe("AbletonLiveBridge", () => {
   });
 
   it("covers selected-track early returns and token changes", async () => {
+    // arrange
     const { bridge } = await createBridge();
     const safeTrackGetSpy = vi.spyOn(bridge, "safeTrackGet");
 
     bridge.selectedTrack = 12;
+    // act
     await bridge.applySelectedTrack(12);
+    // assert
     expect(safeTrackGetSpy).not.toHaveBeenCalled();
 
     bridge.getTrack = vi.fn(() => {
@@ -485,6 +515,7 @@ describe("AbletonLiveBridge", () => {
   });
 
   it("covers applySelectedTrack observer guard no-op branches", async () => {
+    // arrange
     const { bridge } = await createBridge();
     const listeners = new Map<string, Observer>();
     const track: LiveTrack = {
@@ -506,19 +537,24 @@ describe("AbletonLiveBridge", () => {
 
     listeners.get("playing_slot_index")?.(8);
     listeners.get("name")?.(9876);
+    // act
     listeners.get("color")?.("not-a-number");
 
+    // assert
     expect(slotSpy).toHaveBeenCalledTimes(1);
     expect(bridge.trackName).toBe("1");
     expect(bridge.trackColor).toBe(1);
   });
 
   it("covers handlePlayingSlot guards and token mismatch returns", async () => {
+    // arrange
     const { bridge } = await createBridge();
     const clearSpy = vi.spyOn(bridge, "clearClipSubscription");
     const emitSpy = vi.spyOn(bridge, "emit");
 
+    // act
     await bridge.handlePlayingSlot(1);
+    // assert
     expect(clearSpy).not.toHaveBeenCalled();
 
     bridge.selectedTrack = 3;
@@ -591,12 +627,15 @@ describe("AbletonLiveBridge", () => {
   });
 
   it("tracks song time and clip position with natural and non-natural wraps", async () => {
+    // arrange
     const { bridge, onState } = await createBridge();
 
     bridge.handleSongTime(0.2);
     bridge.handleSongTime(0.4);
+    // act
     bridge.handleSongTime(1.05);
 
+    // assert
     expect(bridge.beatCounter).toBe(1);
     expect(bridge.beatFlashToken).toBe(1);
     expect(onState).toHaveBeenCalledTimes(2);
@@ -614,11 +653,14 @@ describe("AbletonLiveBridge", () => {
   });
 
   it("emits loop-end and clip-end states including transition return", async () => {
+    // arrange
     const { bridge, onState } = await createBridge();
 
     const before = onState.mock.calls.length;
     bridge.transitionInProgress = true;
+    // act
     bridge.emit();
+    // assert
     expect(onState.mock.calls.length).toBe(before);
 
     bridge.transitionInProgress = false;
@@ -655,6 +697,7 @@ describe("AbletonLiveBridge", () => {
   });
 
   it("bootstraps observers and applies callback updates", async () => {
+    // arrange
     const { bridge } = await createBridge();
     const songListeners = new Map<string, Observer>();
     const selectedTrackRef: { current: null | Observer } = {
@@ -695,8 +738,10 @@ describe("AbletonLiveBridge", () => {
     songListeners.get("signature_numerator")?.(9);
     songListeners.get("signature_denominator")?.(16);
     songListeners.get("is_playing")?.("1");
+    // act
     songListeners.get("current_song_time")?.(14.2);
 
+    // assert
     expect(selectedSpy).toHaveBeenCalledWith(2);
     expect(bridge.signatureNumerator).toBe(9);
     expect(bridge.signatureDenominator).toBe(16);
@@ -704,6 +749,7 @@ describe("AbletonLiveBridge", () => {
   });
 
   it("subscribes scene and covers scene guard branches", async () => {
+    // arrange
     const { bridge } = await createBridge();
     const sceneListeners = new Map<string, Observer>();
     const cleanup = vi.fn(() => undefined);
@@ -723,8 +769,10 @@ describe("AbletonLiveBridge", () => {
 
     await bridge.subscribeScene(5, 2);
     sceneListeners.get("name")?.("Chorus");
+    // act
     sceneListeners.get("color")?.(16711680);
 
+    // assert
     expect(bridge.sceneName).toBe("Chorus");
     expect(bridge.sceneColor).toBe(16711680);
 
@@ -747,6 +795,7 @@ describe("AbletonLiveBridge", () => {
   });
 
   it("subscribes clip and covers clip guard branches", async () => {
+    // arrange
     const { bridge } = await createBridge();
     const clipListeners = new Map<string, Observer>();
     const cleanup = vi.fn(() => undefined);
@@ -810,12 +859,15 @@ describe("AbletonLiveBridge", () => {
       }
       return resolved(1);
     });
+    // act
     await bridge.subscribeClip(0, 1, clip, 31);
 
+    // assert
     expect(bridge.clipName).toBe("Clip B");
   });
 
   it("covers wrappers, reset helpers, and conversion branches", async () => {
+    // arrange
     const { bridge } = await createBridge();
 
     const cleanupOk = vi.fn(() => undefined);
@@ -830,8 +882,10 @@ describe("AbletonLiveBridge", () => {
     bridge.activeClip = { clip: 1, track: 1 };
     bridge.activeScene = 1;
     bridge.clearClipSubscription(true);
+    // act
     bridge.clearSceneSubscription();
 
+    // assert
     expect(
       await bridge.safeClipGet(
         { get: vi.fn(() => resolved(2)), observe: vi.fn() },
@@ -971,6 +1025,7 @@ describe("AbletonLiveBridge", () => {
   });
 
   it("covers remaining safe-wrapper catch and non-function branches", async () => {
+    // arrange
     const { bridge } = await createBridge();
 
     bridge.song = {
@@ -987,10 +1042,12 @@ describe("AbletonLiveBridge", () => {
       get: vi.fn(() => resolved(1)),
       observe: vi.fn(() => resolved(vi.fn(() => undefined))),
     };
+    // act
     bridge.songView = {
       get: vi.fn(() => resolved({})),
       observe: vi.fn(() => resolved(vi.fn(() => undefined))),
     };
+    // assert
     expect(await bridge.safeSongObserve("is_playing", vi.fn())).toBeTypeOf(
       "function",
     );

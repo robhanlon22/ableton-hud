@@ -157,6 +157,7 @@ describe("HudApp integration", () => {
 
     // act
     await render(<HudApp />);
+    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("counter-text").element().textContent).toBe(
         "3:2:1",
@@ -166,7 +167,6 @@ describe("HudApp integration", () => {
     await page.getByLabelText("Set window floating").click();
     await page.getByTestId("track-lock-toggle").click();
 
-    // assert
     expect(page.getByTestId("mode-toggle").element().textContent).toContain(
       "Remaining",
     );
@@ -181,6 +181,7 @@ describe("HudApp integration", () => {
 
     // act
     await render(<HudApp />);
+    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("mode-toggle").element().textContent).toBe(
         "Elapsed",
@@ -188,7 +189,6 @@ describe("HudApp integration", () => {
     });
     await page.getByTestId("mode-toggle").click();
 
-    // assert
     expect(hudApi.setMode).toHaveBeenCalledWith("remaining");
   });
 
@@ -200,6 +200,7 @@ describe("HudApp integration", () => {
 
     // act
     await render(<HudApp />);
+    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("counter-text").element().textContent).toBe(
         "6:6:6",
@@ -207,7 +208,6 @@ describe("HudApp integration", () => {
     });
     await page.getByTestId("compact-toggle").click();
 
-    // assert
     await vi.waitFor(() => {
       expect(hudApi.setCompactView).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -219,10 +219,8 @@ describe("HudApp integration", () => {
       .element(page.getByTestId("mode-toggle"))
       .not.toBeInTheDocument();
 
-    // act
     await page.getByTestId("compact-toggle").click();
 
-    // assert
     await vi.waitFor(() => {
       expect(hudApi.setCompactView).toHaveBeenCalledWith({ enabled: false });
     });
@@ -240,6 +238,7 @@ describe("HudApp integration", () => {
 
     // act
     await render(<HudApp />);
+    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("counter-text").element().textContent).toBe(
         "6:6:6",
@@ -247,7 +246,6 @@ describe("HudApp integration", () => {
     });
     await page.getByTestId("compact-toggle").click();
 
-    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("mode-toggle").element().textContent).toBe(
         "Elapsed",
@@ -268,6 +266,7 @@ describe("HudApp integration", () => {
 
     // act
     await render(<HudApp />);
+    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("counter-text").element().textContent).toBe(
         "6:6:6",
@@ -275,7 +274,6 @@ describe("HudApp integration", () => {
     });
     await page.getByTestId("compact-toggle").click();
 
-    // assert
     await vi.waitFor(() => {
       expect(hudApi.setCompactView).toHaveBeenCalledWith({
         enabled: true,
@@ -312,6 +310,7 @@ describe("HudApp integration", () => {
 
     // act
     await render(<HudApp />);
+    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("counter-text").element().textContent).toBe(
         "1:1:1",
@@ -327,7 +326,6 @@ describe("HudApp integration", () => {
       }),
     );
 
-    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("counter-text").element().textContent).toBe(
         "5:5:5",
@@ -342,6 +340,7 @@ describe("HudApp integration", () => {
 
     // act
     const view = await render(<HudApp />);
+    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("hud-root").element()).toBeInstanceOf(
         HTMLElement,
@@ -349,7 +348,6 @@ describe("HudApp integration", () => {
     });
     await view.unmount();
 
-    // assert
     expect(hudApi.listenerCount()).toBe(0);
   });
 
@@ -361,6 +359,7 @@ describe("HudApp integration", () => {
 
     // act
     const view = await render(<HudApp />);
+    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("counter-text").element().textContent).toBe(
         "1:1:1",
@@ -369,7 +368,6 @@ describe("HudApp integration", () => {
     await view.unmount();
     hudApi.emit(makeState({ counterText: "7:7:7" }));
 
-    // assert
     expect(hudApi.listenerCount()).toBe(0);
   });
 
@@ -398,6 +396,7 @@ describe("HudApp integration", () => {
 
     // act
     const view = await render(<HudApp />);
+    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("counter-text").element().textContent).toBe(
         "1:1:1",
@@ -406,7 +405,6 @@ describe("HudApp integration", () => {
     await view.unmount();
     listenerRef.current(makeState({ counterText: "9:9:9" }));
 
-    // assert
     await expect
       .element(page.getByTestId("counter-text"))
       .not.toBeInTheDocument();
@@ -426,10 +424,10 @@ describe("HudApp integration", () => {
       toggleTrackLock: vi.fn(() => Promise.resolve()),
     });
 
-    // act
     const view = await render(<HudApp />);
     await view.unmount();
     deferred.resolve(makeState({ counterText: "8:8:8" }));
+    // act
     await Promise.resolve();
 
     // assert
@@ -450,10 +448,10 @@ describe("HudApp integration", () => {
       toggleTrackLock: vi.fn(() => Promise.resolve()),
     });
 
-    // act
     const view = await render(<HudApp />);
     await view.unmount();
     deferred.reject(new Error("boom"));
+    // act
     await Promise.resolve();
 
     // assert
@@ -469,6 +467,7 @@ describe("HudApp integration", () => {
 
     // act
     await render(<HudApp />);
+    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("counter-text").element().textContent).toBe(
         "2:2:2",
@@ -488,7 +487,6 @@ describe("HudApp integration", () => {
       }),
     );
 
-    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("counter-text").element().textContent).toBe(
         "2:2:3",
@@ -512,6 +510,7 @@ describe("HudApp integration", () => {
 
     // act
     await render(<HudApp />);
+    // assert
     await vi.waitFor(() => {
       expect(page.getByTestId("counter-text").element().textContent).toBe(
         "4:1:1",
@@ -534,7 +533,6 @@ describe("HudApp integration", () => {
       }),
     );
 
-    // assert
     await vi.waitFor(() => {
       const counterPanelClassNameAfter =
         page.getByTestId("counter-panel").element().getAttribute("class") ?? "";

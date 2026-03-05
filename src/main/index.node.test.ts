@@ -306,6 +306,7 @@ describe("main/index module", () => {
   });
 
   it("boots app side effects and handles core IPC flows", async () => {
+    // arrange
     process.env.AOSC_RENDERER_DEBUG_PORT = "9222";
     process.env.ELECTRON_RENDERER_URL = "http://127.0.0.1:5173";
     runtime.prefLoadMock.mockResolvedValue({
@@ -322,8 +323,10 @@ describe("main/index module", () => {
     });
 
     await import("./index");
+    // act
     await runtime.resolveWhenReady();
 
+    // assert
     expect(runtime.appendSwitchMock).toHaveBeenCalledWith(
       "remote-debugging-port",
       "9222",
@@ -430,6 +433,7 @@ describe("main/index module", () => {
   });
 
   it("uses loadFile fallback, handles darwin topmost behavior, and skips invalid states", async () => {
+    // arrange
     runtime.prefLoadMock.mockResolvedValue({
       alwaysOnTop: true,
       compactMode: true,
@@ -447,8 +451,10 @@ describe("main/index module", () => {
     setPlatform("darwin");
 
     await import("./index");
+    // act
     await runtime.resolveWhenReady();
 
+    // assert
     expect(runtime.appendSwitchMock).not.toHaveBeenCalled();
     const windowInstance = runtime.windows[0];
     expect(windowInstance.loadFile).toHaveBeenCalledWith(
@@ -492,16 +498,19 @@ describe("main/index module", () => {
   });
 
   it("covers no-op IPC branches when window is missing or compact mode is unchanged", async () => {
+    // arrange
     await import("./index");
     await runtime.resolveWhenReady();
 
     const windowInstance = runtime.windows[0];
     const compactHandler = runtime.ipcHandlers.get(HUD_CHANNELS.setCompactView);
     const setModeHandler = runtime.ipcHandlers.get(HUD_CHANNELS.setMode);
+    // act
     const toggleTopmostHandler = runtime.ipcHandlers.get(
       HUD_CHANNELS.toggleTopmost,
     );
 
+    // assert
     expect(compactHandler).toBeTypeOf("function");
     expect(setModeHandler).toBeTypeOf("function");
     expect(toggleTopmostHandler).toBeTypeOf("function");
@@ -518,6 +527,7 @@ describe("main/index module", () => {
   });
 
   it("throws when preload bundle is missing", async () => {
+    // arrange
     runtime.existsSyncMock.mockReturnValue(false);
     let startupPromise: null | Promise<unknown> = null;
     runtime.appWhenReadyMock.mockImplementationOnce(
@@ -530,7 +540,9 @@ describe("main/index module", () => {
         }) as Promise<void>,
     );
 
+    // act
     await import("./index");
+    // assert
     expect(startupPromise).toBeDefined();
     await expect(startupPromise).rejects.toThrow(
       "Unable to find preload bundle",
@@ -538,6 +550,7 @@ describe("main/index module", () => {
   });
 
   it("throws explicit compact dimensions error after parse succeeds without dimensions", async () => {
+    // arrange
     vi.doMock("../shared/ipc", async (importOriginal) => {
       const actual = await importOriginal<typeof import("../shared/ipc")>();
       const compactSchema = actual.CompactViewRequestSchema;
@@ -562,7 +575,9 @@ describe("main/index module", () => {
     await import("./index");
     await runtime.resolveWhenReady();
 
+    // act
     const compactHandler = runtime.ipcHandlers.get(HUD_CHANNELS.setCompactView);
+    // assert
     expect(compactHandler).toBeTypeOf("function");
 
     await expect(compactHandler?.({}, { enabled: true })).rejects.toThrow(
@@ -571,6 +586,7 @@ describe("main/index module", () => {
   });
 
   it("covers remaining branch paths for latest-state and compact toggles", async () => {
+    // arrange
     vi.doUnmock("../shared/ipc");
     process.env.AOSC_RENDERER_DEBUG_PORT = "invalid-port";
     setPlatform("darwin");
@@ -582,8 +598,10 @@ describe("main/index module", () => {
     });
 
     await import("./index");
+    // act
     await runtime.resolveWhenReady();
 
+    // assert
     expect(runtime.appendSwitchMock).not.toHaveBeenCalled();
     expect(runtime.windows).toHaveLength(1);
     const windowInstance = runtime.windows[0];

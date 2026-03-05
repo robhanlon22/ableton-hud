@@ -5,39 +5,54 @@ import { flashDuration } from "./hud-timing";
 
 describe("flashDuration", () => {
   it("returns longest flash for last-bar downbeats", () => {
-    expect(
-      flashDuration({
-        ...createDefaultHudState("elapsed", false),
-        isDownbeat: true,
-        isLastBar: true,
-      }),
-    ).toBe(320);
+    // arrange
+    const state = {
+      ...createDefaultHudState("elapsed", false),
+      isDownbeat: true,
+      isLastBar: true,
+    };
+
+    // act
+    const duration = flashDuration(state);
+
+    // assert
+    expect(duration).toBe(320);
   });
 
   it("returns medium flash when either downbeat or last-bar is true", () => {
-    expect(
-      flashDuration({
-        ...createDefaultHudState("elapsed", false),
-        isDownbeat: true,
-        isLastBar: false,
-      }),
-    ).toBe(230);
-    expect(
-      flashDuration({
-        ...createDefaultHudState("elapsed", false),
-        isDownbeat: false,
-        isLastBar: true,
-      }),
-    ).toBe(230);
+    // arrange
+    const downbeatState = {
+      ...createDefaultHudState("elapsed", false),
+      isDownbeat: true,
+      isLastBar: false,
+    };
+    const lastBarState = {
+      ...createDefaultHudState("elapsed", false),
+      isDownbeat: false,
+      isLastBar: true,
+    };
+
+    // act
+    const downbeatDuration = flashDuration(downbeatState);
+    const lastBarDuration = flashDuration(lastBarState);
+
+    // assert
+    expect(downbeatDuration).toBe(230);
+    expect(lastBarDuration).toBe(230);
   });
 
   it("returns shortest flash during regular beats", () => {
-    expect(
-      flashDuration({
-        ...createDefaultHudState("elapsed", false),
-        isDownbeat: false,
-        isLastBar: false,
-      }),
-    ).toBe(150);
+    // arrange
+    const state = {
+      ...createDefaultHudState("elapsed", false),
+      isDownbeat: false,
+      isLastBar: false,
+    };
+
+    // act
+    const duration = flashDuration(state);
+
+    // assert
+    expect(duration).toBe(150);
   });
 });

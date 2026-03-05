@@ -23,12 +23,15 @@ describe("PrefStore", () => {
   });
 
   it("loads defaults when file read fails", async () => {
+    // arrange
     readFileMock.mockRejectedValueOnce(new Error("missing"));
     const { PrefStore } = await import("./prefs");
 
     const store = new PrefStore();
+    // act
     const prefs = await store.load();
 
+    // assert
     expect(prefs).toEqual({
       alwaysOnTop: true,
       compactMode: false,
@@ -38,6 +41,7 @@ describe("PrefStore", () => {
   });
 
   it("loads parsed preferences when file is valid", async () => {
+    // arrange
     readFileMock.mockResolvedValueOnce(
       JSON.stringify({
         alwaysOnTop: false,
@@ -55,8 +59,10 @@ describe("PrefStore", () => {
     const { PrefStore } = await import("./prefs");
 
     const store = new PrefStore();
+    // act
     const prefs = await store.load();
 
+    // assert
     expect(prefs).toEqual({
       alwaysOnTop: false,
       compactMode: true,
@@ -72,22 +78,27 @@ describe("PrefStore", () => {
   });
 
   it("returns defaults when schema parse fails", async () => {
+    // arrange
     readFileMock.mockResolvedValueOnce(JSON.stringify({ mode: "bad" }));
     const { PrefStore } = await import("./prefs");
 
     const store = new PrefStore();
+    // act
     const prefs = await store.load();
 
+    // assert
     expect(prefs.mode).toBe("elapsed");
     expect(prefs.alwaysOnTop).toBe(true);
   });
 
   it("uses e2e override path and writes file", async () => {
+    // arrange
     process.env.AOSC_E2E_USER_DATA = "/tmp/e2e-home";
     const { PrefStore } = await import("./prefs");
     const getPathCallCountBeforeSave = getPathMock.mock.calls.length;
 
     const store = new PrefStore();
+    // act
     await store.save({
       alwaysOnTop: false,
       compactMode: true,
@@ -101,6 +112,7 @@ describe("PrefStore", () => {
       },
     });
 
+    // assert
     expect(getPathMock.mock.calls.length).toBe(getPathCallCountBeforeSave);
     expect(mkdirMock).toHaveBeenCalled();
     expect(writeFileMock).toHaveBeenCalledWith(

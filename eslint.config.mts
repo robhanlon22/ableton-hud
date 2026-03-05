@@ -1,3 +1,5 @@
+import type { Rule } from "eslint";
+
 import { includeIgnoreFile } from "@eslint/compat";
 import js from "@eslint/js";
 import jsdoc from "eslint-plugin-jsdoc";
@@ -8,6 +10,11 @@ import globals from "globals";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import tseslint from "typescript-eslint";
+
+// @ts-expect-error local eslint rule is authored in JS without TS declarations
+import arrangeActAssertRule from "./eslint-rules/arrange-act-assert.mjs";
+
+const typedArrangeActAssertRule = arrangeActAssertRule as Rule.RuleModule;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -41,6 +48,19 @@ export default defineConfig([
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
+    },
+  },
+  {
+    files: ["src/**/*.test.{ts,tsx}", "e2e/**/*.spec.ts"],
+    plugins: {
+      "aosc-tests": {
+        rules: {
+          "arrange-act-assert": typedArrangeActAssertRule,
+        },
+      },
+    },
+    rules: {
+      "aosc-tests/arrange-act-assert": "error",
     },
   },
 ]);

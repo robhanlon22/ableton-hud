@@ -29,6 +29,8 @@ function makeState(overrides: Partial<HudState> = {}): HudState {
 
 describe("HudSurface", () => {
   it("renders clip and counter text", async () => {
+    // arrange
+    // act
     await render(
       <HudSurface
         compactPanelRef={{ current: null }}
@@ -42,6 +44,7 @@ describe("HudSurface", () => {
       />,
     );
 
+    // assert
     await expect
       .element(page.getByTestId("clip-pill"))
       .toHaveTextContent("Build");
@@ -57,6 +60,7 @@ describe("HudSurface", () => {
   });
 
   it("triggers mode toggle callback", async () => {
+    // arrange
     const onToggleMode = vi.fn();
 
     await render(
@@ -72,11 +76,15 @@ describe("HudSurface", () => {
       />,
     );
 
+    // act
     await page.getByTestId("mode-toggle").click();
+    // assert
     expect(onToggleMode).toHaveBeenCalledTimes(1);
   });
 
   it("applies warning styling when in last bar", async () => {
+    // arrange
+    // act
     await render(
       <HudSurface
         compactPanelRef={{ current: null }}
@@ -90,12 +98,14 @@ describe("HudSurface", () => {
       />,
     );
 
+    // assert
     await expect
       .element(page.getByTestId("counter-text"))
       .toHaveClass("text-ableton-warning");
   });
 
   it("uses metadata colors as pill backgrounds with contrasting text", async () => {
+    // arrange
     await render(
       <HudSurface
         compactPanelRef={{ current: null }}
@@ -115,8 +125,10 @@ describe("HudSurface", () => {
 
     const clipPill = page.getByTestId("clip-pill").element();
     const trackPill = page.getByTestId("track-pill").element();
+    // act
     const scenePill = page.getByTestId("scene-pill").element();
 
+    // assert
     expect(clipPill.style.backgroundColor).toBe("rgb(255, 208, 0)");
     expect(clipPill.style.color).toBe("rgb(16, 18, 22)");
     expect(trackPill.style.backgroundColor).toBe("rgb(51, 68, 255)");
@@ -124,6 +136,8 @@ describe("HudSurface", () => {
   });
 
   it("renders empty metadata pills when names are missing", async () => {
+    // arrange
+    // act
     await render(
       <HudSurface
         compactPanelRef={{ current: null }}
@@ -137,12 +151,14 @@ describe("HudSurface", () => {
       />,
     );
 
+    // assert
     await expect.element(page.getByTestId("clip-pill")).toHaveTextContent("");
     await expect.element(page.getByTestId("track-pill")).toHaveTextContent("");
     await expect.element(page.getByTestId("scene-pill")).toHaveTextContent("");
   });
 
   it("renders topmost toggle metadata when always-on-top is enabled", async () => {
+    // arrange
     await render(
       <HudSurface
         compactPanelRef={{ current: null }}
@@ -156,11 +172,14 @@ describe("HudSurface", () => {
       />,
     );
 
+    // act
     const topmostButton = page.getByLabelText("Set window normal").element();
+    // assert
     expect(topmostButton.getAttribute("title")).toBe("FLOAT");
   });
 
   it("renders track lock metadata and triggers toggle callback", async () => {
+    // arrange
     const onToggleTrackLock = vi.fn();
     await render(
       <HudSurface
@@ -175,13 +194,17 @@ describe("HudSurface", () => {
       />,
     );
 
+    // act
     const lockButton = page.getByLabelText("Unlock track lock").element();
+    // assert
     expect(lockButton.getAttribute("title")).toBe("LOCKED");
     await page.getByLabelText("Unlock track lock").click();
     expect(onToggleTrackLock).toHaveBeenCalledTimes(1);
   });
 
   it("renders remaining mode label", async () => {
+    // arrange
+    // act
     await render(
       <HudSurface
         compactPanelRef={{ current: null }}
@@ -195,12 +218,15 @@ describe("HudSurface", () => {
       />,
     );
 
+    // assert
     await expect
       .element(page.getByTestId("mode-toggle"))
       .toHaveTextContent("Remaining");
   });
 
   it("renders status labels for disconnected and stopped states", async () => {
+    // arrange
+    // act
     const view = await render(
       <HudSurface
         compactPanelRef={{ current: null }}
@@ -214,6 +240,7 @@ describe("HudSurface", () => {
       />,
     );
 
+    // assert
     await expect
       .element(page.getByLabelText("Disconnected"))
       .toBeInTheDocument();
@@ -239,6 +266,8 @@ describe("HudSurface", () => {
   });
 
   it("applies flash panel classes for downbeat and last-bar combinations", async () => {
+    // arrange
+    // act
     const view = await render(
       <HudSurface
         compactPanelRef={{ current: null }}
@@ -252,6 +281,7 @@ describe("HudSurface", () => {
       />,
     );
 
+    // assert
     await expect
       .element(page.getByTestId("counter-panel"))
       .toHaveClass("border-[#83545a]");
@@ -306,6 +336,8 @@ describe("HudSurface", () => {
   });
 
   it("uses compact flash styling without border classes", async () => {
+    // arrange
+    // act
     await render(
       <HudSurface
         compactPanelRef={{ current: null }}
@@ -319,6 +351,7 @@ describe("HudSurface", () => {
       />,
     );
 
+    // assert
     await expect
       .element(page.getByTestId("counter-panel"))
       .toHaveClass("bg-[#32252a]");
