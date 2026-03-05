@@ -8,15 +8,13 @@ import {
   type Page,
 } from "playwright";
 
-import type { HudState } from "../src/shared/types";
-
-import { createDefaultHudState } from "../src/shared/ipc";
+import { FakeAbletonLiveServer } from "./fake-ableton-live-server";
 
 const MAIN_ENTRY = resolve(process.cwd(), "out/main/index.js");
 
 interface LaunchHudAppOptions {
   existingTempHome?: string;
-  mockMode?: boolean;
+  livePort: number;
 }
 
 interface PersistedPrefs {
@@ -65,52 +63,14 @@ async function closeHudApp(
 }
 
 /**
- * Pushes a HUD state directly into the renderer IPC subscription channel.
- * @param app - Running app handles used for main-process event injection.
- * @param payload - HUD state payload to inject.
- */
-async function injectHudState(
-  app: RunningHudApp,
-  payload: HudState,
-): Promise<void> {
-  await app.electronApp.evaluate(({ BrowserWindow }, nextState) => {
-    const mainWindow = BrowserWindow.getAllWindows()[0];
-    mainWindow.webContents.send("hud:state", nextState);
-  }, payload);
-}
-
-/**
- * Re-sends HUD state until the renderer reflects the expected counter text.
- * @param app - Running app handles used for injection and DOM assertions.
- * @param payload - HUD state payload to inject.
- */
-async function injectHudStateUntilRendered(
-  app: RunningHudApp,
-  payload: HudState,
-): Promise<void> {
-  await expect
-    .poll(
-      async () => {
-        await injectHudState(app, payload);
-        return app.page.getByTestId("counter-text").textContent();
-      },
-      {
-        intervals: [100, 200, 300],
-        timeout: 8_000,
-      },
-    )
-    .toBe(payload.counterText);
-}
-
-/**
  * Launches the compiled Electron app with isolated user data for deterministic tests.
- * @param options - Launch options for profile reuse and mock-mode selection.
+ * @param options - Launch options for profile reuse and transport configuration.
  * @returns Running Electron app handles for each test case.
  */
 async function launchHudApp(
-  options: LaunchHudAppOptions = {},
+  options: LaunchHudAppOptions,
 ): Promise<RunningHudApp> {
-  const { existingTempHome, mockMode = true } = options;
+  const { existingTempHome, livePort } = options;
   const tempHome =
     existingTempHome ??
     (await mkdtemp(join(tmpdir(), "ableton-hud-playwright-home-")));
@@ -119,8 +79,9 @@ async function launchHudApp(
     args: [MAIN_ENTRY],
     env: {
       ...process.env,
-      AOSC_E2E_MOCK: mockMode ? "1" : "0",
       AOSC_E2E_USER_DATA: tempHome,
+      AOSC_LIVE_HOST: "127.0.0.1",
+      AOSC_LIVE_PORT: String(livePort),
       HOME: tempHome,
       USERPROFILE: tempHome,
       XDG_CACHE_HOME: join(tempHome, ".cache"),
@@ -189,28 +150,37 @@ async function waitForHudBootstrap(app: RunningHudApp): Promise<void> {
 }
 
 test.describe("Electron HUD", () => {
+  let fakeServer: FakeAbletonLiveServer;
+
+  test.beforeEach(async () => {
+    fakeServer = await FakeAbletonLiveServer.start();
+  });
+
+  test.afterEach(async () => {
+    await fakeServer.stop();
+  });
+
   test("launches a window and renders default counter", async () => {
-    const app = await launchHudApp();
+    const app = await launchHudApp({ livePort: fakeServer.port });
 
     try {
       await expect(app.page.getByTestId("hud-root")).toBeVisible();
-      await expect(app.page.getByTestId("counter-text")).toHaveText("0:0:0");
+      await expect(app.page.getByTestId("counter-text")).toBeVisible();
+      await expect(
+        app.page.locator(
+          "[aria-label='Disconnected'], [aria-label='Playing'], [aria-label='Stopped']",
+        ),
+      ).toBeVisible();
     } finally {
       await closeHudApp(app);
     }
   });
 
   test("toggles counter mode from elapsed to remaining", async () => {
-    const app = await launchHudApp();
+    const app = await launchHudApp({ livePort: fakeServer.port });
 
     try {
       await waitForHudBootstrap(app);
-      const initialState: HudState = {
-        ...createDefaultHudState("elapsed", true),
-        connected: true,
-        counterText: "2:1:1",
-      };
-      await injectHudStateUntilRendered(app, initialState);
       const modeToggle = app.page.getByTestId("mode-toggle");
       await expect(modeToggle).toHaveText("Elapsed");
 
@@ -222,16 +192,10 @@ test.describe("Electron HUD", () => {
   });
 
   test("toggles always-on-top button title", async () => {
-    const app = await launchHudApp();
+    const app = await launchHudApp({ livePort: fakeServer.port });
 
     try {
       await waitForHudBootstrap(app);
-      const initialState: HudState = {
-        ...createDefaultHudState("elapsed", true),
-        connected: true,
-        counterText: "2:1:1",
-      };
-      await injectHudStateUntilRendered(app, initialState);
       const toggleButton = app.page.getByRole("button", {
         name: /Set window (normal|floating)/,
       });
@@ -246,7 +210,7 @@ test.describe("Electron HUD", () => {
   });
 
   test("toggles track lock button title", async () => {
-    const app = await launchHudApp();
+    const app = await launchHudApp({ livePort: fakeServer.port });
 
     try {
       await waitForHudBootstrap(app);
@@ -261,7 +225,7 @@ test.describe("Electron HUD", () => {
   });
 
   test("toggles compact mode and resizes window to counter panel", async () => {
-    const app = await launchHudApp();
+    const app = await launchHudApp({ livePort: fakeServer.port });
 
     try {
       await waitForHudBootstrap(app);
@@ -297,7 +261,7 @@ test.describe("Electron HUD", () => {
   });
 
   test("restores full size after compact relaunch cycle", async () => {
-    const app = await launchHudApp();
+    const app = await launchHudApp({ livePort: fakeServer.port });
     const stableHome = app.tempHome;
 
     try {
@@ -324,7 +288,10 @@ test.describe("Electron HUD", () => {
       await closeHudApp(app, false);
     }
 
-    const relaunchedApp = await launchHudApp({ existingTempHome: stableHome });
+    const relaunchedApp = await launchHudApp({
+      existingTempHome: stableHome,
+      livePort: fakeServer.port,
+    });
     try {
       await waitForHudBootstrap(relaunchedApp);
       const compactToggle = relaunchedApp.page.getByTestId("compact-toggle");
@@ -344,39 +311,37 @@ test.describe("Electron HUD", () => {
     }
   });
 
-  test("renders injected hud state payload", async () => {
-    const app = await launchHudApp();
+  test("renders fake transport payload from websocket server", async () => {
+    const app = await launchHudApp({ livePort: fakeServer.port });
 
     try {
       await waitForHudBootstrap(app);
-      const injectedState: HudState = {
-        ...createDefaultHudState("remaining", true),
-        beatFlashToken: 7,
-        clipColor: 0x7f00ff,
-        clipIndex: 5,
-        clipName: "Lead",
-        connected: true,
-        counterParts: {
-          bar: 7,
-          beat: 2,
-          sixteenth: 3,
-        },
-        counterText: "7:2:3",
-        isDownbeat: false,
-        isLastBar: false,
+
+      fakeServer.setTrack({
+        color: 0xff8800,
+        name: "Bass",
+      });
+      fakeServer.setScene({
+        color: 0x00aa66,
+        name: "Hook",
+      });
+      fakeServer.setClip({
+        color: 0x7f00ff,
+        length: 32,
+        loopEnd: 32,
+        loopStart: 0,
+        name: "Lead",
+        playingPosition: 9.5,
+      });
+      fakeServer.setSong({
+        currentSongTime: 9.5,
         isPlaying: true,
-        mode: "remaining",
-        sceneColor: 0x00aa66,
-        sceneName: "Hook",
-        trackColor: 0xff8800,
-        trackIndex: 2,
-        trackName: "Bass",
-      };
+      });
+      await fakeServer.stabilize();
 
-      await injectHudStateUntilRendered(app, injectedState);
-
-      await expect(app.page.getByTestId("counter-text")).toHaveText("7:2:3");
-      await expect(app.page.getByTestId("mode-toggle")).toHaveText("Remaining");
+      await expect(app.page.getByTestId("counter-text")).not.toHaveText(
+        "0:0:0",
+      );
       await expect(app.page.getByTestId("clip-pill")).toContainText("Lead");
       await expect(app.page.getByTestId("track-pill")).toContainText("Bass");
       await expect(app.page.getByTestId("scene-pill")).toContainText("Hook");
@@ -392,7 +357,7 @@ test.describe("Electron HUD", () => {
     );
 
     test("applies fullscreen overlay policy from persisted alwaysOnTop on launch", async () => {
-      const app = await launchHudApp({ mockMode: false });
+      const app = await launchHudApp({ livePort: fakeServer.port });
 
       try {
         await waitForHudBootstrap(app);
@@ -408,7 +373,7 @@ test.describe("Electron HUD", () => {
     });
 
     test("applies and clears fullscreen overlay policy via hud:toggle-topmost IPC", async () => {
-      const app = await launchHudApp({ mockMode: false });
+      const app = await launchHudApp({ livePort: fakeServer.port });
 
       try {
         await waitForHudBootstrap(app);

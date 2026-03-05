@@ -2,7 +2,7 @@ import type { ClipTimingMeta, CounterParts, TimingGrid } from "../shared/types";
 
 export const EPSILON = 1e-4;
 
-// AbletonOSC beat listener reports integer song-beat ticks starting at 0.
+// Transport beat counter tracks whole song beats starting at 0.
 /**
  * Computes the 1-based beat index within the current bar.
  * @param beatCounter - The running beat count reported by Live.

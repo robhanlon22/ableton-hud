@@ -1,6 +1,6 @@
 # Ableton HUD
 
-Desktop timing HUD for Ableton Live via [AbletonOSC](https://github.com/ideoforms/AbletonOSC).
+Desktop timing HUD for Ableton Live via [ableton-live](https://github.com/ricardomatias/ableton-live).
 
 It follows the selected track's currently playing Session slot/clip and shows a compact musical counter UI.
 
@@ -32,15 +32,14 @@ Notes:
 ## Requirements
 
 - macOS
-- Ableton Live with AbletonOSC installed and running
+- Ableton Live with the ableton-live Max device installed and running
 - Node.js 22+
 
-## OSC Assumptions
+## Transport Assumptions
 
-Ports are hardcoded:
+Transport endpoint is hardcoded:
 
-- AbletonOSC receive: `127.0.0.1:11000`
-- HUD listen: `127.0.0.1:11001`
+- ableton-live WebSocket: `ws://127.0.0.1:9001/ableton-live`
 
 ## Development
 
@@ -82,7 +81,7 @@ pnpm run test:e2e:headed
 ```
 
 These tests run against the built Electron app and use deterministic injected HUD state.
-Ableton Live/AbletonOSC are not required for CI E2E.
+Ableton Live/ableton-live transport are not required for CI E2E.
 
 On failure, Playwright outputs are expected in:
 

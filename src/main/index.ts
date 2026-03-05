@@ -12,7 +12,7 @@ import {
   HudModeSchema,
   HudStateSchema,
 } from "../shared/ipc";
-import { AbletonOscBridge } from "./osc-bridge";
+import { AbletonLiveBridge } from "./ableton-live-bridge";
 import { PrefStore } from "./prefs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,7 +20,7 @@ const __dirname = dirname(__filename);
 
 let mainWindow: BrowserWindow | null = null;
 let latestHudState: HudState | null = null;
-let bridge: AbletonOscBridge | null = null;
+let bridge: AbletonLiveBridge | null = null;
 let mode: HudMode = "elapsed";
 let trackLocked = false;
 let isCompactView = false;
@@ -38,7 +38,6 @@ const COMPACT_CONTENT_WIDTH = 320;
 const COMPACT_CONTENT_HEIGHT = 138;
 
 const prefStore = new PrefStore();
-const isE2EMock = process.env.AOSC_E2E_MOCK === "1";
 const rendererDebugPort = process.env.AOSC_RENDERER_DEBUG_PORT;
 
 if (rendererDebugPort) {
@@ -290,10 +289,6 @@ function registerIpcHandlers(): void {
 
   ipcMain.removeHandler(HUD_CHANNELS.toggleTrackLock);
   ipcMain.handle(HUD_CHANNELS.toggleTrackLock, async () => {
-    if (isE2EMock) {
-      return;
-    }
-
     if (!bridge) {
       return;
     }
@@ -369,10 +364,8 @@ void app.whenReady().then(async () => {
   mode = prefs.mode;
   trackLocked = prefs.trackLocked;
 
-  if (!isE2EMock) {
-    bridge = new AbletonOscBridge(mode, sendStateToWindow, trackLocked);
-    bridge.start();
-  }
+  bridge = new AbletonLiveBridge(mode, sendStateToWindow, trackLocked);
+  bridge.start();
 
   registerIpcHandlers();
   await createWindow();

@@ -337,7 +337,7 @@ describe("HudApp integration", () => {
     ).toContain("Elapsed");
   });
 
-  it("holds null clip transitions until timeout elapses", async () => {
+  it("applies incoming state updates immediately", async () => {
     // arrange
     const hudApi = installResolvedHudApiMock(
       makeState({ counterText: "1:1:1" }),
@@ -350,45 +350,6 @@ describe("HudApp integration", () => {
         "1:1:1",
       );
     });
-    hudApi.emit(
-      makeState({
-        clipColor: null,
-        clipIndex: null,
-        clipName: null,
-        counterText: "9:9:9",
-        trackIndex: 1,
-      }),
-    );
-
-    // assert
-    await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
-        "9:9:9",
-      );
-    });
-  });
-
-  it("cancels pending null clip hold when a concrete clip arrives", async () => {
-    // arrange
-    const hudApi = installResolvedHudApiMock(
-      makeState({ counterText: "1:1:1" }),
-    );
-
-    // act
-    const view = await render(<HudApp />);
-    await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
-        "1:1:1",
-      );
-    });
-    hudApi.emit(
-      makeState({
-        clipColor: null,
-        clipIndex: null,
-        counterText: "9:9:9",
-        trackIndex: 1,
-      }),
-    );
     hudApi.emit(
       makeState({
         clipColor: 0xaabbcc,
@@ -403,6 +364,9 @@ describe("HudApp integration", () => {
     await vi.waitFor(() => {
       expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
         "5:5:5",
+      );
+      expect(requiredByTestId(view.container, "clip-pill").textContent).toBe(
+        "Lead",
       );
     });
   });
@@ -532,7 +496,7 @@ describe("HudApp integration", () => {
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
-  it("reuses held clip color during temporary null color updates", async () => {
+  it("clears clip color immediately when incoming clip color is null", async () => {
     // arrange
     const hudApi = installResolvedHudApiMock(
       makeState({ clipColor: 0x112233, counterText: "2:2:2" }),
@@ -566,35 +530,8 @@ describe("HudApp integration", () => {
       );
       expect(
         requiredByTestId(view.container, "clip-pill").style.backgroundColor,
-      ).toBe("rgb(17, 34, 51)");
+      ).toBe("");
     });
-  });
-
-  it("clears pending handoff timeout during unmount cleanup", async () => {
-    // arrange
-    const hudApi = installResolvedHudApiMock(makeState());
-    const clearTimeoutSpy = vi.spyOn(window, "clearTimeout");
-
-    // act
-    const view = await render(<HudApp />);
-    await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
-        "1:1:1",
-      );
-    });
-    hudApi.emit(
-      makeState({
-        clipColor: null,
-        clipIndex: null,
-        counterText: "9:9:9",
-        trackIndex: 1,
-      }),
-    );
-    await view.unmount();
-
-    // assert
-    expect(clearTimeoutSpy).toHaveBeenCalled();
-    clearTimeoutSpy.mockRestore();
   });
 
   it("turns off flash state after the duration window", async () => {

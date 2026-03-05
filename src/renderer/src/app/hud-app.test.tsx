@@ -4,11 +4,7 @@ import { render } from "vitest-browser-react";
 import type { HudState } from "../../../shared/types";
 
 import { createDefaultHudState } from "../../../shared/ipc";
-import {
-  HudSurface,
-  resolveHeldClipColor,
-  shouldHoldNullClipTransition,
-} from "./hud-app";
+import { HudSurface } from "./hud-app";
 
 /**
  * Creates a HUD state fixture with sensible defaults for tests.
@@ -361,94 +357,5 @@ describe("HudSurface", () => {
     ).parentElement;
     expect(flashPanel?.className).toContain("bg-[#32252a]");
     expect(flashPanel?.className).not.toContain("border-[#7a4f54]");
-  });
-});
-
-describe("shouldHoldNullClipTransition", () => {
-  it("holds when next state temporarily drops clip during track handoff", () => {
-    const previous = makeState({
-      clipIndex: 2,
-      isPlaying: true,
-      trackIndex: 0,
-    });
-    const next = makeState({ clipIndex: null, isPlaying: true, trackIndex: 1 });
-    expect(shouldHoldNullClipTransition(previous, next)).toBe(true);
-  });
-
-  it("does not hold when transport is stopped", () => {
-    const previous = makeState({ clipIndex: 2, isPlaying: true });
-    const next = makeState({ clipIndex: null, isPlaying: false });
-    expect(shouldHoldNullClipTransition(previous, next)).toBe(false);
-  });
-
-  it("does not hold when there was no previous clip", () => {
-    const previous = makeState({ clipIndex: null, isPlaying: true });
-    const next = makeState({ clipIndex: null, isPlaying: true });
-    expect(shouldHoldNullClipTransition(previous, next)).toBe(false);
-  });
-
-  it("does not hold when clip drops on same track", () => {
-    const previous = makeState({
-      clipIndex: 3,
-      isPlaying: true,
-      trackIndex: 2,
-    });
-    const next = makeState({ clipIndex: null, isPlaying: true, trackIndex: 2 });
-    expect(shouldHoldNullClipTransition(previous, next)).toBe(false);
-  });
-
-  it("does not hold when next clip index is present", () => {
-    const previous = makeState({
-      clipIndex: 3,
-      isPlaying: true,
-      trackIndex: 1,
-    });
-    const next = makeState({ clipIndex: 2, isPlaying: true, trackIndex: 2 });
-    expect(shouldHoldNullClipTransition(previous, next)).toBe(false);
-  });
-
-  it("does not hold when either track index is missing", () => {
-    const previous = makeState({
-      clipIndex: 2,
-      isPlaying: true,
-      trackIndex: null,
-    });
-    const next = makeState({ clipIndex: null, isPlaying: true, trackIndex: 1 });
-    expect(shouldHoldNullClipTransition(previous, next)).toBe(false);
-  });
-});
-
-describe("resolveHeldClipColor", () => {
-  it("keeps previous color during playing null-clip handoff", () => {
-    const next = makeState({
-      clipColor: null,
-      clipIndex: null,
-      isPlaying: true,
-    });
-    expect(resolveHeldClipColor(0xff00aa, next)).toBe(0xff00aa);
-  });
-
-  it("uses incoming clip color when provided", () => {
-    const next = makeState({ clipColor: 0x00ccff, isPlaying: true });
-    expect(resolveHeldClipColor(0xff00aa, next)).toBe(0x00ccff);
-  });
-
-  it("falls back to previous color when clip remains active but color is null", () => {
-    const next = makeState({
-      clipColor: null,
-      clipIndex: 2,
-      isPlaying: true,
-      trackIndex: 1,
-    });
-    expect(resolveHeldClipColor(0xff00aa, next)).toBe(0xff00aa);
-  });
-
-  it("clears held color when transport is stopped", () => {
-    const next = makeState({
-      clipColor: null,
-      clipIndex: null,
-      isPlaying: false,
-    });
-    expect(resolveHeldClipColor(0xff00aa, next)).toBeNull();
   });
 });

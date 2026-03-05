@@ -4,7 +4,6 @@ import type { HudMode, HudState } from "../shared/types";
 
 import {
   CompactViewRequestSchema,
-  createDefaultHudState,
   HUD_CHANNELS,
   HudModeSchema,
   HudStateSchema,
@@ -22,16 +21,6 @@ interface HudApi {
   toggleTopmost: () => Promise<void>;
   toggleTrackLock: () => Promise<void>;
 }
-
-interface HudApiWithE2E extends HudApi {
-  __injectState?: (state: HudState) => Promise<void>;
-}
-
-const isE2EMock = process.env.AOSC_E2E_MOCK === "1";
-
-const mockSubscribers = new Set<(state: HudState) => void>();
-let mockState: HudState = createDefaultHudState("elapsed", true);
-let mockStateHydratedFromMain = false;
 
 /**
  * Creates the normal IPC-backed preload API.
@@ -83,97 +72,6 @@ function createIpcHudApi(): HudApi {
   };
 }
 
-/**
- * Creates a deterministic in-memory HUD API for Electron E2E tests.
- * @returns Mock HUD API with optional state injection helper.
- */
-function createMockHudApi(): HudApiWithE2E {
-  ipcRenderer.on(HUD_CHANNELS.state, (_event, state: HudState) => {
-    const parsedState = HudStateSchema.safeParse(state);
-    if (!parsedState.success) {
-      return;
-    }
-
-    mockState = parsedState.data;
-    emitMockState();
-  });
-
-  return {
-    __injectState: (state: HudState): Promise<void> => {
-      mockState = HudStateSchema.parse(state);
-      emitMockState();
-      return Promise.resolve();
-    },
-
-    getInitialState: (): Promise<HudState> => {
-      if (mockStateHydratedFromMain) {
-        return Promise.resolve(mockState);
-      }
-
-      return ipcRenderer
-        .invoke(HUD_CHANNELS.getInitialState)
-        .then((payload: unknown) => {
-          const parsed = HudStateSchema.parse(payload);
-          mockState = parsed;
-          mockStateHydratedFromMain = true;
-          return parsed;
-        })
-        .catch(() => {
-          return mockState;
-        });
-    },
-
-    onHudState: (callback: (state: HudState) => void): (() => void) => {
-      mockSubscribers.add(callback);
-      return () => {
-        mockSubscribers.delete(callback);
-      };
-    },
-
-    setCompactView: async (request): Promise<void> => {
-      const parsedRequest = CompactViewRequestSchema.parse(request);
-      await ipcRenderer.invoke(HUD_CHANNELS.setCompactView, parsedRequest);
-    },
-
-    setMode: (mode: HudMode): Promise<void> => {
-      const parsedMode = HudModeSchema.parse(mode);
-      mockState = {
-        ...mockState,
-        mode: parsedMode,
-      };
-      emitMockState();
-      return Promise.resolve();
-    },
-
-    toggleTopmost: (): Promise<void> => {
-      mockState = {
-        ...mockState,
-        alwaysOnTop: !mockState.alwaysOnTop,
-      };
-      emitMockState();
-      return Promise.resolve();
-    },
-
-    toggleTrackLock: (): Promise<void> => {
-      mockState = {
-        ...mockState,
-        trackLocked: !mockState.trackLocked,
-      };
-      emitMockState();
-      return Promise.resolve();
-    },
-  };
-}
-
-/**
- * Broadcasts mock state to all subscribers.
- */
-function emitMockState(): void {
-  for (const subscriber of mockSubscribers) {
-    subscriber(mockState);
-  }
-}
-
-const hudApi = isE2EMock ? createMockHudApi() : createIpcHudApi();
+const hudApi = createIpcHudApi();
 
 contextBridge.exposeInMainWorld("hudApi", hudApi);

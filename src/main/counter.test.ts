@@ -25,7 +25,7 @@ describe("counter", () => {
     expect(grid.beatsPerDisplayBar).toBe(4);
   });
 
-  it("computes beat in bar using zero-based AbletonOSC beat ticks", () => {
+  it("computes beat in bar using zero-based song beat ticks", () => {
     expect(computeBeatInBar(0, 4)).toBe(1);
     expect(computeBeatInBar(1, 4)).toBe(2);
     expect(computeBeatInBar(3, 4)).toBe(4);

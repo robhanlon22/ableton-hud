@@ -33,8 +33,6 @@ import { Separator } from "../components/ui/separator";
 import { cn } from "../lib/utils";
 import { flashDuration } from "./hud-timing";
 
-const CLIP_HANDOFF_HOLD_MS = 90;
-
 export interface HudSurfaceProps {
   compactPanelRef: RefObject<HTMLDivElement | null>;
   isCompactView: boolean;
@@ -45,11 +43,6 @@ export interface HudSurfaceProps {
   onToggleTrackLock: () => void;
   state: HudState;
 }
-
-type ClipColorState = Pick<
-  HudState,
-  "clipColor" | "clipIndex" | "isPlaying" | "trackIndex"
->;
 
 type StatusKind = "disconnected" | "playing" | "stopped";
 
@@ -64,22 +57,8 @@ export function HudApp(): React.JSX.Element {
   );
   const [isCompactView, setIsCompactView] = useState(false);
   const [isFlashActive, setIsFlashActive] = useState(false);
-  const [heldClipColor, setHeldClipColor] = useState<null | number>(null);
   const lastFlashToken = useRef(-1);
   const latestHudStateRef = useRef<HudState>(hudState);
-  const pendingNullClipStateRef = useRef<HudState>(hudState);
-  const pendingNullClipTimerRef = useRef<null | number>(null);
-
-  useEffect(() => {
-    setHeldClipColor((previousHeldColor) =>
-      resolveHeldClipColor(previousHeldColor, hudState),
-    );
-  }, [
-    hudState.isPlaying,
-    hudState.trackIndex,
-    hudState.clipIndex,
-    hudState.clipColor,
-  ]);
 
   useEffect(() => {
     latestHudStateRef.current = hudState;
@@ -89,27 +68,6 @@ export function HudApp(): React.JSX.Element {
     let mounted = true;
 
     const applyIncomingState = (nextState: HudState): void => {
-      const previousState = latestHudStateRef.current;
-
-      if (shouldHoldNullClipTransition(previousState, nextState)) {
-        pendingNullClipStateRef.current = nextState;
-        pendingNullClipTimerRef.current ??= window.setTimeout(() => {
-          const pendingState = pendingNullClipStateRef.current;
-          latestHudStateRef.current = pendingState;
-          setHudState(pendingState);
-
-          pendingNullClipStateRef.current = pendingState;
-          pendingNullClipTimerRef.current = null;
-        }, CLIP_HANDOFF_HOLD_MS);
-        return;
-      }
-
-      if (pendingNullClipTimerRef.current !== null) {
-        window.clearTimeout(pendingNullClipTimerRef.current);
-        pendingNullClipTimerRef.current = null;
-      }
-      pendingNullClipStateRef.current = nextState;
-
       latestHudStateRef.current = nextState;
       setIsCompactView(nextState.compactView);
       setHudState(nextState);
@@ -141,11 +99,6 @@ export function HudApp(): React.JSX.Element {
 
     return () => {
       mounted = false;
-      if (pendingNullClipTimerRef.current !== null) {
-        window.clearTimeout(pendingNullClipTimerRef.current);
-        pendingNullClipTimerRef.current = null;
-      }
-      pendingNullClipStateRef.current = latestHudStateRef.current;
       unsubscribe();
     };
   }, []);
@@ -223,22 +176,6 @@ export function HudApp(): React.JSX.Element {
     requestCompactResize();
   }, [hudState.counterText, isCompactView]);
 
-  const renderState = useMemo(() => {
-    const hasActiveClip =
-      hudState.trackIndex !== null && hudState.clipIndex !== null;
-    const clipColor = hasActiveClip
-      ? (hudState.clipColor ?? heldClipColor)
-      : null;
-
-    if (clipColor === hudState.clipColor) {
-      return hudState;
-    }
-    return {
-      ...hudState,
-      clipColor,
-    };
-  }, [hudState, heldClipColor]);
-
   return (
     <HudSurface
       compactPanelRef={compactPanelRef}
@@ -248,7 +185,7 @@ export function HudApp(): React.JSX.Element {
       onToggleMode={onToggleMode}
       onToggleTopmost={onToggleTopmost}
       onToggleTrackLock={onToggleTrackLock}
-      state={renderState}
+      state={hudState}
     />
   );
 }
@@ -472,53 +409,6 @@ export function HudSurface(props: HudSurfaceProps): React.JSX.Element {
       </Card>
     </div>
   );
-}
-
-/**
- * Resolves the clip color shown during transient clip/track handoffs.
- * @param previousHeldColor - The last non-null clip color currently held.
- * @param nextState - The newest clip color-related playback state.
- * @returns The clip color to render, or `null` when nothing should be held.
- */
-export function resolveHeldClipColor(
-  previousHeldColor: null | number,
-  nextState: ClipColorState,
-): null | number {
-  if (!nextState.isPlaying) {
-    return null;
-  }
-
-  if (nextState.trackIndex === null || nextState.clipIndex === null) {
-    return previousHeldColor;
-  }
-
-  return nextState.clipColor ?? previousHeldColor;
-}
-
-/**
- * Determines whether a null clip update should be delayed during track handoff.
- * @param previous - The previously rendered HUD state.
- * @param next - The next incoming HUD state.
- * @returns `true` when a temporary null clip should be held, otherwise `false`.
- */
-export function shouldHoldNullClipTransition(
-  previous: HudState,
-  next: HudState,
-): boolean {
-  if (
-    !next.isPlaying ||
-    next.clipIndex !== null ||
-    previous.clipIndex === null
-  ) {
-    return false;
-  }
-
-  if (previous.trackIndex === null || next.trackIndex === null) {
-    return false;
-  }
-
-  // Only smooth across track handoffs where AbletonOSC frequently emits a brief null clip state.
-  return previous.trackIndex !== next.trackIndex;
 }
 
 /**
