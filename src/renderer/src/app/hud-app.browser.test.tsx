@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
+import { page } from "vitest/browser";
 
 import type { HudState } from "../../../shared/types";
 
@@ -26,35 +27,9 @@ function makeState(overrides: Partial<HudState> = {}): HudState {
   };
 }
 
-/**
- * Resolves an element by test id.
- * @param root - Root element to query.
- * @param testId - Data test id value.
- * @returns Matching HTMLElement.
- */
-function requiredByTestId(root: ParentNode, testId: string): HTMLElement {
-  return requiredElement(root, `[data-testid='${testId}']`);
-}
-
-/**
- * Resolves a required HTMLElement by selector.
- * @param root - Root element to query.
- * @param selector - CSS selector.
- * @returns Matching HTMLElement.
- */
-function requiredElement(root: ParentNode, selector: string): HTMLElement {
-  const element = root.querySelector(selector);
-  if (!(element instanceof HTMLElement)) {
-    throw new Error(
-      `Expected selector ${selector} to resolve to an HTMLElement.`,
-    );
-  }
-  return element;
-}
-
 describe("HudSurface", () => {
   it("renders clip and counter text", async () => {
-    const view = await render(
+    await render(
       <HudSurface
         compactPanelRef={{ current: null }}
         isCompactView={false}
@@ -67,24 +42,24 @@ describe("HudSurface", () => {
       />,
     );
 
-    expect(requiredByTestId(view.container, "clip-pill").textContent).toContain(
-      "Build",
-    );
-    expect(
-      requiredByTestId(view.container, "track-pill").textContent,
-    ).toContain("Kick");
-    expect(
-      requiredByTestId(view.container, "scene-pill").textContent,
-    ).toContain("Drop");
-    expect(
-      requiredByTestId(view.container, "counter-text").textContent,
-    ).toContain("2:3:4");
+    await expect
+      .element(page.getByTestId("clip-pill"))
+      .toHaveTextContent("Build");
+    await expect
+      .element(page.getByTestId("track-pill"))
+      .toHaveTextContent("Kick");
+    await expect
+      .element(page.getByTestId("scene-pill"))
+      .toHaveTextContent("Drop");
+    await expect
+      .element(page.getByTestId("counter-text"))
+      .toHaveTextContent("2:3:4");
   });
 
   it("triggers mode toggle callback", async () => {
     const onToggleMode = vi.fn();
 
-    const view = await render(
+    await render(
       <HudSurface
         compactPanelRef={{ current: null }}
         isCompactView={false}
@@ -97,12 +72,12 @@ describe("HudSurface", () => {
       />,
     );
 
-    requiredByTestId(view.container, "mode-toggle").click();
+    await page.getByTestId("mode-toggle").click();
     expect(onToggleMode).toHaveBeenCalledTimes(1);
   });
 
   it("applies warning styling when in last bar", async () => {
-    const view = await render(
+    await render(
       <HudSurface
         compactPanelRef={{ current: null }}
         isCompactView={false}
@@ -115,13 +90,13 @@ describe("HudSurface", () => {
       />,
     );
 
-    expect(
-      requiredByTestId(view.container, "counter-text").className,
-    ).toContain("text-ableton-warning");
+    await expect
+      .element(page.getByTestId("counter-text"))
+      .toHaveClass("text-ableton-warning");
   });
 
   it("uses metadata colors as pill backgrounds with contrasting text", async () => {
-    const view = await render(
+    await render(
       <HudSurface
         compactPanelRef={{ current: null }}
         isCompactView={false}
@@ -138,9 +113,9 @@ describe("HudSurface", () => {
       />,
     );
 
-    const clipPill = requiredByTestId(view.container, "clip-pill");
-    const trackPill = requiredByTestId(view.container, "track-pill");
-    const scenePill = requiredByTestId(view.container, "scene-pill");
+    const clipPill = page.getByTestId("clip-pill").element();
+    const trackPill = page.getByTestId("track-pill").element();
+    const scenePill = page.getByTestId("scene-pill").element();
 
     expect(clipPill.style.backgroundColor).toBe("rgb(255, 208, 0)");
     expect(clipPill.style.color).toBe("rgb(16, 18, 22)");
@@ -149,7 +124,7 @@ describe("HudSurface", () => {
   });
 
   it("renders empty metadata pills when names are missing", async () => {
-    const view = await render(
+    await render(
       <HudSurface
         compactPanelRef={{ current: null }}
         isCompactView={false}
@@ -162,13 +137,13 @@ describe("HudSurface", () => {
       />,
     );
 
-    expect(requiredByTestId(view.container, "clip-pill").textContent).toBe("");
-    expect(requiredByTestId(view.container, "track-pill").textContent).toBe("");
-    expect(requiredByTestId(view.container, "scene-pill").textContent).toBe("");
+    await expect.element(page.getByTestId("clip-pill")).toHaveTextContent("");
+    await expect.element(page.getByTestId("track-pill")).toHaveTextContent("");
+    await expect.element(page.getByTestId("scene-pill")).toHaveTextContent("");
   });
 
   it("renders topmost toggle metadata when always-on-top is enabled", async () => {
-    const view = await render(
+    await render(
       <HudSurface
         compactPanelRef={{ current: null }}
         isCompactView={false}
@@ -181,16 +156,13 @@ describe("HudSurface", () => {
       />,
     );
 
-    const topmostButton = requiredElement(
-      view.container,
-      "button[aria-label='Set window normal']",
-    );
+    const topmostButton = page.getByLabelText("Set window normal").element();
     expect(topmostButton.getAttribute("title")).toBe("FLOAT");
   });
 
   it("renders track lock metadata and triggers toggle callback", async () => {
     const onToggleTrackLock = vi.fn();
-    const view = await render(
+    await render(
       <HudSurface
         compactPanelRef={{ current: null }}
         isCompactView={false}
@@ -203,17 +175,14 @@ describe("HudSurface", () => {
       />,
     );
 
-    const lockButton = requiredElement(
-      view.container,
-      "button[aria-label='Unlock track lock']",
-    );
+    const lockButton = page.getByLabelText("Unlock track lock").element();
     expect(lockButton.getAttribute("title")).toBe("LOCKED");
-    lockButton.click();
+    await page.getByLabelText("Unlock track lock").click();
     expect(onToggleTrackLock).toHaveBeenCalledTimes(1);
   });
 
   it("renders remaining mode label", async () => {
-    const view = await render(
+    await render(
       <HudSurface
         compactPanelRef={{ current: null }}
         isCompactView={false}
@@ -226,9 +195,9 @@ describe("HudSurface", () => {
       />,
     );
 
-    expect(
-      requiredByTestId(view.container, "mode-toggle").textContent,
-    ).toContain("Remaining");
+    await expect
+      .element(page.getByTestId("mode-toggle"))
+      .toHaveTextContent("Remaining");
   });
 
   it("renders status labels for disconnected and stopped states", async () => {
@@ -245,9 +214,9 @@ describe("HudSurface", () => {
       />,
     );
 
-    expect(
-      requiredElement(view.container, "[aria-label='Disconnected']"),
-    ).toBeInstanceOf(HTMLElement);
+    await expect
+      .element(page.getByLabelText("Disconnected"))
+      .toBeInTheDocument();
 
     await view.rerender(
       <HudSurface
@@ -266,9 +235,7 @@ describe("HudSurface", () => {
       />,
     );
 
-    expect(
-      requiredElement(view.container, "[aria-label='Stopped']"),
-    ).toBeInstanceOf(HTMLElement);
+    await expect.element(page.getByLabelText("Stopped")).toBeInTheDocument();
   });
 
   it("applies flash panel classes for downbeat and last-bar combinations", async () => {
@@ -285,11 +252,9 @@ describe("HudSurface", () => {
       />,
     );
 
-    let flashPanel = requiredByTestId(
-      view.container,
-      "counter-text",
-    ).parentElement;
-    expect(flashPanel?.className).toContain("border-[#83545a]");
+    await expect
+      .element(page.getByTestId("counter-panel"))
+      .toHaveClass("border-[#83545a]");
 
     await view.rerender(
       <HudSurface
@@ -303,8 +268,9 @@ describe("HudSurface", () => {
         state={makeState({ isDownbeat: false, isLastBar: true })}
       />,
     );
-    flashPanel = requiredByTestId(view.container, "counter-text").parentElement;
-    expect(flashPanel?.className).toContain("border-[#7a4f54]");
+    await expect
+      .element(page.getByTestId("counter-panel"))
+      .toHaveClass("border-[#7a4f54]");
 
     await view.rerender(
       <HudSurface
@@ -318,8 +284,9 @@ describe("HudSurface", () => {
         state={makeState({ isDownbeat: true, isLastBar: false })}
       />,
     );
-    flashPanel = requiredByTestId(view.container, "counter-text").parentElement;
-    expect(flashPanel?.className).toContain("border-[#546a4b]");
+    await expect
+      .element(page.getByTestId("counter-panel"))
+      .toHaveClass("border-[#546a4b]");
 
     await view.rerender(
       <HudSurface
@@ -333,12 +300,13 @@ describe("HudSurface", () => {
         state={makeState({ isDownbeat: false, isLastBar: false })}
       />,
     );
-    flashPanel = requiredByTestId(view.container, "counter-text").parentElement;
-    expect(flashPanel?.className).toContain("border-[#4a5a45]");
+    await expect
+      .element(page.getByTestId("counter-panel"))
+      .toHaveClass("border-[#4a5a45]");
   });
 
   it("uses compact flash styling without border classes", async () => {
-    const view = await render(
+    await render(
       <HudSurface
         compactPanelRef={{ current: null }}
         isCompactView={true}
@@ -351,11 +319,11 @@ describe("HudSurface", () => {
       />,
     );
 
-    const flashPanel = requiredByTestId(
-      view.container,
-      "counter-text",
-    ).parentElement;
-    expect(flashPanel?.className).toContain("bg-[#32252a]");
-    expect(flashPanel?.className).not.toContain("border-[#7a4f54]");
+    await expect
+      .element(page.getByTestId("counter-panel"))
+      .toHaveClass("bg-[#32252a]");
+    await expect
+      .element(page.getByTestId("counter-panel"))
+      .not.toHaveClass("border-[#7a4f54]");
   });
 });

@@ -1,47 +1,33 @@
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
+import { page } from "vitest/browser";
 
 import { Button } from "./button";
 
-/**
- * Resolves a required HTMLElement by selector.
- * @param root - Root element to query.
- * @param selector - CSS selector.
- * @returns Matching HTMLElement.
- */
-function requiredElement(root: ParentNode, selector: string): HTMLElement {
-  const element = root.querySelector(selector);
-  if (!(element instanceof HTMLElement)) {
-    throw new Error(
-      `Expected selector ${selector} to resolve to an HTMLElement.`,
-    );
-  }
-  return element;
-}
-
 describe("Button", () => {
   it("renders a native button by default", async () => {
-    const view = await render(<Button>Run</Button>);
+    await render(<Button>Run</Button>);
 
-    const button = requiredElement(view.container, "button");
-    expect(button.tagName).toBe("BUTTON");
-    expect(button.textContent).toBe("Run");
+    const button = page.getByRole("button", { name: "Run" });
+    await expect.element(button).toBeInTheDocument();
+    await expect.element(button).toHaveTextContent("Run");
   });
 
   it("renders child component when asChild is true", async () => {
-    const view = await render(
+    await render(
       <Button asChild>
         <a href="#run">Run Link</a>
       </Button>,
     );
 
-    const link = requiredElement(view.container, "a[href='#run']");
-    expect(link.tagName).toBe("A");
-    expect(link.className).toContain("inline-flex");
+    const link = page.getByRole("link", { name: "Run Link" });
+    await expect.element(link).toBeInTheDocument();
+    await expect.element(link).toHaveAttribute("href", "#run");
+    await expect.element(link).toHaveClass("inline-flex");
   });
 
   it("applies explicit variant and size classes", async () => {
-    const view = await render(
+    await render(
       <div>
         <Button size="lg" variant="active">
           Active
@@ -52,17 +38,11 @@ describe("Button", () => {
       </div>,
     );
 
-    const activeButton = requiredElement(
-      view.container,
-      "button:nth-of-type(1)",
-    );
-    const ghostButton = requiredElement(
-      view.container,
-      "button:nth-of-type(2)",
-    );
-    expect(activeButton.className).toContain("h-9");
-    expect(activeButton.className).toContain("border-ableton-accent");
-    expect(ghostButton.className).toContain("h-7");
-    expect(ghostButton.className).toContain("text-ableton-muted");
+    const activeButton = page.getByRole("button", { name: "Active" });
+    const ghostButton = page.getByRole("button", { name: "Ghost" });
+    await expect.element(activeButton).toHaveClass("h-9");
+    await expect.element(activeButton).toHaveClass("border-ableton-accent");
+    await expect.element(ghostButton).toHaveClass("h-7");
+    await expect.element(ghostButton).toHaveClass("text-ableton-muted");
   });
 });

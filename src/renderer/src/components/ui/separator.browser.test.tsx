@@ -1,48 +1,37 @@
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
+import { page } from "vitest/browser";
 
 import { Separator } from "./separator";
 
-/**
- * Resolves a required HTMLElement by selector.
- * @param root - Root element to query.
- * @param selector - CSS selector.
- * @returns Matching HTMLElement.
- */
-function requiredElement(root: ParentNode, selector: string): HTMLElement {
-  const element = root.querySelector(selector);
-  if (!(element instanceof HTMLElement)) {
-    throw new Error(
-      `Expected selector ${selector} to resolve to an HTMLElement.`,
-    );
-  }
-  return element;
-}
-
 describe("Separator", () => {
   it("renders horizontal separator by default", async () => {
-    const view = await render(<Separator />);
+    await render(<Separator data-testid="separator" />);
 
-    const separator = requiredElement(view.container, ":scope > *");
-    expect(separator.className).toContain("h-px");
-    expect(separator.className).toContain("w-full");
+    const separator = page.getByTestId("separator");
+    await expect.element(separator).toHaveClass("h-px");
+    await expect.element(separator).toHaveClass("w-full");
   });
 
   it("renders vertical separator when requested", async () => {
-    const view = await render(<Separator orientation="vertical" />);
+    await render(<Separator data-testid="separator" orientation="vertical" />);
 
-    const separator = requiredElement(view.container, ":scope > *");
-    expect(separator.className).toContain("h-full");
-    expect(separator.className).toContain("w-px");
+    const separator = page.getByTestId("separator");
+    await expect.element(separator).toHaveClass("h-full");
+    await expect.element(separator).toHaveClass("w-px");
   });
 
   it("passes through decorative and custom class props", async () => {
-    const view = await render(
-      <Separator className="custom-separator" decorative={false} />,
+    await render(
+      <Separator
+        className="custom-separator"
+        data-testid="separator"
+        decorative={false}
+      />,
     );
 
-    const separator = requiredElement(view.container, ":scope > *");
-    expect(separator.getAttribute("aria-hidden")).not.toBe("true");
-    expect(separator.className).toContain("custom-separator");
+    const separator = page.getByTestId("separator");
+    await expect.element(separator).not.toHaveAttribute("aria-hidden");
+    await expect.element(separator).toHaveClass("custom-separator");
   });
 });

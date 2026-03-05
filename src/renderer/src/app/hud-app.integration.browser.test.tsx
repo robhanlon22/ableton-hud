@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
+import { page } from "vitest/browser";
 
 import type { HudState } from "../../../shared/types";
 
@@ -136,32 +137,6 @@ function makeState(overrides: Partial<HudState> = {}): HudState {
 }
 
 /**
- * Resolves an element by test id.
- * @param root - Root element to query.
- * @param testId - Data test id value.
- * @returns Matching HTMLElement.
- */
-function requiredByTestId(root: ParentNode, testId: string): HTMLElement {
-  return requiredElement(root, `[data-testid='${testId}']`);
-}
-
-/**
- * Resolves a required HTMLElement by selector.
- * @param root - Root element to query.
- * @param selector - CSS selector.
- * @returns Matching HTMLElement.
- */
-function requiredElement(root: ParentNode, selector: string): HTMLElement {
-  const element = root.querySelector(selector);
-  if (!(element instanceof HTMLElement)) {
-    throw new Error(
-      `Expected selector ${selector} to resolve to an HTMLElement.`,
-    );
-  }
-  return element;
-}
-
-/**
  * Stubs `window.hudApi` with the provided implementation.
  * @param hudApi - API implementation for the test.
  */
@@ -181,23 +156,20 @@ describe("HudApp integration", () => {
     );
 
     // act
-    const view = await render(<HudApp />);
+    await render(<HudApp />);
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
         "3:2:1",
       );
     });
-    requiredByTestId(view.container, "mode-toggle").click();
-    requiredElement(
-      view.container,
-      "button[aria-label='Set window floating']",
-    ).click();
-    requiredByTestId(view.container, "track-lock-toggle").click();
+    await page.getByTestId("mode-toggle").click();
+    await page.getByLabelText("Set window floating").click();
+    await page.getByTestId("track-lock-toggle").click();
 
     // assert
-    expect(
-      requiredByTestId(view.container, "mode-toggle").textContent,
-    ).toContain("Remaining");
+    expect(page.getByTestId("mode-toggle").element().textContent).toContain(
+      "Remaining",
+    );
     expect(hudApi.setMode).toHaveBeenCalledWith("elapsed");
     expect(hudApi.toggleTrackLock).toHaveBeenCalledTimes(1);
     expect(hudApi.toggleTopmost).toHaveBeenCalledTimes(1);
@@ -208,13 +180,13 @@ describe("HudApp integration", () => {
     const hudApi = installResolvedHudApiMock(makeState({ mode: "elapsed" }));
 
     // act
-    const view = await render(<HudApp />);
+    await render(<HudApp />);
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "mode-toggle").textContent).toBe(
+      expect(page.getByTestId("mode-toggle").element().textContent).toBe(
         "Elapsed",
       );
     });
-    requiredByTestId(view.container, "mode-toggle").click();
+    await page.getByTestId("mode-toggle").click();
 
     // assert
     expect(hudApi.setMode).toHaveBeenCalledWith("remaining");
@@ -227,13 +199,13 @@ describe("HudApp integration", () => {
     );
 
     // act
-    const view = await render(<HudApp />);
+    await render(<HudApp />);
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
         "6:6:6",
       );
     });
-    requiredByTestId(view.container, "compact-toggle").click();
+    await page.getByTestId("compact-toggle").click();
 
     // assert
     await vi.waitFor(() => {
@@ -243,18 +215,18 @@ describe("HudApp integration", () => {
         }),
       );
     });
-    expect(
-      view.container.querySelector('[data-testid="mode-toggle"]'),
-    ).toBeNull();
+    await expect
+      .element(page.getByTestId("mode-toggle"))
+      .not.toBeInTheDocument();
 
     // act
-    requiredByTestId(view.container, "compact-toggle").click();
+    await page.getByTestId("compact-toggle").click();
 
     // assert
     await vi.waitFor(() => {
       expect(hudApi.setCompactView).toHaveBeenCalledWith({ enabled: false });
     });
-    expect(requiredByTestId(view.container, "mode-toggle").textContent).toBe(
+    expect(page.getByTestId("mode-toggle").element().textContent).toBe(
       "Elapsed",
     );
   });
@@ -267,17 +239,17 @@ describe("HudApp integration", () => {
     hudApi.setCompactView.mockRejectedValueOnce(new Error("failed"));
 
     // act
-    const view = await render(<HudApp />);
+    await render(<HudApp />);
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
         "6:6:6",
       );
     });
-    requiredByTestId(view.container, "compact-toggle").click();
+    await page.getByTestId("compact-toggle").click();
 
     // assert
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "mode-toggle").textContent).toBe(
+      expect(page.getByTestId("mode-toggle").element().textContent).toBe(
         "Elapsed",
       );
     });
@@ -295,13 +267,13 @@ describe("HudApp integration", () => {
       });
 
     // act
-    const view = await render(<HudApp />);
+    await render(<HudApp />);
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
         "6:6:6",
       );
     });
-    requiredByTestId(view.container, "compact-toggle").click();
+    await page.getByTestId("compact-toggle").click();
 
     // assert
     await vi.waitFor(() => {
@@ -319,17 +291,17 @@ describe("HudApp integration", () => {
     installRejectedHudApiMock();
 
     // act
-    const view = await render(<HudApp />);
+    await render(<HudApp />);
 
     // assert
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
         "0:0:0",
       );
     });
-    expect(
-      requiredByTestId(view.container, "mode-toggle").textContent,
-    ).toContain("Elapsed");
+    expect(page.getByTestId("mode-toggle").element().textContent).toContain(
+      "Elapsed",
+    );
   });
 
   it("applies incoming state updates immediately", async () => {
@@ -339,9 +311,9 @@ describe("HudApp integration", () => {
     );
 
     // act
-    const view = await render(<HudApp />);
+    await render(<HudApp />);
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
         "1:1:1",
       );
     });
@@ -357,12 +329,10 @@ describe("HudApp integration", () => {
 
     // assert
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
         "5:5:5",
       );
-      expect(requiredByTestId(view.container, "clip-pill").textContent).toBe(
-        "Lead",
-      );
+      expect(page.getByTestId("clip-pill").element().textContent).toBe("Lead");
     });
   });
 
@@ -373,7 +343,7 @@ describe("HudApp integration", () => {
     // act
     const view = await render(<HudApp />);
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "hud-root")).toBeInstanceOf(
+      expect(page.getByTestId("hud-root").element()).toBeInstanceOf(
         HTMLElement,
       );
     });
@@ -392,7 +362,7 @@ describe("HudApp integration", () => {
     // act
     const view = await render(<HudApp />);
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
         "1:1:1",
       );
     });
@@ -429,7 +399,7 @@ describe("HudApp integration", () => {
     // act
     const view = await render(<HudApp />);
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
         "1:1:1",
       );
     });
@@ -437,9 +407,9 @@ describe("HudApp integration", () => {
     listenerRef.current(makeState({ counterText: "9:9:9" }));
 
     // assert
-    expect(
-      view.container.querySelector('[data-testid="counter-text"]'),
-    ).toBeNull();
+    await expect
+      .element(page.getByTestId("counter-text"))
+      .not.toBeInTheDocument();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
@@ -463,7 +433,7 @@ describe("HudApp integration", () => {
     await Promise.resolve();
 
     // assert
-    expect(view.container.querySelector('[data-testid="hud-root"]')).toBeNull();
+    await expect.element(page.getByTestId("hud-root")).not.toBeInTheDocument();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
@@ -487,7 +457,7 @@ describe("HudApp integration", () => {
     await Promise.resolve();
 
     // assert
-    expect(view.container.querySelector('[data-testid="hud-root"]')).toBeNull();
+    await expect.element(page.getByTestId("hud-root")).not.toBeInTheDocument();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
@@ -498,15 +468,15 @@ describe("HudApp integration", () => {
     );
 
     // act
-    const view = await render(<HudApp />);
+    await render(<HudApp />);
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
         "2:2:2",
       );
     });
     await vi.waitFor(() => {
       expect(
-        requiredByTestId(view.container, "clip-pill").style.backgroundColor,
+        page.getByTestId("clip-pill").element().style.backgroundColor,
       ).toBe("rgb(17, 34, 51)");
     });
     hudApi.emit(
@@ -520,11 +490,11 @@ describe("HudApp integration", () => {
 
     // assert
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
         "2:2:3",
       );
       expect(
-        requiredByTestId(view.container, "clip-pill").style.backgroundColor,
+        page.getByTestId("clip-pill").element().style.backgroundColor,
       ).toBe("");
     });
   });
@@ -541,15 +511,15 @@ describe("HudApp integration", () => {
     );
 
     // act
-    const view = await render(<HudApp />);
+    await render(<HudApp />);
     await vi.waitFor(() => {
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
         "4:1:1",
       );
     });
-    expect(
-      requiredByTestId(view.container, "counter-text").parentElement?.className,
-    ).toContain("border-[#4a5a45]");
+    const counterPanelClassNameBefore =
+      page.getByTestId("counter-panel").element().getAttribute("class") ?? "";
+    expect(counterPanelClassNameBefore).toContain("border-[#4a5a45]");
     await new Promise<void>((resolve) => {
       window.setTimeout(() => {
         resolve();
@@ -566,11 +536,10 @@ describe("HudApp integration", () => {
 
     // assert
     await vi.waitFor(() => {
-      expect(
-        requiredByTestId(view.container, "counter-text").parentElement
-          ?.className,
-      ).not.toContain("border-[#4a5a45]");
-      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      const counterPanelClassNameAfter =
+        page.getByTestId("counter-panel").element().getAttribute("class") ?? "";
+      expect(counterPanelClassNameAfter).not.toContain("border-[#4a5a45]");
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
         "4:1:2",
       );
     });

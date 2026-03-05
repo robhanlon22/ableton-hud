@@ -39,7 +39,12 @@
   - `vi.stubGlobal()` for globals (instead of `Object.defineProperty(window, ...)`).
   - `vi.stubEnv()` for environment variables (instead of mutating `process.env` directly).
   - Do not add manual mock lifecycle cleanup (`vi.clearAllMocks`, `vi.resetAllMocks`, `vi.restoreAllMocks`, `vi.unstubAllEnvs`, `vi.unstubAllGlobals`) in tests; Vitest config enables `clearMocks`, `restoreMocks`, `unstubEnvs`, and `unstubGlobals` globally.
-- For renderer tests, prefer `render` from `vitest-browser-react` and async browser-safe assertions/interactions.
+- Browser tests:
+  - Prefer `render` from `vitest-browser-react` and async browser-safe assertions/interactions.
+  - Use Vitest Browser Locators (`vitest/browser`, `page.getBy*`, `locator.*`) instead of `document.querySelector`/`element.querySelector`.
+  - Prefer awaited locator assertions (`await expect.element(page.getBy...).to...`) over manual nullable reads; use `query()` only when a nullable element lookup is explicitly required.
+  - Avoid custom locator wrapper helpers (for example `requiredByTestId`); use direct `page.getBy*` calls in test bodies so intent stays explicit.
+  - Avoid direct DOM assertion style in browser tests (`.textContent`, `.className`, `.parentElement`, manual attribute scraping) when a rich browser assertion exists; prefer `toHaveTextContent`, `toHaveClass`, `toHaveAttribute`, `toBeInTheDocument`, and related locator matchers.
 - Typical local gate:
   - `pnpm exec eslint .`
   - `pnpm exec tsc --noEmit`

@@ -1,15 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const createRootMock = vi.fn(() => ({
-  render: vi.fn(),
-}));
-
-vi.mock("react-dom/client", () => ({
-  createRoot: createRootMock,
-}));
+import { page } from "vitest/browser";
 
 vi.mock("./app/hud-app", () => ({
-  HudApp: () => null,
+  HudApp: () => <div data-testid="mock-hud-app" />,
 }));
 
 describe("renderer entry", () => {
@@ -29,6 +22,6 @@ describe("renderer entry", () => {
 
     await import("./main?case=with-root");
 
-    expect(createRootMock).toHaveBeenCalledTimes(1);
+    await expect.element(page.getByTestId("mock-hud-app")).toBeInTheDocument();
   });
 });
