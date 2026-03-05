@@ -359,16 +359,13 @@ describe("HudApp integration", () => {
         trackIndex: 1,
       }),
     );
-    await new Promise<void>((resolve) => {
-      window.setTimeout(() => {
-        resolve();
-      }, 95);
-    });
 
     // assert
-    expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
-      "9:9:9",
-    );
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "9:9:9",
+      );
+    });
   });
 
   it("cancels pending null clip hold when a concrete clip arrives", async () => {
@@ -401,16 +398,13 @@ describe("HudApp integration", () => {
         trackIndex: 1,
       }),
     );
-    await new Promise<void>((resolve) => {
-      window.setTimeout(() => {
-        resolve();
-      }, 95);
-    });
 
     // assert
-    expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
-      "5:5:5",
-    );
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "5:5:5",
+      );
+    });
   });
 
   it("unsubscribes listeners on unmount", async () => {
