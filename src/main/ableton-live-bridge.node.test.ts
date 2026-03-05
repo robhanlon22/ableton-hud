@@ -36,7 +36,7 @@ interface BridgeRuntime {
   connected: boolean;
   currentPosition: null | number;
   emit: () => void;
-  getTrack: (trackIndex: number) => Promise<null | RuntimeTrack>;
+  getTrack: (trackIndex: number) => Promise<LiveTrack | null>;
   handlePlayingPosition: (position: number) => void;
   handlePlayingSlot: (slotIndex: number) => Promise<void>;
   handleSelectedTrack: (trackIndex: number) => void;
@@ -55,23 +55,20 @@ interface BridgeRuntime {
 
   resetClipRunState: () => void;
   resolveTrackIndex: (selectedTrack: unknown) => Promise<number>;
-  safeClipGet: (clip: RuntimeClip, property: ClipProperty) => Promise<unknown>;
+  safeClipGet: (clip: LiveClip, property: ClipProperty) => Promise<unknown>;
   safeClipObserve: (
-    clip: RuntimeClip,
+    clip: LiveClip,
     property: ClipProperty,
     listener: Observer,
   ) => Promise<Cleanup | null>;
-  safeClipSlotClip: (clipSlot: RuntimeClipSlot) => Promise<null | RuntimeClip>;
+  safeClipSlotClip: (clipSlot: LiveClipSlot) => Promise<LiveClip | null>;
   safeClipSlotGet: (
-    clipSlot: RuntimeClipSlot,
+    clipSlot: LiveClipSlot,
     property: "has_clip",
   ) => Promise<unknown>;
-  safeSceneGet: (
-    scene: RuntimeScene,
-    property: SceneProperty,
-  ) => Promise<unknown>;
+  safeSceneGet: (scene: LiveScene, property: SceneProperty) => Promise<unknown>;
   safeSceneObserve: (
-    scene: RuntimeScene,
+    scene: LiveScene,
     property: SceneProperty,
     listener: Observer,
   ) => Promise<Cleanup | null>;
@@ -80,23 +77,20 @@ interface BridgeRuntime {
     property: SongProperty,
     listener: Observer,
   ) => Promise<Cleanup | null>;
-  safeSongSceneChild: (sceneIndex: number) => Promise<null | RuntimeScene>;
-  safeSongTracks: () => Promise<RuntimeTrack[]>;
+  safeSongSceneChild: (sceneIndex: number) => Promise<LiveScene | null>;
+  safeSongTracks: () => Promise<LiveTrack[]>;
   safeSongViewGet: (property: "selected_track") => Promise<unknown>;
   safeSongViewObserve: (
     property: "selected_track",
     listener: Observer,
   ) => Promise<Cleanup | null>;
   safeTrackChild: (
-    track: RuntimeTrack,
+    track: LiveTrack,
     clipSlotIndex: number,
-  ) => Promise<null | RuntimeClipSlot>;
-  safeTrackGet: (
-    track: RuntimeTrack,
-    property: TrackProperty,
-  ) => Promise<unknown>;
+  ) => Promise<LiveClipSlot | null>;
+  safeTrackGet: (track: LiveTrack, property: TrackProperty) => Promise<unknown>;
   safeTrackObserve: (
-    track: RuntimeTrack,
+    track: LiveTrack,
     property: TrackProperty,
     listener: Observer,
   ) => Promise<Cleanup | null>;
@@ -109,14 +103,14 @@ interface BridgeRuntime {
   setTrackLocked: (trackLocked: boolean) => void;
   signatureDenominator: number;
   signatureNumerator: number;
-  song: RuntimeSong;
-  songView: RuntimeSongView;
+  song: LiveSong;
+  songView: LiveSongView;
   start: () => void;
   stop: () => void;
   subscribeClip: (
     trackIndex: number,
     slotIndex: number,
-    clip: RuntimeClip,
+    clip: LiveClip,
     token: number,
   ) => Promise<void>;
   subscribeScene: (sceneIndex: number, token: number) => Promise<void>;
@@ -141,13 +135,6 @@ interface LiveHarness {
   options: null | { host: string; port: number };
 }
 type Observer = (value: unknown) => void;
-
-type RuntimeClip = LiveClip;
-type RuntimeClipSlot = LiveClipSlot;
-type RuntimeScene = LiveScene;
-type RuntimeSong = LiveSong;
-type RuntimeSongView = LiveSongView;
-type RuntimeTrack = LiveTrack;
 
 const wsCtorMock = vi.fn();
 let activeHarness: LiveHarness | null = null;
@@ -214,13 +201,13 @@ async function createBridge(overrides?: BridgeOverrides): Promise<{
  */
 function createHarness(): LiveHarness {
   const eventHandlers = new Map<string, () => void>();
-  const song: RuntimeSong = {
+  const song: LiveSong = {
     child: vi.fn(() => resolved(null)),
     children: vi.fn(() => resolved([])),
     get: vi.fn(() => resolved(0)),
     observe: vi.fn(() => resolved(null)),
   };
-  const songView: RuntimeSongView = {
+  const songView: LiveSongView = {
     get: vi.fn(() => resolved(null)),
     observe: vi.fn(() => resolved(null)),
   };
@@ -245,7 +232,7 @@ function createHarness(): LiveHarness {
  * @param overrides - Optional track fields to override.
  * @returns A runtime track with default no-op methods.
  */
-function createRuntimeTrack(overrides?: Partial<RuntimeTrack>): RuntimeTrack {
+function createLiveTrack(overrides?: Partial<LiveTrack>): LiveTrack {
   return {
     child: () => resolved(null),
     get: () => resolved(null),
@@ -374,8 +361,8 @@ describe("AbletonLiveBridge", () => {
     const { bridge } = await createBridge();
     bridge.safeSongTracks = vi.fn(() =>
       resolved([
-        createRuntimeTrack({ id: 42, path: "live_set tracks 3" }),
-        createRuntimeTrack({ raw: { id: "77", path: "live_set tracks 11" } }),
+        createLiveTrack({ id: 42, path: "live_set tracks 3" }),
+        createLiveTrack({ raw: { id: "77", path: "live_set tracks 11" } }),
       ]),
     );
 
@@ -420,7 +407,7 @@ describe("AbletonLiveBridge", () => {
     const listeners = new Map<string, Observer>();
     const cleanup = vi.fn(() => undefined);
 
-    const track: RuntimeTrack = {
+    const track: LiveTrack = {
       child: vi.fn(() => resolved(null)),
       get: vi.fn((prop: TrackProperty) => {
         if (prop === "name") {
@@ -478,7 +465,7 @@ describe("AbletonLiveBridge", () => {
     await bridge.applySelectedTrack(4);
     expect(bridge.selectedTrack).toBe(4);
 
-    const track: RuntimeTrack = {
+    const track: LiveTrack = {
       child: vi.fn(() => resolved(null)),
       get: vi.fn((property: TrackProperty) => {
         if (property === "playing_slot_index") {
@@ -500,7 +487,7 @@ describe("AbletonLiveBridge", () => {
   it("covers applySelectedTrack observer guard no-op branches", async () => {
     const { bridge } = await createBridge();
     const listeners = new Map<string, Observer>();
-    const track: RuntimeTrack = {
+    const track: LiveTrack = {
       child: vi.fn(() => resolved(null)),
       get: vi.fn(() => resolved(1)),
       observe: vi.fn((prop: TrackProperty, listener: Observer) => {
@@ -550,10 +537,10 @@ describe("AbletonLiveBridge", () => {
     bridge.activeClip = null;
     bridge.selectedTrackToken = 10;
     bridge.subscribeScene = vi.fn(() => resolved(undefined));
-    bridge.getTrack = vi.fn(() => resolved({} as RuntimeTrack));
-    bridge.safeTrackChild = vi.fn(() => resolved({} as RuntimeClipSlot));
+    bridge.getTrack = vi.fn(() => resolved({} as LiveTrack));
+    bridge.safeTrackChild = vi.fn(() => resolved({} as LiveClipSlot));
     bridge.safeClipSlotGet = vi.fn(() => resolved(true));
-    bridge.safeClipSlotClip = vi.fn(() => resolved({} as RuntimeClip));
+    bridge.safeClipSlotClip = vi.fn(() => resolved({} as LiveClip));
     const subscribeClipSpy = vi
       .spyOn(bridge, "subscribeClip")
       .mockImplementation(() => resolved(undefined));
@@ -568,26 +555,26 @@ describe("AbletonLiveBridge", () => {
     bridge.selectedTrack = 2;
     bridge.selectedTrackToken = 50;
     bridge.subscribeScene = vi.fn(() => resolved(undefined));
-    bridge.safeTrackChild = vi.fn(() => resolved({} as RuntimeClipSlot));
+    bridge.safeTrackChild = vi.fn(() => resolved({} as LiveClipSlot));
     bridge.safeClipSlotGet = vi.fn(() => resolved(true));
-    bridge.safeClipSlotClip = vi.fn(() => resolved({} as RuntimeClip));
+    bridge.safeClipSlotClip = vi.fn(() => resolved({} as LiveClip));
 
     bridge.getTrack = vi.fn(() => {
       bridge.selectedTrackToken += 1;
-      return resolved({} as RuntimeTrack);
+      return resolved({} as LiveTrack);
     });
     await bridge.handlePlayingSlot(1);
 
     bridge.selectedTrackToken = 60;
-    bridge.getTrack = vi.fn(() => resolved({} as RuntimeTrack));
+    bridge.getTrack = vi.fn(() => resolved({} as LiveTrack));
     bridge.safeTrackChild = vi.fn(() => {
       bridge.selectedTrackToken += 1;
-      return resolved({} as RuntimeClipSlot);
+      return resolved({} as LiveClipSlot);
     });
     await bridge.handlePlayingSlot(2);
 
     bridge.selectedTrackToken = 70;
-    bridge.safeTrackChild = vi.fn(() => resolved({} as RuntimeClipSlot));
+    bridge.safeTrackChild = vi.fn(() => resolved({} as LiveClipSlot));
     bridge.safeClipSlotGet = vi.fn(() => {
       bridge.selectedTrackToken += 1;
       return resolved(true);
@@ -598,7 +585,7 @@ describe("AbletonLiveBridge", () => {
     bridge.safeClipSlotGet = vi.fn(() => resolved(true));
     bridge.safeClipSlotClip = vi.fn(() => {
       bridge.selectedTrackToken += 1;
-      return resolved({} as RuntimeClip);
+      return resolved({} as LiveClip);
     });
     await bridge.handlePlayingSlot(4);
   });
@@ -720,7 +707,7 @@ describe("AbletonLiveBridge", () => {
     const { bridge } = await createBridge();
     const sceneListeners = new Map<string, Observer>();
     const cleanup = vi.fn(() => undefined);
-    const scene: RuntimeScene = {
+    const scene: LiveScene = {
       get: vi.fn((prop: SceneProperty) =>
         resolved(prop === "name" ? "Verse" : 0),
       ),
@@ -763,7 +750,7 @@ describe("AbletonLiveBridge", () => {
     const { bridge } = await createBridge();
     const clipListeners = new Map<string, Observer>();
     const cleanup = vi.fn(() => undefined);
-    const clip: RuntimeClip = {
+    const clip: LiveClip = {
       get: vi.fn((prop: ClipProperty) => {
         if (prop === "playing_position") {
           return resolved(1.25);
@@ -898,7 +885,7 @@ describe("AbletonLiveBridge", () => {
     expect(await bridge.safeSongSceneChild(4)).toBeNull();
     expect(await bridge.safeSongTracks()).toEqual([]);
 
-    const track: RuntimeTrack = {
+    const track: LiveTrack = {
       child: vi.fn(() => resolved(undefined)),
       get: vi.fn(() => resolved("x")),
       observe: vi.fn(() => resolved("noop")),
@@ -908,7 +895,7 @@ describe("AbletonLiveBridge", () => {
 
     bridge.safeSongTracks = vi.fn(() =>
       resolved([
-        createRuntimeTrack({
+        createLiveTrack({
           id: 500,
           path: null,
           raw: { path: null },
@@ -939,7 +926,7 @@ describe("AbletonLiveBridge", () => {
     await bridge.applySelectedTrack(1);
 
     const clipListeners = new Map<string, Observer>();
-    const conversionClip: RuntimeClip = {
+    const conversionClip: LiveClip = {
       get: vi.fn((property: ClipProperty) => {
         if (property === "name") {
           return resolved(123n);
@@ -994,7 +981,7 @@ describe("AbletonLiveBridge", () => {
             child: vi.fn(() => resolved(null)),
             get: vi.fn(() => resolved(null)),
             observe: vi.fn(() => resolved(null)),
-          } as RuntimeTrack,
+          } as LiveTrack,
         ]),
       ),
       get: vi.fn(() => resolved(1)),
@@ -1104,7 +1091,7 @@ describe("AbletonLiveBridge", () => {
       ),
     ).toBeNull();
 
-    const failingTrack: RuntimeTrack = {
+    const failingTrack: LiveTrack = {
       child: vi.fn(() => rejected(new Error("track-child"))),
       get: vi.fn(() => rejected(new Error("track-get"))),
       observe: vi.fn(() => resolved("noop")),
