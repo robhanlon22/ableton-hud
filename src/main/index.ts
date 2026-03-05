@@ -379,6 +379,7 @@ void app.whenReady().then(async () => {
 
 app.on("before-quit", () => {
   bridge?.stop();
+  bridge = null;
 });
 
 app.on("window-all-closed", () => {

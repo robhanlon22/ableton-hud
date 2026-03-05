@@ -12,21 +12,12 @@ export default defineConfig({
     coverage: {
       enabled: true,
       exclude: [
-        "src/**/*.browser.test.ts",
-        "src/**/*.browser.test.tsx",
-        "src/**/*.node.test.ts",
-        "src/**/*.node.test.tsx",
+        "src/**/*.test.{ts,tsx}",
         "src/**/*.d.ts",
         "src/renderer/src/test/**",
         "src/renderer/src/__screenshots__/**",
       ],
-      include: [
-        "src/main/counter.ts",
-        "src/main/prefs.ts",
-        "src/preload/**/*.ts",
-        "src/renderer/src/**/*.{ts,tsx}",
-        "src/shared/ipc.ts",
-      ],
+      include: ["src/**/*.{ts,tsx}"],
       provider: "v8",
       reportOnFailure: true,
       thresholds: {
