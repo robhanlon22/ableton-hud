@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import type { HudMode, HudState } from "../shared/types";
 
 import {
+  CompactViewRequestSchema,
   createDefaultHudState,
   HUD_CHANNELS,
   HudModeSchema,
@@ -22,11 +23,22 @@ let latestHudState: HudState | null = null;
 let bridge: AbletonOscBridge | null = null;
 let mode: HudMode = "elapsed";
 let trackLocked = false;
+let isCompactView = false;
+let suppressPersist = false;
+let preCompactBounds: null | {
+  contentHeight: number;
+  contentWidth: number;
+  x: number;
+  y: number;
+} = null;
 
 const WINDOW_CONTENT_WIDTH = 370;
 const WINDOW_CONTENT_HEIGHT = 180;
+const COMPACT_CONTENT_WIDTH = 320;
+const COMPACT_CONTENT_HEIGHT = 130;
 
 const prefStore = new PrefStore();
+const isE2EMock = process.env.AOSC_E2E_MOCK === "1";
 const rendererDebugPort = process.env.AOSC_RENDERER_DEBUG_PORT;
 
 if (rendererDebugPort) {
@@ -42,16 +54,33 @@ if (rendererDebugPort) {
 async function createWindow(): Promise<void> {
   const prefs = await prefStore.load();
   const windowBounds = prefs.windowBounds;
-  const initialBounds = {
-    height: windowBounds?.height ?? WINDOW_CONTENT_HEIGHT,
-    width: windowBounds?.width ?? WINDOW_CONTENT_WIDTH,
-    ...(windowBounds
+  isCompactView = prefs.compactMode;
+  const positionBounds = windowBounds
+    ? {
+        x: windowBounds.x,
+        y: windowBounds.y,
+      }
+    : {};
+  const initialBounds = isCompactView
+    ? {
+        ...positionBounds,
+        height: COMPACT_CONTENT_HEIGHT,
+        width: COMPACT_CONTENT_WIDTH,
+      }
+    : {
+        ...positionBounds,
+        height: windowBounds?.height ?? WINDOW_CONTENT_HEIGHT,
+        width: windowBounds?.width ?? WINDOW_CONTENT_WIDTH,
+      };
+  preCompactBounds =
+    isCompactView && windowBounds
       ? {
+          contentHeight: windowBounds.height,
+          contentWidth: windowBounds.width,
           x: windowBounds.x,
           y: windowBounds.y,
         }
-      : {}),
-  };
+      : null;
 
   const preloadCandidates = [
     join(__dirname, "../preload/index.cjs"),
@@ -72,7 +101,7 @@ async function createWindow(): Promise<void> {
     ...initialBounds,
     alwaysOnTop: prefs.alwaysOnTop,
     autoHideMenuBar: true,
-    resizable: true,
+    resizable: !isCompactView,
     titleBarStyle: "default",
     useContentSize: true,
     webPreferences: {
@@ -92,17 +121,28 @@ async function createWindow(): Promise<void> {
   }
 
   mainWindow.on("resize", () => {
+    if (suppressPersist) {
+      return;
+    }
     void persistPrefs();
   });
 
   mainWindow.on("move", () => {
+    if (suppressPersist) {
+      return;
+    }
     void persistPrefs();
   });
 
   mainWindow.webContents.on("did-finish-load", () => {
     const initialState = latestHudState
       ? withWindowState(latestHudState)
-      : createDefaultHudState(mode, resolveAlwaysOnTop(), trackLocked);
+      : createDefaultHudState(
+          mode,
+          resolveAlwaysOnTop(),
+          isCompactView,
+          trackLocked,
+        );
     mainWindow?.webContents.send(HUD_CHANNELS.state, initialState);
   });
 
@@ -121,16 +161,26 @@ async function persistPrefs(): Promise<void> {
 
   const bounds = mainWindow.getBounds();
   const [contentWidth, contentHeight] = mainWindow.getContentSize();
+  const persistedBounds =
+    isCompactView && preCompactBounds
+      ? preCompactBounds
+      : {
+          contentHeight,
+          contentWidth,
+          x: bounds.x,
+          y: bounds.y,
+        };
 
   await prefStore.save({
     alwaysOnTop: mainWindow.isAlwaysOnTop(),
+    compactMode: isCompactView,
     mode,
     trackLocked,
     windowBounds: {
-      height: contentHeight,
-      width: contentWidth,
-      x: bounds.x,
-      y: bounds.y,
+      height: persistedBounds.contentHeight,
+      width: persistedBounds.contentWidth,
+      x: persistedBounds.x,
+      y: persistedBounds.y,
     },
   });
 }
@@ -143,7 +193,12 @@ function registerIpcHandlers(): void {
   ipcMain.handle(HUD_CHANNELS.getInitialState, () => {
     return latestHudState
       ? withWindowState(latestHudState)
-      : createDefaultHudState(mode, resolveAlwaysOnTop(), trackLocked);
+      : createDefaultHudState(
+          mode,
+          resolveAlwaysOnTop(),
+          isCompactView,
+          trackLocked,
+        );
   });
 
   ipcMain.removeHandler(HUD_CHANNELS.setMode);
@@ -154,8 +209,67 @@ function registerIpcHandlers(): void {
     await persistPrefs();
   });
 
+  ipcMain.removeHandler(HUD_CHANNELS.setCompactView);
+  ipcMain.handle(HUD_CHANNELS.setCompactView, async (_event, request) => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return;
+    }
+
+    const parsedRequest = CompactViewRequestSchema.parse(request);
+    if (parsedRequest.enabled) {
+      if (
+        parsedRequest.width === undefined ||
+        parsedRequest.height === undefined
+      ) {
+        throw new Error("Compact view dimensions are required when enabled.");
+      }
+
+      if (!isCompactView) {
+        const bounds = mainWindow.getBounds();
+        const [contentWidth, contentHeight] = mainWindow.getContentSize();
+        preCompactBounds = {
+          contentHeight,
+          contentWidth,
+          x: bounds.x,
+          y: bounds.y,
+        };
+      }
+
+      suppressPersist = true;
+      isCompactView = true;
+      mainWindow.setResizable(false);
+      mainWindow.setContentSize(parsedRequest.width, parsedRequest.height);
+      suppressPersist = false;
+      await persistPrefs();
+      return;
+    }
+
+    if (!isCompactView) {
+      return;
+    }
+
+    suppressPersist = true;
+    mainWindow.setResizable(true);
+    if (preCompactBounds) {
+      mainWindow.setPosition(preCompactBounds.x, preCompactBounds.y);
+      mainWindow.setContentSize(
+        preCompactBounds.contentWidth,
+        preCompactBounds.contentHeight,
+      );
+    }
+
+    isCompactView = false;
+    suppressPersist = false;
+    preCompactBounds = null;
+    await persistPrefs();
+  });
+
   ipcMain.removeHandler(HUD_CHANNELS.toggleTrackLock);
   ipcMain.handle(HUD_CHANNELS.toggleTrackLock, async () => {
+    if (isE2EMock) {
+      return;
+    }
+
     if (!bridge) {
       return;
     }
@@ -175,7 +289,12 @@ function registerIpcHandlers(): void {
 
     const nextState = latestHudState
       ? withWindowState(latestHudState)
-      : createDefaultHudState(mode, resolveAlwaysOnTop(), trackLocked);
+      : createDefaultHudState(
+          mode,
+          resolveAlwaysOnTop(),
+          isCompactView,
+          trackLocked,
+        );
     sendStateToWindow(nextState);
   });
 }
@@ -215,16 +334,20 @@ function withWindowState(state: HudState): HudState {
   return {
     ...state,
     alwaysOnTop: resolveAlwaysOnTop(),
+    compactView: isCompactView,
   };
 }
 
 void app.whenReady().then(async () => {
   const prefs = await prefStore.load();
+  isCompactView = prefs.compactMode;
   mode = prefs.mode;
   trackLocked = prefs.trackLocked;
 
-  bridge = new AbletonOscBridge(mode, sendStateToWindow, trackLocked);
-  bridge.start();
+  if (!isE2EMock) {
+    bridge = new AbletonOscBridge(mode, sendStateToWindow, trackLocked);
+    bridge.start();
+  }
 
   registerIpcHandlers();
   await createWindow();

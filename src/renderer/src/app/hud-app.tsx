@@ -1,6 +1,8 @@
 import {
   Lock,
   LockOpen,
+  Maximize2,
+  Minimize2,
   Pin,
   PinOff,
   Play,
@@ -9,6 +11,7 @@ import {
 } from "lucide-react";
 import {
   type CSSProperties,
+  type RefObject,
   useEffect,
   useMemo,
   useRef,
@@ -33,7 +36,10 @@ import { flashDuration } from "./hud-timing";
 const CLIP_HANDOFF_HOLD_MS = 90;
 
 export interface HudSurfaceProps {
+  compactPanelRef: RefObject<HTMLDivElement | null>;
+  isCompactView: boolean;
   isFlashActive: boolean;
+  onToggleCompactView: () => void;
   onToggleMode: () => void;
   onToggleTopmost: () => void;
   onToggleTrackLock: () => void;
@@ -52,9 +58,11 @@ type StatusKind = "disconnected" | "playing" | "stopped";
  * @returns The live HUD application element.
  */
 export function HudApp(): React.JSX.Element {
+  const compactPanelRef = useRef<HTMLDivElement>(null);
   const [hudState, setHudState] = useState<HudState>(() =>
     createDefaultHudState(),
   );
+  const [isCompactView, setIsCompactView] = useState(false);
   const [isFlashActive, setIsFlashActive] = useState(false);
   const [heldClipColor, setHeldClipColor] = useState<null | number>(null);
   const lastFlashToken = useRef(-1);
@@ -103,6 +111,7 @@ export function HudApp(): React.JSX.Element {
       pendingNullClipStateRef.current = nextState;
 
       latestHudStateRef.current = nextState;
+      setIsCompactView(nextState.compactView);
       setHudState(nextState);
     };
 
@@ -111,6 +120,7 @@ export function HudApp(): React.JSX.Element {
       .then((initialState) => {
         if (mounted) {
           latestHudStateRef.current = initialState;
+          setIsCompactView(initialState.compactView);
           setHudState(initialState);
         }
       })
@@ -118,6 +128,7 @@ export function HudApp(): React.JSX.Element {
         if (mounted) {
           const fallbackState = createDefaultHudState();
           latestHudStateRef.current = fallbackState;
+          setIsCompactView(fallbackState.compactView);
           setHudState(fallbackState);
         }
       });
@@ -170,6 +181,46 @@ export function HudApp(): React.JSX.Element {
     void window.hudApi.toggleTrackLock();
   };
 
+  const disableCompactView = (): void => {
+    setIsCompactView(false);
+  };
+
+  const requestCompactResize = (): void => {
+    window.requestAnimationFrame(() => {
+      const compactPanel = compactPanelRef.current;
+      const rect = compactPanel?.getBoundingClientRect();
+      const compactWidth = Math.min(
+        370,
+        Math.max(320, Math.ceil((hudState.counterText.length + 1) * 52)),
+      );
+      void window.hudApi
+        .setCompactView({
+          enabled: true,
+          height: Math.max(1, Math.ceil(rect?.height ?? 1)),
+          width: compactWidth,
+        })
+        .catch(disableCompactView);
+    });
+  };
+
+  const onToggleCompactView = (): void => {
+    if (isCompactView) {
+      disableCompactView();
+      void window.hudApi.setCompactView({ enabled: false });
+      return;
+    }
+
+    setIsCompactView(true);
+  };
+
+  useEffect(() => {
+    if (!isCompactView) {
+      return;
+    }
+
+    requestCompactResize();
+  }, [hudState.counterText, isCompactView]);
+
   const renderState = useMemo(() => {
     const hasActiveClip =
       hudState.trackIndex !== null && hudState.clipIndex !== null;
@@ -188,7 +239,10 @@ export function HudApp(): React.JSX.Element {
 
   return (
     <HudSurface
+      compactPanelRef={compactPanelRef}
+      isCompactView={isCompactView}
       isFlashActive={isFlashActive}
+      onToggleCompactView={onToggleCompactView}
       onToggleMode={onToggleMode}
       onToggleTopmost={onToggleTopmost}
       onToggleTrackLock={onToggleTrackLock}
@@ -204,7 +258,10 @@ export function HudApp(): React.JSX.Element {
  */
 export function HudSurface(props: HudSurfaceProps): React.JSX.Element {
   const {
+    compactPanelRef,
+    isCompactView,
     isFlashActive,
+    onToggleCompactView,
     onToggleMode,
     onToggleTopmost,
     onToggleTrackLock,
@@ -217,159 +274,199 @@ export function HudSurface(props: HudSurfaceProps): React.JSX.Element {
 
   const frameClass = useMemo(() => {
     return cn(
-      "h-full w-full overflow-hidden border border-[#4c525c] bg-ableton-bg text-ableton-text",
+      "h-full w-full overflow-hidden bg-ableton-bg text-ableton-text",
+      isCompactView ? "border border-transparent" : "border border-[#4c525c]",
       "bg-[linear-gradient(180deg,#2b3038_0%,#232830_20%,#1a1e26_100%)]",
       state.isLastBar && "text-ableton-warning",
     );
-  }, [state.isLastBar]);
+  }, [isCompactView, state.isLastBar]);
 
   const flashClass = useMemo(
     () => panelFlashClass(state, isFlashActive),
     [state, isFlashActive],
   );
 
+  const counterPanel = (
+    <div
+      className={cn(
+        "relative rounded-sm border border-ableton-border bg-ableton-panel px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors duration-100",
+        isCompactView ? "self-center border-transparent shadow-none" : "w-full",
+        state.isLastBar && "border-[#705858] bg-zinc-900/95",
+        flashClass,
+      )}
+      data-testid="counter-panel"
+      ref={compactPanelRef}
+    >
+      <Button
+        aria-label={isCompactView ? "Expand details" : "Collapse details"}
+        className={cn(
+          "absolute right-2 top-2 h-6 w-6 rounded-full border p-0 transition-colors",
+          "border-ableton-border bg-transparent text-ableton-muted hover:border-zinc-500 hover:bg-transparent hover:text-ableton-text",
+        )}
+        data-testid="compact-toggle"
+        onClick={onToggleCompactView}
+        title={isCompactView ? "EXPAND DETAILS" : "COLLAPSE DETAILS"}
+        variant="ghost"
+      >
+        {isCompactView ? (
+          <Maximize2 className="h-3.5 w-3.5" />
+        ) : (
+          <Minimize2 className="h-3.5 w-3.5" />
+        )}
+      </Button>
+      <div
+        className={cn(
+          "pr-10 font-mono text-[48px] font-semibold leading-none tracking-tight text-ableton-success sm:text-[56px]",
+          state.isLastBar && "text-ableton-warning",
+        )}
+        data-testid="counter-text"
+      >
+        {state.counterText}
+      </div>
+    </div>
+  );
+
   return (
     <div className={frameClass} data-testid="hud-root">
-      <Card className="flex h-full flex-col rounded-sm border-[#3a4049] bg-ableton-panelAlt/95">
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-1.5">
-            <div className="grid min-w-0 flex-1 grid-cols-3 gap-1">
-              <div
-                className={cn(
-                  "flex h-6 min-w-0 items-center justify-center rounded-[4px] border px-1 font-ui text-[11px] font-medium leading-none",
-                  state.clipColor === null
-                    ? "border-[#5a616d] bg-[#2a3037] text-ableton-text"
-                    : "border-transparent",
-                )}
-                data-testid="clip-pill"
-                style={clipStyle}
-              >
-                <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-center">
-                  {displayName(state.clipName)}
-                </span>
+      <Card
+        className={cn(
+          "flex h-full flex-col rounded-sm bg-ableton-panelAlt/95",
+          isCompactView ? "border-transparent shadow-none" : "border-[#3a4049]",
+        )}
+      >
+        {isCompactView ? (
+          <CardContent className="p-0">{counterPanel}</CardContent>
+        ) : (
+          <>
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-1.5">
+                <div className="grid min-w-0 flex-1 grid-cols-3 gap-1">
+                  <div
+                    className={cn(
+                      "flex h-6 min-w-0 items-center justify-center rounded-[4px] border px-1 font-ui text-[11px] font-medium leading-none",
+                      state.clipColor === null
+                        ? "border-[#5a616d] bg-[#2a3037] text-ableton-text"
+                        : "border-transparent",
+                    )}
+                    data-testid="clip-pill"
+                    style={clipStyle}
+                  >
+                    <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-center">
+                      {displayName(state.clipName)}
+                    </span>
+                  </div>
+                  <div
+                    className={cn(
+                      "flex h-6 min-w-0 items-center justify-center rounded-[4px] border px-1 font-ui text-[11px] font-medium leading-none",
+                      state.trackColor === null
+                        ? "border-[#5a616d] bg-[#2a3037] text-ableton-text"
+                        : "border-transparent",
+                    )}
+                    data-testid="track-pill"
+                    style={trackStyle}
+                  >
+                    <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-center">
+                      {displayName(state.trackName)}
+                    </span>
+                  </div>
+                  <div
+                    className={cn(
+                      "flex h-6 min-w-0 items-center justify-center rounded-[4px] border px-1 font-ui text-[11px] font-medium leading-none",
+                      state.sceneColor === null
+                        ? "border-[#5a616d] bg-[#2a3037] text-ableton-text"
+                        : "border-transparent",
+                    )}
+                    data-testid="scene-pill"
+                    style={sceneStyle}
+                  >
+                    <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-center">
+                      {displayName(state.sceneName)}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  <Badge
+                    aria-label={statusLabel(status)}
+                    className="h-6 w-6 justify-center px-0 py-0"
+                    title={statusLabel(status)}
+                    variant={statusVariant(state)}
+                  >
+                    {statusIcon(status)}
+                  </Badge>
+                </div>
               </div>
-              <div
-                className={cn(
-                  "flex h-6 min-w-0 items-center justify-center rounded-[4px] border px-1 font-ui text-[11px] font-medium leading-none",
-                  state.trackColor === null
-                    ? "border-[#5a616d] bg-[#2a3037] text-ableton-text"
-                    : "border-transparent",
-                )}
-                data-testid="track-pill"
-                style={trackStyle}
-              >
-                <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-center">
-                  {displayName(state.trackName)}
-                </span>
+            </CardHeader>
+
+            <Separator />
+
+            <CardContent className="flex flex-1 flex-col justify-center pb-2 pt-2">
+              {counterPanel}
+            </CardContent>
+
+            <CardFooter className="pt-1">
+              <div className="flex w-full items-center gap-2">
+                <Button
+                  className={cn(
+                    "h-8 flex-1 rounded-sm border text-[10px] uppercase tracking-[0.08em] transition-colors",
+                    state.mode === "elapsed"
+                      ? "border-ableton-accent bg-zinc-900 text-ableton-accent hover:bg-zinc-800"
+                      : "border-emerald-400/75 bg-emerald-400/18 text-emerald-200 hover:bg-emerald-400/28",
+                  )}
+                  data-testid="mode-toggle"
+                  onClick={onToggleMode}
+                  variant="ghost"
+                >
+                  {modeLabel(state.mode)}
+                </Button>
+                <Button
+                  aria-label={
+                    state.trackLocked
+                      ? "Unlock track lock"
+                      : "Lock track selection"
+                  }
+                  className={cn(
+                    "h-7 w-7 rounded-full border p-0 transition-colors",
+                    state.trackLocked
+                      ? "border-amber-400/80 bg-amber-400/20 text-amber-300 hover:bg-amber-400/30"
+                      : "border-ableton-border bg-transparent text-ableton-muted hover:border-zinc-500 hover:bg-transparent hover:text-ableton-text",
+                  )}
+                  data-testid="track-lock-toggle"
+                  onClick={onToggleTrackLock}
+                  title={state.trackLocked ? "LOCKED" : "UNLOCKED"}
+                  variant="ghost"
+                >
+                  {state.trackLocked ? (
+                    <Lock className="h-3.5 w-3.5" />
+                  ) : (
+                    <LockOpen className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+                <Button
+                  aria-label={
+                    state.alwaysOnTop
+                      ? "Set window normal"
+                      : "Set window floating"
+                  }
+                  className={cn(
+                    "h-7 w-7 rounded-full border p-0 transition-colors",
+                    state.alwaysOnTop
+                      ? "border-cyan-400/80 bg-cyan-400/20 text-cyan-300 hover:bg-cyan-400/30"
+                      : "border-ableton-border bg-transparent text-ableton-muted hover:border-zinc-500 hover:bg-transparent hover:text-ableton-text",
+                  )}
+                  onClick={onToggleTopmost}
+                  title={state.alwaysOnTop ? "FLOAT" : "NORMAL"}
+                  variant="ghost"
+                >
+                  {state.alwaysOnTop ? (
+                    <Pin className="h-3.5 w-3.5" />
+                  ) : (
+                    <PinOff className="h-3.5 w-3.5" />
+                  )}
+                </Button>
               </div>
-              <div
-                className={cn(
-                  "flex h-6 min-w-0 items-center justify-center rounded-[4px] border px-1 font-ui text-[11px] font-medium leading-none",
-                  state.sceneColor === null
-                    ? "border-[#5a616d] bg-[#2a3037] text-ableton-text"
-                    : "border-transparent",
-                )}
-                data-testid="scene-pill"
-                style={sceneStyle}
-              >
-                <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-center">
-                  {displayName(state.sceneName)}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <Badge
-                aria-label={statusLabel(status)}
-                className="h-6 w-6 justify-center px-0 py-0"
-                title={statusLabel(status)}
-                variant={statusVariant(state)}
-              >
-                {statusIcon(status)}
-              </Badge>
-            </div>
-          </div>
-        </CardHeader>
-
-        <Separator />
-
-        <CardContent className="flex flex-1 flex-col justify-center pb-2 pt-2">
-          <div
-            className={cn(
-              "rounded-sm border border-ableton-border bg-ableton-panel px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors duration-100",
-              state.isLastBar && "border-[#705858] bg-zinc-900/95",
-              flashClass,
-            )}
-          >
-            <div
-              className={cn(
-                "font-mono text-[48px] font-semibold leading-none tracking-tight text-ableton-success sm:text-[56px]",
-                state.isLastBar && "text-ableton-warning",
-              )}
-              data-testid="counter-text"
-            >
-              {state.counterText}
-            </div>
-          </div>
-        </CardContent>
-
-        <CardFooter className="pt-1">
-          <div className="flex w-full items-center gap-2">
-            <Button
-              className={cn(
-                "h-8 flex-1 rounded-sm border text-[10px] uppercase tracking-[0.08em] transition-colors",
-                state.mode === "elapsed"
-                  ? "border-ableton-accent bg-zinc-900 text-ableton-accent hover:bg-zinc-800"
-                  : "border-emerald-400/75 bg-emerald-400/18 text-emerald-200 hover:bg-emerald-400/28",
-              )}
-              data-testid="mode-toggle"
-              onClick={onToggleMode}
-              variant="ghost"
-            >
-              {modeLabel(state.mode)}
-            </Button>
-            <Button
-              aria-label={
-                state.trackLocked ? "Unlock track lock" : "Lock track selection"
-              }
-              className={cn(
-                "h-7 w-7 rounded-full border p-0 transition-colors",
-                state.trackLocked
-                  ? "border-amber-400/80 bg-amber-400/20 text-amber-300 hover:bg-amber-400/30"
-                  : "border-ableton-border bg-transparent text-ableton-muted hover:border-zinc-500 hover:bg-transparent hover:text-ableton-text",
-              )}
-              data-testid="track-lock-toggle"
-              onClick={onToggleTrackLock}
-              title={state.trackLocked ? "LOCKED" : "UNLOCKED"}
-              variant="ghost"
-            >
-              {state.trackLocked ? (
-                <Lock className="h-3.5 w-3.5" />
-              ) : (
-                <LockOpen className="h-3.5 w-3.5" />
-              )}
-            </Button>
-            <Button
-              aria-label={
-                state.alwaysOnTop ? "Set window normal" : "Set window floating"
-              }
-              className={cn(
-                "h-7 w-7 rounded-full border p-0 transition-colors",
-                state.alwaysOnTop
-                  ? "border-cyan-400/80 bg-cyan-400/20 text-cyan-300 hover:bg-cyan-400/30"
-                  : "border-ableton-border bg-transparent text-ableton-muted hover:border-zinc-500 hover:bg-transparent hover:text-ableton-text",
-              )}
-              onClick={onToggleTopmost}
-              title={state.alwaysOnTop ? "FLOAT" : "NORMAL"}
-              variant="ghost"
-            >
-              {state.alwaysOnTop ? (
-                <Pin className="h-3.5 w-3.5" />
-              ) : (
-                <PinOff className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          </div>
-        </CardFooter>
+            </CardFooter>
+          </>
+        )}
       </Card>
     </div>
   );

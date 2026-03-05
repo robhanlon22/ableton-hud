@@ -4,6 +4,7 @@ import type { CounterParts, HudMode, HudState } from "./types";
 
 export const HUD_CHANNELS = {
   getInitialState: "hud:get-initial-state",
+  setCompactView: "hud:set-compact-view",
   setMode: "hud:set-mode",
   state: "hud:state",
   toggleTopmost: "hud:toggle-topmost",
@@ -18,6 +19,34 @@ const CounterPartsSchema: z.ZodType<CounterParts> = z.object({
   sixteenth: z.number().int().nonnegative(),
 });
 
+export const CompactViewRequestSchema = z
+  .object({
+    enabled: z.boolean(),
+    height: z.number().int().positive().optional(),
+    width: z.number().int().positive().optional(),
+  })
+  .superRefine((request, context) => {
+    if (!request.enabled) {
+      return;
+    }
+
+    if (request.width === undefined) {
+      context.addIssue({
+        code: "custom",
+        message: "Width is required when compact mode is enabled.",
+        path: ["width"],
+      });
+    }
+
+    if (request.height === undefined) {
+      context.addIssue({
+        code: "custom",
+        message: "Height is required when compact mode is enabled.",
+        path: ["height"],
+      });
+    }
+  });
+
 export const HudStateSchema: z.ZodType<HudState> = z.object({
   alwaysOnTop: z.boolean(),
   beatFlashToken: z.number().int().nonnegative(),
@@ -25,6 +54,7 @@ export const HudStateSchema: z.ZodType<HudState> = z.object({
   clipColor: z.number().int().min(0).max(0xffffff).nullable(),
   clipIndex: z.number().int().nullable(),
   clipName: z.string().nullable(),
+  compactView: z.boolean(),
   connected: z.boolean(),
   counterParts: CounterPartsSchema,
   counterText: z.string(),
@@ -45,12 +75,14 @@ export const HudStateSchema: z.ZodType<HudState> = z.object({
  * Creates the initial HUD state used before OSC data arrives.
  * @param mode - The initial counter mode.
  * @param alwaysOnTop - Whether the window should start topmost.
+ * @param compactView - Whether compact counter-only mode is active.
  * @param trackLocked - Whether track selection starts locked.
  * @returns A fully populated default HUD state.
  */
 export function createDefaultHudState(
   mode: HudMode = "elapsed",
   alwaysOnTop = false,
+  compactView = false,
   trackLocked = false,
 ): HudState {
   return {
@@ -60,6 +92,7 @@ export function createDefaultHudState(
     clipColor: null,
     clipIndex: null,
     clipName: null,
+    compactView,
     connected: false,
     counterParts: {
       bar: 0,

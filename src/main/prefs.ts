@@ -14,6 +14,7 @@ const BoundsSchema = z.object({
 
 const PrefsSchema = z.object({
   alwaysOnTop: z.boolean().default(true),
+  compactMode: z.boolean().default(false),
   mode: z.enum(["elapsed", "remaining"]).default("elapsed"),
   trackLocked: z.boolean().default(false),
   windowBounds: BoundsSchema.optional(),
@@ -21,6 +22,7 @@ const PrefsSchema = z.object({
 
 export interface HudPreferences {
   alwaysOnTop: boolean;
+  compactMode: boolean;
   mode: HudMode;
   trackLocked: boolean;
   windowBounds?: Rectangle;
@@ -28,6 +30,7 @@ export interface HudPreferences {
 
 const DEFAULT_PREFS: HudPreferences = {
   alwaysOnTop: true,
+  compactMode: false,
   mode: "elapsed",
   trackLocked: false,
 };
@@ -36,7 +39,9 @@ export class PrefStore {
   private readonly path: string;
 
   constructor() {
-    this.path = join(app.getPath("userData"), "hud-preferences.json");
+    const e2eUserDataPath = process.env.AOSC_E2E_USER_DATA;
+    const basePath = e2eUserDataPath ?? app.getPath("userData");
+    this.path = join(basePath, "hud-preferences.json");
   }
 
   async load(): Promise<HudPreferences> {

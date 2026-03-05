@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { HudMode, HudState } from "../shared/types";
 
 import {
+  CompactViewRequestSchema,
   createDefaultHudState,
   HUD_CHANNELS,
   HudModeSchema,
@@ -12,6 +13,11 @@ import {
 interface HudApi {
   getInitialState: () => Promise<HudState>;
   onHudState: (callback: (state: HudState) => void) => () => void;
+  setCompactView: (request: {
+    enabled: boolean;
+    height?: number;
+    width?: number;
+  }) => Promise<void>;
   setMode: (mode: HudMode) => Promise<void>;
   toggleTopmost: () => Promise<void>;
   toggleTrackLock: () => Promise<void>;
@@ -25,6 +31,7 @@ const isE2EMock = process.env.AOSC_E2E_MOCK === "1";
 
 const mockSubscribers = new Set<(state: HudState) => void>();
 let mockState: HudState = createDefaultHudState("elapsed", true);
+let mockStateHydratedFromMain = false;
 
 /**
  * Creates the normal IPC-backed preload API.
@@ -54,6 +61,11 @@ function createIpcHudApi(): HudApi {
       return () => {
         ipcRenderer.removeListener(HUD_CHANNELS.state, listener);
       };
+    },
+
+    setCompactView: async (request): Promise<void> => {
+      const parsedRequest = CompactViewRequestSchema.parse(request);
+      await ipcRenderer.invoke(HUD_CHANNELS.setCompactView, parsedRequest);
     },
 
     setMode: async (mode: HudMode): Promise<void> => {
@@ -94,7 +106,21 @@ function createMockHudApi(): HudApiWithE2E {
     },
 
     getInitialState: (): Promise<HudState> => {
-      return Promise.resolve(mockState);
+      if (mockStateHydratedFromMain) {
+        return Promise.resolve(mockState);
+      }
+
+      return ipcRenderer
+        .invoke(HUD_CHANNELS.getInitialState)
+        .then((payload: unknown) => {
+          const parsed = HudStateSchema.parse(payload);
+          mockState = parsed;
+          mockStateHydratedFromMain = true;
+          return parsed;
+        })
+        .catch(() => {
+          return mockState;
+        });
     },
 
     onHudState: (callback: (state: HudState) => void): (() => void) => {
@@ -102,6 +128,11 @@ function createMockHudApi(): HudApiWithE2E {
       return () => {
         mockSubscribers.delete(callback);
       };
+    },
+
+    setCompactView: async (request): Promise<void> => {
+      const parsedRequest = CompactViewRequestSchema.parse(request);
+      await ipcRenderer.invoke(HUD_CHANNELS.setCompactView, parsedRequest);
     },
 
     setMode: (mode: HudMode): Promise<void> => {

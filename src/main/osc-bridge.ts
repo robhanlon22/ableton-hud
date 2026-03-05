@@ -302,6 +302,7 @@ export class AbletonOscBridge {
       clipColor: this.clipColor,
       clipIndex: this.activeClip?.clip ?? null,
       clipName: this.clipName,
+      compactView: false,
       connected: this.connected,
       counterParts,
       counterText: formatCounterParts(counterParts),

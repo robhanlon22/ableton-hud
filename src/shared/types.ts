@@ -20,6 +20,7 @@ export interface HudState {
   clipColor: null | number;
   clipIndex: null | number;
   clipName: null | string;
+  compactView: boolean;
   connected: boolean;
   counterParts: CounterParts;
   counterText: string;

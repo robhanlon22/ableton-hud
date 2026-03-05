@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
@@ -14,21 +14,42 @@ import { createDefaultHudState } from "../src/shared/ipc";
 
 const MAIN_ENTRY = resolve(process.cwd(), "out/main/index.js");
 
+interface PersistedPrefs {
+  compactMode: boolean;
+  windowBounds?: {
+    height: number;
+    width: number;
+    x: number;
+    y: number;
+  };
+}
+
 interface RunningHudApp {
   electronApp: ElectronApplication;
   page: Page;
   tempHome: string;
 }
 
+interface WindowContentSize {
+  height: number;
+  width: number;
+}
+
 /**
  * Closes the Electron app and removes temporary profile state.
  * @param app - Running app handles produced by {@link launchHudApp}.
+ * @param removeProfile - Whether to remove the temporary profile directory.
  */
-async function closeHudApp(app: RunningHudApp): Promise<void> {
+async function closeHudApp(
+  app: RunningHudApp,
+  removeProfile = true,
+): Promise<void> {
   try {
     await app.electronApp.close();
   } finally {
-    await rm(app.tempHome, { force: true, recursive: true });
+    if (removeProfile) {
+      await rm(app.tempHome, { force: true, recursive: true });
+    }
   }
 }
 
@@ -72,18 +93,20 @@ async function injectHudStateUntilRendered(
 
 /**
  * Launches the compiled Electron app with isolated user data for deterministic tests.
+ * @param existingTempHome - Optional existing user profile directory to reuse.
  * @returns Running Electron app handles for each test case.
  */
-async function launchHudApp(): Promise<RunningHudApp> {
-  const tempHome = await mkdtemp(
-    join(tmpdir(), "ableton-hud-playwright-home-"),
-  );
+async function launchHudApp(existingTempHome?: string): Promise<RunningHudApp> {
+  const tempHome =
+    existingTempHome ??
+    (await mkdtemp(join(tmpdir(), "ableton-hud-playwright-home-")));
 
   const electronApp = await electron.launch({
     args: [MAIN_ENTRY],
     env: {
       ...process.env,
       AOSC_E2E_MOCK: "1",
+      AOSC_E2E_USER_DATA: tempHome,
       HOME: tempHome,
       USERPROFILE: tempHome,
       XDG_CACHE_HOME: join(tempHome, ".cache"),
@@ -98,6 +121,31 @@ async function launchHudApp(): Promise<RunningHudApp> {
     page,
     tempHome,
   };
+}
+
+/**
+ * Reads persisted HUD preferences from the isolated user-data directory.
+ * @param tempHome - Temporary profile directory used for the test app launch.
+ * @returns Parsed persisted preferences payload.
+ */
+async function readPersistedPrefs(tempHome: string): Promise<PersistedPrefs> {
+  const raw = await readFile(join(tempHome, "hud-preferences.json"), "utf8");
+  return JSON.parse(raw) as PersistedPrefs;
+}
+
+/**
+ * Reads the content size of the active main window.
+ * @param app - Running app handles.
+ * @returns Current content width and height.
+ */
+async function readWindowContentSize(
+  app: RunningHudApp,
+): Promise<WindowContentSize> {
+  return app.electronApp.evaluate(({ BrowserWindow }) => {
+    const mainWindow = BrowserWindow.getAllWindows()[0];
+    const [width, height] = mainWindow.getContentSize();
+    return { height, width };
+  });
 }
 
 /**
@@ -178,6 +226,90 @@ test.describe("Electron HUD", () => {
       await expect(lockButton).toHaveAttribute("title", "LOCKED");
     } finally {
       await closeHudApp(app);
+    }
+  });
+
+  test("toggles compact mode and resizes window to counter panel", async () => {
+    const app = await launchHudApp();
+
+    try {
+      await waitForHudBootstrap(app);
+      const initialSize = await readWindowContentSize(app);
+      const compactToggle = app.page.getByTestId("compact-toggle");
+      await expect(compactToggle).toHaveAttribute("title", "COLLAPSE DETAILS");
+
+      await compactToggle.click();
+      await expect(compactToggle).toHaveAttribute("title", "EXPAND DETAILS");
+      await expect(app.page.getByTestId("mode-toggle")).toHaveCount(0);
+
+      await expect
+        .poll(async () => {
+          return readWindowContentSize(app);
+        })
+        .toEqual({
+          height: expect.any(Number),
+          width: expect.any(Number),
+        });
+      const compactSize = await readWindowContentSize(app);
+      expect(compactSize.width).toBeLessThanOrEqual(initialSize.width);
+      expect(compactSize.height).toBeLessThanOrEqual(initialSize.height);
+
+      await compactToggle.click();
+      await expect(compactToggle).toHaveAttribute("title", "COLLAPSE DETAILS");
+      await expect(app.page.getByTestId("mode-toggle")).toHaveText("Elapsed");
+      await expect
+        .poll(async () => readWindowContentSize(app))
+        .toEqual(initialSize);
+    } finally {
+      await closeHudApp(app);
+    }
+  });
+
+  test("restores full size after compact relaunch cycle", async () => {
+    const app = await launchHudApp();
+    const stableHome = app.tempHome;
+
+    try {
+      await waitForHudBootstrap(app);
+      await app.electronApp.evaluate(({ BrowserWindow }) => {
+        const mainWindow = BrowserWindow.getAllWindows()[0];
+        mainWindow.setContentSize(540, 260);
+      });
+      const fullSize = await readWindowContentSize(app);
+      expect(fullSize).toEqual({ height: 260, width: 540 });
+      const compactToggle = app.page.getByTestId("compact-toggle");
+      await expect(compactToggle).toHaveAttribute("title", "COLLAPSE DETAILS");
+      await compactToggle.click();
+      await expect(compactToggle).toHaveAttribute("title", "EXPAND DETAILS");
+      await expect(app.page.getByTestId("mode-toggle")).toHaveCount(0);
+      await expect
+        .poll(async () => {
+          return readPersistedPrefs(stableHome);
+        })
+        .toMatchObject({
+          compactMode: true,
+        });
+    } finally {
+      await closeHudApp(app, false);
+    }
+
+    const relaunchedApp = await launchHudApp(stableHome);
+    try {
+      await waitForHudBootstrap(relaunchedApp);
+      const compactToggle = relaunchedApp.page.getByTestId("compact-toggle");
+      await expect(compactToggle).toHaveAttribute("title", "EXPAND DETAILS");
+
+      await compactToggle.click();
+      await expect(compactToggle).toHaveAttribute("title", "COLLAPSE DETAILS");
+      await expect(relaunchedApp.page.getByTestId("mode-toggle")).toBeVisible();
+
+      await expect
+        .poll(async () => {
+          return readWindowContentSize(relaunchedApp);
+        })
+        .toEqual({ height: 260, width: 540 });
+    } finally {
+      await closeHudApp(relaunchedApp);
     }
   });
 

@@ -60,7 +60,10 @@ describe("HudSurface", () => {
   it("renders clip and counter text", async () => {
     const view = await render(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={false}
+        onToggleCompactView={vi.fn()}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={vi.fn()}
@@ -87,7 +90,10 @@ describe("HudSurface", () => {
 
     const view = await render(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={false}
+        onToggleCompactView={vi.fn()}
         onToggleMode={onToggleMode}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={vi.fn()}
@@ -102,7 +108,10 @@ describe("HudSurface", () => {
   it("applies warning styling when in last bar", async () => {
     const view = await render(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={true}
+        onToggleCompactView={vi.fn()}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={vi.fn()}
@@ -118,7 +127,10 @@ describe("HudSurface", () => {
   it("uses metadata colors as pill backgrounds with contrasting text", async () => {
     const view = await render(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={false}
+        onToggleCompactView={vi.fn()}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={vi.fn()}
@@ -143,7 +155,10 @@ describe("HudSurface", () => {
   it("renders empty metadata pills when names are missing", async () => {
     const view = await render(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={false}
+        onToggleCompactView={vi.fn()}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={vi.fn()}
@@ -159,7 +174,10 @@ describe("HudSurface", () => {
   it("renders topmost toggle metadata when always-on-top is enabled", async () => {
     const view = await render(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={false}
+        onToggleCompactView={vi.fn()}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={vi.fn()}
@@ -178,7 +196,10 @@ describe("HudSurface", () => {
     const onToggleTrackLock = vi.fn();
     const view = await render(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={false}
+        onToggleCompactView={vi.fn()}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={onToggleTrackLock}
@@ -198,7 +219,10 @@ describe("HudSurface", () => {
   it("renders remaining mode label", async () => {
     const view = await render(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={false}
+        onToggleCompactView={vi.fn()}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={vi.fn()}
@@ -214,7 +238,10 @@ describe("HudSurface", () => {
   it("renders status labels for disconnected and stopped states", async () => {
     const view = await render(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={false}
+        onToggleCompactView={vi.fn()}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={vi.fn()}
@@ -228,7 +255,10 @@ describe("HudSurface", () => {
 
     await view.rerender(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={false}
+        onToggleCompactView={vi.fn()}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={vi.fn()}
@@ -248,7 +278,10 @@ describe("HudSurface", () => {
   it("applies flash panel classes for downbeat and last-bar combinations", async () => {
     const view = await render(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={true}
+        onToggleCompactView={vi.fn()}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={vi.fn()}
@@ -264,7 +297,10 @@ describe("HudSurface", () => {
 
     await view.rerender(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={true}
+        onToggleCompactView={vi.fn()}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={vi.fn()}
@@ -276,7 +312,10 @@ describe("HudSurface", () => {
 
     await view.rerender(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={true}
+        onToggleCompactView={vi.fn()}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={vi.fn()}
@@ -288,7 +327,10 @@ describe("HudSurface", () => {
 
     await view.rerender(
       <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={false}
         isFlashActive={true}
+        onToggleCompactView={vi.fn()}
         onToggleMode={vi.fn()}
         onToggleTopmost={vi.fn()}
         onToggleTrackLock={vi.fn()}

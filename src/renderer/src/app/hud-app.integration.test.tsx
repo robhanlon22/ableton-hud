@@ -15,6 +15,7 @@ interface Deferred<TValue> {
 interface HudApiController {
   emit: (state: HudState) => void;
   listenerCount: () => number;
+  setCompactView: ReturnType<typeof vi.fn>;
   setMode: ReturnType<typeof vi.fn>;
   toggleTopmost: ReturnType<typeof vi.fn>;
   toggleTrackLock: ReturnType<typeof vi.fn>;
@@ -59,6 +60,7 @@ function installRejectedHudApiMock(): void {
   stubHudApi({
     getInitialState: vi.fn(() => Promise.reject(new Error("boom"))),
     onHudState: vi.fn(() => vi.fn()),
+    setCompactView: vi.fn(() => Promise.resolve()),
     setMode: vi.fn(() => Promise.resolve()),
     toggleTopmost: vi.fn(() => Promise.resolve()),
     toggleTrackLock: vi.fn(() => Promise.resolve()),
@@ -78,6 +80,7 @@ function installResolvedHudApiMock(initialState: HudState): HudApiController {
     void mode;
     return Promise.resolve();
   });
+  const setCompactView = vi.fn(() => Promise.resolve());
   const toggleTrackLock = vi.fn(() => Promise.resolve());
   const toggleTopmost = vi.fn(() => Promise.resolve());
 
@@ -91,6 +94,7 @@ function installResolvedHudApiMock(initialState: HudState): HudApiController {
         subscriptions = 0;
       };
     },
+    setCompactView,
     setMode,
     toggleTopmost,
     toggleTrackLock,
@@ -101,6 +105,7 @@ function installResolvedHudApiMock(initialState: HudState): HudApiController {
       activeListener(state);
     },
     listenerCount: () => subscriptions,
+    setCompactView,
     setMode,
     toggleTopmost,
     toggleTrackLock,
@@ -218,6 +223,100 @@ describe("HudApp integration", () => {
 
     // assert
     expect(hudApi.setMode).toHaveBeenCalledWith("remaining");
+  });
+
+  it("toggles compact view and forwards window resize requests", async () => {
+    // arrange
+    const hudApi = installResolvedHudApiMock(
+      makeState({ counterText: "6:6:6", mode: "elapsed" }),
+    );
+
+    // act
+    const view = await render(<HudApp />);
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "6:6:6",
+      );
+    });
+    requiredByTestId(view.container, "compact-toggle").click();
+
+    // assert
+    await vi.waitFor(() => {
+      expect(hudApi.setCompactView).toHaveBeenCalledWith(
+        expect.objectContaining({
+          enabled: true,
+        }),
+      );
+    });
+    expect(
+      view.container.querySelector('[data-testid="mode-toggle"]'),
+    ).toBeNull();
+
+    // act
+    requiredByTestId(view.container, "compact-toggle").click();
+
+    // assert
+    await vi.waitFor(() => {
+      expect(hudApi.setCompactView).toHaveBeenCalledWith({ enabled: false });
+    });
+    expect(requiredByTestId(view.container, "mode-toggle").textContent).toBe(
+      "Elapsed",
+    );
+  });
+
+  it("restores full view when compact resize request fails", async () => {
+    // arrange
+    const hudApi = installResolvedHudApiMock(
+      makeState({ counterText: "6:6:6", mode: "elapsed" }),
+    );
+    hudApi.setCompactView.mockRejectedValueOnce(new Error("failed"));
+
+    // act
+    const view = await render(<HudApp />);
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "6:6:6",
+      );
+    });
+    requiredByTestId(view.container, "compact-toggle").click();
+
+    // assert
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "mode-toggle").textContent).toBe(
+        "Elapsed",
+      );
+    });
+  });
+
+  it("uses minimal compact dimensions when panel ref is unavailable", async () => {
+    // arrange
+    const hudApi = installResolvedHudApiMock(
+      makeState({ counterText: "6:6:6" }),
+    );
+    const getBoundingClientRectSpy = vi
+      .spyOn(HTMLDivElement.prototype, "getBoundingClientRect")
+      .mockImplementation(() => {
+        return undefined as unknown as DOMRect;
+      });
+
+    // act
+    const view = await render(<HudApp />);
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "6:6:6",
+      );
+    });
+    requiredByTestId(view.container, "compact-toggle").click();
+
+    // assert
+    await vi.waitFor(() => {
+      expect(hudApi.setCompactView).toHaveBeenCalledWith({
+        enabled: true,
+        height: 1,
+        width: 320,
+      });
+    });
+    getBoundingClientRectSpy.mockRestore();
   });
 
   it("falls back to default hud state when initial load fails", async () => {
@@ -368,6 +467,7 @@ describe("HudApp integration", () => {
         listenerRef.current = callback;
         return unsubscribe;
       }),
+      setCompactView: vi.fn(() => Promise.resolve()),
       setMode: vi.fn(() => Promise.resolve()),
       toggleTopmost: vi.fn(() => Promise.resolve()),
       toggleTrackLock: vi.fn(() => Promise.resolve()),
@@ -397,6 +497,7 @@ describe("HudApp integration", () => {
     stubHudApi({
       getInitialState: vi.fn(() => deferred.promise),
       onHudState: vi.fn(() => unsubscribe),
+      setCompactView: vi.fn(() => Promise.resolve()),
       setMode: vi.fn(() => Promise.resolve()),
       toggleTopmost: vi.fn(() => Promise.resolve()),
       toggleTrackLock: vi.fn(() => Promise.resolve()),
@@ -420,6 +521,7 @@ describe("HudApp integration", () => {
     stubHudApi({
       getInitialState: vi.fn(() => deferred.promise),
       onHudState: vi.fn(() => unsubscribe),
+      setCompactView: vi.fn(() => Promise.resolve()),
       setMode: vi.fn(() => Promise.resolve()),
       toggleTopmost: vi.fn(() => Promise.resolve()),
       toggleTrackLock: vi.fn(() => Promise.resolve()),
