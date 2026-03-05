@@ -73,6 +73,22 @@ pnpm run build
 - node timing/counter tests
 - jsdom renderer component tests
 
+## Playwright Electron E2E
+
+```bash
+pnpm install
+pnpm run test:e2e
+pnpm run test:e2e:headed
+```
+
+These tests run against the built Electron app and use deterministic injected HUD state.
+Ableton Live/AbletonOSC are not required for CI E2E.
+
+On failure, Playwright outputs are expected in:
+
+- `test-results/playwright`
+- `playwright-report`
+
 ## Build macOS `.app`
 
 ```bash
@@ -104,3 +120,4 @@ Additional CI workflows:
 
 - `Lint`: runs `pre-commit run --all-files` on pull requests and pushes to `main`
 - `Test`: runs `pnpm test` on pull requests and pushes to `main`
+- `E2E`: runs `pnpm run test:e2e` on pull requests and pushes to `main` (macOS)

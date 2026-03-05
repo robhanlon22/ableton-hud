@@ -17,8 +17,10 @@
   },
   "include": [
     "src",
+    "e2e/**/*.ts",
     "electron.vite.config.ts",
     "eslint.config.mts",
+    "playwright.electron.config.ts",
     "tailwind.config.ts",
     "vitest.config.ts"
   ]

@@ -13,6 +13,8 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "test": "vitest run",
+    "test:e2e": "pnpm run build && playwright test -c playwright.electron.config.ts",
+    "test:e2e:headed": "pnpm run build && playwright test -c playwright.electron.config.ts --headed",
     "typecheck": "tsc --noEmit",
     "dist:mac": "pnpm run build && electron-builder --mac dir --universal"
   },
@@ -36,6 +38,7 @@
   "devDependencies": {
     "@eslint/compat": "^2.0.2",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.2.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -54,6 +57,7 @@
     "eslint-plugin-tsdoc": "^0.5.2",
     "globals": "^17.4.0",
     "jsdom": "^28.1.0",
+    "playwright": "^1.58.2",
     "postcss": "^8.5.8",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.2.1",
