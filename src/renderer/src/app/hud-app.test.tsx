@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { render } from "vitest-browser-react";
 
 import type { HudState } from "../../../shared/types";
 
@@ -30,9 +30,35 @@ function makeState(overrides: Partial<HudState> = {}): HudState {
   };
 }
 
+/**
+ * Resolves an element by test id.
+ * @param root - Root element to query.
+ * @param testId - Data test id value.
+ * @returns Matching HTMLElement.
+ */
+function requiredByTestId(root: ParentNode, testId: string): HTMLElement {
+  return requiredElement(root, `[data-testid='${testId}']`);
+}
+
+/**
+ * Resolves a required HTMLElement by selector.
+ * @param root - Root element to query.
+ * @param selector - CSS selector.
+ * @returns Matching HTMLElement.
+ */
+function requiredElement(root: ParentNode, selector: string): HTMLElement {
+  const element = root.querySelector(selector);
+  if (!(element instanceof HTMLElement)) {
+    throw new Error(
+      `Expected selector ${selector} to resolve to an HTMLElement.`,
+    );
+  }
+  return element;
+}
+
 describe("HudSurface", () => {
-  it("renders clip and counter text", () => {
-    render(
+  it("renders clip and counter text", async () => {
+    const view = await render(
       <HudSurface
         isFlashActive={false}
         onToggleMode={vi.fn()}
@@ -41,16 +67,24 @@ describe("HudSurface", () => {
       />,
     );
 
-    expect(screen.getByTestId("clip-pill")).toHaveTextContent("Build");
-    expect(screen.getByTestId("track-pill")).toHaveTextContent("Kick");
-    expect(screen.getByTestId("scene-pill")).toHaveTextContent("Drop");
-    expect(screen.getByTestId("counter-text")).toHaveTextContent("2:3:4");
+    expect(requiredByTestId(view.container, "clip-pill").textContent).toContain(
+      "Build",
+    );
+    expect(
+      requiredByTestId(view.container, "track-pill").textContent,
+    ).toContain("Kick");
+    expect(
+      requiredByTestId(view.container, "scene-pill").textContent,
+    ).toContain("Drop");
+    expect(
+      requiredByTestId(view.container, "counter-text").textContent,
+    ).toContain("2:3:4");
   });
 
-  it("triggers mode toggle callback", () => {
+  it("triggers mode toggle callback", async () => {
     const onToggleMode = vi.fn();
 
-    render(
+    const view = await render(
       <HudSurface
         isFlashActive={false}
         onToggleMode={onToggleMode}
@@ -59,12 +93,12 @@ describe("HudSurface", () => {
       />,
     );
 
-    fireEvent.click(screen.getByTestId("mode-toggle"));
+    requiredByTestId(view.container, "mode-toggle").click();
     expect(onToggleMode).toHaveBeenCalledTimes(1);
   });
 
-  it("applies warning styling when in last bar", () => {
-    render(
+  it("applies warning styling when in last bar", async () => {
+    const view = await render(
       <HudSurface
         isFlashActive={true}
         onToggleMode={vi.fn()}
@@ -73,13 +107,13 @@ describe("HudSurface", () => {
       />,
     );
 
-    expect(screen.getByTestId("counter-text")).toHaveClass(
-      "text-ableton-warning",
-    );
+    expect(
+      requiredByTestId(view.container, "counter-text").className,
+    ).toContain("text-ableton-warning");
   });
 
-  it("uses metadata colors as pill backgrounds with contrasting text", () => {
-    render(
+  it("uses metadata colors as pill backgrounds with contrasting text", async () => {
+    const view = await render(
       <HudSurface
         isFlashActive={false}
         onToggleMode={vi.fn()}
@@ -92,18 +126,18 @@ describe("HudSurface", () => {
       />,
     );
 
-    const clipPill = screen.getByTestId("clip-pill");
-    const trackPill = screen.getByTestId("track-pill");
-    const scenePill = screen.getByTestId("scene-pill");
+    const clipPill = requiredByTestId(view.container, "clip-pill");
+    const trackPill = requiredByTestId(view.container, "track-pill");
+    const scenePill = requiredByTestId(view.container, "scene-pill");
 
-    expect(clipPill).toHaveStyle("background-color: rgb(255, 208, 0)");
-    expect(clipPill).toHaveStyle("color: rgb(16, 18, 22)");
-    expect(trackPill).toHaveStyle("background-color: rgb(51, 68, 255)");
-    expect(scenePill).toHaveStyle("background-color: rgb(0, 140, 102)");
+    expect(clipPill.style.backgroundColor).toBe("rgb(255, 208, 0)");
+    expect(clipPill.style.color).toBe("rgb(16, 18, 22)");
+    expect(trackPill.style.backgroundColor).toBe("rgb(51, 68, 255)");
+    expect(scenePill.style.backgroundColor).toBe("rgb(0, 140, 102)");
   });
 
-  it("renders empty metadata pills when names are missing", () => {
-    render(
+  it("renders empty metadata pills when names are missing", async () => {
+    const view = await render(
       <HudSurface
         isFlashActive={false}
         onToggleMode={vi.fn()}
@@ -112,13 +146,13 @@ describe("HudSurface", () => {
       />,
     );
 
-    expect(screen.getByTestId("clip-pill").textContent).toBe("");
-    expect(screen.getByTestId("track-pill").textContent).toBe("");
-    expect(screen.getByTestId("scene-pill").textContent).toBe("");
+    expect(requiredByTestId(view.container, "clip-pill").textContent).toBe("");
+    expect(requiredByTestId(view.container, "track-pill").textContent).toBe("");
+    expect(requiredByTestId(view.container, "scene-pill").textContent).toBe("");
   });
 
-  it("renders topmost toggle metadata when always-on-top is enabled", () => {
-    render(
+  it("renders topmost toggle metadata when always-on-top is enabled", async () => {
+    const view = await render(
       <HudSurface
         isFlashActive={false}
         onToggleMode={vi.fn()}
@@ -127,14 +161,15 @@ describe("HudSurface", () => {
       />,
     );
 
-    const topmostButton = screen.getByRole("button", {
-      name: "Set window normal",
-    });
-    expect(topmostButton).toHaveAttribute("title", "FLOAT");
+    const topmostButton = requiredElement(
+      view.container,
+      "button[aria-label='Set window normal']",
+    );
+    expect(topmostButton.getAttribute("title")).toBe("FLOAT");
   });
 
-  it("renders remaining mode label", () => {
-    render(
+  it("renders remaining mode label", async () => {
+    const view = await render(
       <HudSurface
         isFlashActive={false}
         onToggleMode={vi.fn()}
@@ -143,11 +178,13 @@ describe("HudSurface", () => {
       />,
     );
 
-    expect(screen.getByTestId("mode-toggle")).toHaveTextContent("Remaining");
+    expect(
+      requiredByTestId(view.container, "mode-toggle").textContent,
+    ).toContain("Remaining");
   });
 
-  it("renders status labels for disconnected and stopped states", () => {
-    const { rerender } = render(
+  it("renders status labels for disconnected and stopped states", async () => {
+    const view = await render(
       <HudSurface
         isFlashActive={false}
         onToggleMode={vi.fn()}
@@ -156,9 +193,11 @@ describe("HudSurface", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Disconnected")).toBeInTheDocument();
+    expect(
+      requiredElement(view.container, "[aria-label='Disconnected']"),
+    ).toBeInstanceOf(HTMLElement);
 
-    rerender(
+    await view.rerender(
       <HudSurface
         isFlashActive={false}
         onToggleMode={vi.fn()}
@@ -171,11 +210,13 @@ describe("HudSurface", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Stopped")).toBeInTheDocument();
+    expect(
+      requiredElement(view.container, "[aria-label='Stopped']"),
+    ).toBeInstanceOf(HTMLElement);
   });
 
-  it("applies flash panel classes for downbeat and last-bar combinations", () => {
-    const { rerender } = render(
+  it("applies flash panel classes for downbeat and last-bar combinations", async () => {
+    const view = await render(
       <HudSurface
         isFlashActive={true}
         onToggleMode={vi.fn()}
@@ -184,10 +225,13 @@ describe("HudSurface", () => {
       />,
     );
 
-    let flashPanel = screen.getByTestId("counter-text").parentElement;
-    expect(flashPanel).toHaveClass("border-[#83545a]");
+    let flashPanel = requiredByTestId(
+      view.container,
+      "counter-text",
+    ).parentElement;
+    expect(flashPanel?.className).toContain("border-[#83545a]");
 
-    rerender(
+    await view.rerender(
       <HudSurface
         isFlashActive={true}
         onToggleMode={vi.fn()}
@@ -195,10 +239,10 @@ describe("HudSurface", () => {
         state={makeState({ isDownbeat: false, isLastBar: true })}
       />,
     );
-    flashPanel = screen.getByTestId("counter-text").parentElement;
-    expect(flashPanel).toHaveClass("border-[#7a4f54]");
+    flashPanel = requiredByTestId(view.container, "counter-text").parentElement;
+    expect(flashPanel?.className).toContain("border-[#7a4f54]");
 
-    rerender(
+    await view.rerender(
       <HudSurface
         isFlashActive={true}
         onToggleMode={vi.fn()}
@@ -206,10 +250,10 @@ describe("HudSurface", () => {
         state={makeState({ isDownbeat: true, isLastBar: false })}
       />,
     );
-    flashPanel = screen.getByTestId("counter-text").parentElement;
-    expect(flashPanel).toHaveClass("border-[#546a4b]");
+    flashPanel = requiredByTestId(view.container, "counter-text").parentElement;
+    expect(flashPanel?.className).toContain("border-[#546a4b]");
 
-    rerender(
+    await view.rerender(
       <HudSurface
         isFlashActive={true}
         onToggleMode={vi.fn()}
@@ -217,8 +261,8 @@ describe("HudSurface", () => {
         state={makeState({ isDownbeat: false, isLastBar: false })}
       />,
     );
-    flashPanel = screen.getByTestId("counter-text").parentElement;
-    expect(flashPanel).toHaveClass("border-[#4a5a45]");
+    flashPanel = requiredByTestId(view.container, "counter-text").parentElement;
+    expect(flashPanel?.className).toContain("border-[#4a5a45]");
   });
 });
 
@@ -289,6 +333,16 @@ describe("resolveHeldClipColor", () => {
   it("uses incoming clip color when provided", () => {
     const next = makeState({ clipColor: 0x00ccff, isPlaying: true });
     expect(resolveHeldClipColor(0xff00aa, next)).toBe(0x00ccff);
+  });
+
+  it("falls back to previous color when clip remains active but color is null", () => {
+    const next = makeState({
+      clipColor: null,
+      clipIndex: 2,
+      isPlaying: true,
+      trackIndex: 1,
+    });
+    expect(resolveHeldClipColor(0xff00aa, next)).toBe(0xff00aa);
   });
 
   it("clears held color when transport is stopped", () => {

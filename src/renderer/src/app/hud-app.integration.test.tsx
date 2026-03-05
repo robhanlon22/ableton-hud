@@ -1,11 +1,5 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { render } from "vitest-browser-react";
 
 import type { HudState } from "../../../shared/types";
 
@@ -132,6 +126,32 @@ function makeState(overrides: Partial<HudState> = {}): HudState {
 }
 
 /**
+ * Resolves an element by test id.
+ * @param root - Root element to query.
+ * @param testId - Data test id value.
+ * @returns Matching HTMLElement.
+ */
+function requiredByTestId(root: ParentNode, testId: string): HTMLElement {
+  return requiredElement(root, `[data-testid='${testId}']`);
+}
+
+/**
+ * Resolves a required HTMLElement by selector.
+ * @param root - Root element to query.
+ * @param selector - CSS selector.
+ * @returns Matching HTMLElement.
+ */
+function requiredElement(root: ParentNode, selector: string): HTMLElement {
+  const element = root.querySelector(selector);
+  if (!(element instanceof HTMLElement)) {
+    throw new Error(
+      `Expected selector ${selector} to resolve to an HTMLElement.`,
+    );
+  }
+  return element;
+}
+
+/**
  * Stubs `window.hudApi` with the provided implementation.
  * @param hudApi - API implementation for the test.
  */
@@ -156,17 +176,22 @@ describe("HudApp integration", () => {
     );
 
     // act
-    render(<HudApp />);
-    await waitFor(() => {
-      expect(screen.getByTestId("counter-text")).toHaveTextContent("3:2:1");
+    const view = await render(<HudApp />);
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "3:2:1",
+      );
     });
-    fireEvent.click(screen.getByTestId("mode-toggle"));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Set window floating" }),
-    );
+    requiredByTestId(view.container, "mode-toggle").click();
+    requiredElement(
+      view.container,
+      "button[aria-label='Set window floating']",
+    ).click();
 
     // assert
-    expect(screen.getByTestId("mode-toggle")).toHaveTextContent("Remaining");
+    expect(
+      requiredByTestId(view.container, "mode-toggle").textContent,
+    ).toContain("Remaining");
     expect(hudApi.setMode).toHaveBeenCalledWith("elapsed");
     expect(hudApi.toggleTopmost).toHaveBeenCalledTimes(1);
   });
@@ -176,11 +201,13 @@ describe("HudApp integration", () => {
     const hudApi = installResolvedHudApiMock(makeState({ mode: "elapsed" }));
 
     // act
-    render(<HudApp />);
-    await waitFor(() => {
-      expect(screen.getByTestId("mode-toggle")).toHaveTextContent("Elapsed");
+    const view = await render(<HudApp />);
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "mode-toggle").textContent).toBe(
+        "Elapsed",
+      );
     });
-    fireEvent.click(screen.getByTestId("mode-toggle"));
+    requiredByTestId(view.container, "mode-toggle").click();
 
     // assert
     expect(hudApi.setMode).toHaveBeenCalledWith("remaining");
@@ -191,13 +218,17 @@ describe("HudApp integration", () => {
     installRejectedHudApiMock();
 
     // act
-    render(<HudApp />);
+    const view = await render(<HudApp />);
 
     // assert
-    await waitFor(() => {
-      expect(screen.getByTestId("counter-text")).toHaveTextContent("0:0:0");
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "0:0:0",
+      );
     });
-    expect(screen.getByTestId("mode-toggle")).toHaveTextContent("Elapsed");
+    expect(
+      requiredByTestId(view.container, "mode-toggle").textContent,
+    ).toContain("Elapsed");
   });
 
   it("holds null clip transitions until timeout elapses", async () => {
@@ -207,31 +238,31 @@ describe("HudApp integration", () => {
     );
 
     // act
-    render(<HudApp />);
-    await waitFor(() => {
-      expect(screen.getByTestId("counter-text")).toHaveTextContent("1:1:1");
-    });
-    act(() => {
-      hudApi.emit(
-        makeState({
-          clipColor: null,
-          clipIndex: null,
-          clipName: null,
-          counterText: "9:9:9",
-          trackIndex: 1,
-        }),
+    const view = await render(<HudApp />);
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "1:1:1",
       );
     });
-    await act(async () => {
-      await new Promise<void>((resolve) => {
-        window.setTimeout(() => {
-          resolve();
-        }, 95);
-      });
+    hudApi.emit(
+      makeState({
+        clipColor: null,
+        clipIndex: null,
+        clipName: null,
+        counterText: "9:9:9",
+        trackIndex: 1,
+      }),
+    );
+    await new Promise<void>((resolve) => {
+      window.setTimeout(() => {
+        resolve();
+      }, 95);
     });
 
     // assert
-    expect(screen.getByTestId("counter-text")).toHaveTextContent("9:9:9");
+    expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      "9:9:9",
+    );
   });
 
   it("cancels pending null clip hold when a concrete clip arrives", async () => {
@@ -241,39 +272,39 @@ describe("HudApp integration", () => {
     );
 
     // act
-    render(<HudApp />);
-    await waitFor(() => {
-      expect(screen.getByTestId("counter-text")).toHaveTextContent("1:1:1");
-    });
-    act(() => {
-      hudApi.emit(
-        makeState({
-          clipColor: null,
-          clipIndex: null,
-          counterText: "9:9:9",
-          trackIndex: 1,
-        }),
-      );
-      hudApi.emit(
-        makeState({
-          clipColor: 0xaabbcc,
-          clipIndex: 4,
-          clipName: "Lead",
-          counterText: "5:5:5",
-          trackIndex: 1,
-        }),
+    const view = await render(<HudApp />);
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "1:1:1",
       );
     });
-    await act(async () => {
-      await new Promise<void>((resolve) => {
-        window.setTimeout(() => {
-          resolve();
-        }, 95);
-      });
+    hudApi.emit(
+      makeState({
+        clipColor: null,
+        clipIndex: null,
+        counterText: "9:9:9",
+        trackIndex: 1,
+      }),
+    );
+    hudApi.emit(
+      makeState({
+        clipColor: 0xaabbcc,
+        clipIndex: 4,
+        clipName: "Lead",
+        counterText: "5:5:5",
+        trackIndex: 1,
+      }),
+    );
+    await new Promise<void>((resolve) => {
+      window.setTimeout(() => {
+        resolve();
+      }, 95);
     });
 
     // assert
-    expect(screen.getByTestId("counter-text")).toHaveTextContent("5:5:5");
+    expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+      "5:5:5",
+    );
   });
 
   it("unsubscribes listeners on unmount", async () => {
@@ -281,11 +312,13 @@ describe("HudApp integration", () => {
     const hudApi = installResolvedHudApiMock(makeState());
 
     // act
-    const view = render(<HudApp />);
-    await waitFor(() => {
-      expect(screen.getByTestId("hud-root")).toBeInTheDocument();
+    const view = await render(<HudApp />);
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "hud-root")).toBeInstanceOf(
+        HTMLElement,
+      );
     });
-    view.unmount();
+    await view.unmount();
 
     // assert
     expect(hudApi.listenerCount()).toBe(0);
@@ -298,14 +331,14 @@ describe("HudApp integration", () => {
     );
 
     // act
-    const view = render(<HudApp />);
-    await waitFor(() => {
-      expect(screen.getByTestId("counter-text")).toHaveTextContent("1:1:1");
+    const view = await render(<HudApp />);
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "1:1:1",
+      );
     });
-    view.unmount();
-    act(() => {
-      hudApi.emit(makeState({ counterText: "7:7:7" }));
-    });
+    await view.unmount();
+    hudApi.emit(makeState({ counterText: "7:7:7" }));
 
     // assert
     expect(hudApi.listenerCount()).toBe(0);
@@ -333,17 +366,19 @@ describe("HudApp integration", () => {
     });
 
     // act
-    const view = render(<HudApp />);
-    await waitFor(() => {
-      expect(screen.getByTestId("counter-text")).toHaveTextContent("1:1:1");
+    const view = await render(<HudApp />);
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "1:1:1",
+      );
     });
-    view.unmount();
-    act(() => {
-      listenerRef.current(makeState({ counterText: "9:9:9" }));
-    });
+    await view.unmount();
+    listenerRef.current(makeState({ counterText: "9:9:9" }));
 
     // assert
-    expect(screen.queryByTestId("counter-text")).not.toBeInTheDocument();
+    expect(
+      view.container.querySelector('[data-testid="counter-text"]'),
+    ).toBeNull();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
@@ -359,15 +394,13 @@ describe("HudApp integration", () => {
     });
 
     // act
-    const view = render(<HudApp />);
-    view.unmount();
+    const view = await render(<HudApp />);
+    await view.unmount();
     deferred.resolve(makeState({ counterText: "8:8:8" }));
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await Promise.resolve();
 
     // assert
-    expect(screen.queryByTestId("hud-root")).not.toBeInTheDocument();
+    expect(view.container.querySelector('[data-testid="hud-root"]')).toBeNull();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
@@ -383,15 +416,13 @@ describe("HudApp integration", () => {
     });
 
     // act
-    const view = render(<HudApp />);
-    view.unmount();
+    const view = await render(<HudApp />);
+    await view.unmount();
     deferred.reject(new Error("boom"));
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await Promise.resolve();
 
     // assert
-    expect(screen.queryByTestId("hud-root")).not.toBeInTheDocument();
+    expect(view.container.querySelector('[data-testid="hud-root"]')).toBeNull();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
@@ -402,26 +433,34 @@ describe("HudApp integration", () => {
     );
 
     // act
-    render(<HudApp />);
-    await waitFor(() => {
-      expect(screen.getByTestId("counter-text")).toHaveTextContent("2:2:2");
-    });
-    act(() => {
-      hudApi.emit(
-        makeState({
-          clipColor: null,
-          clipIndex: 1,
-          counterText: "2:2:3",
-          trackIndex: 0,
-        }),
+    const view = await render(<HudApp />);
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "2:2:2",
       );
     });
+    await vi.waitFor(() => {
+      expect(
+        requiredByTestId(view.container, "clip-pill").style.backgroundColor,
+      ).toBe("rgb(17, 34, 51)");
+    });
+    hudApi.emit(
+      makeState({
+        clipColor: null,
+        clipIndex: 1,
+        counterText: "2:2:3",
+        trackIndex: 0,
+      }),
+    );
 
     // assert
-    await waitFor(() => {
-      expect(screen.getByTestId("clip-pill")).toHaveStyle(
-        "background-color: rgb(17, 34, 51)",
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "2:2:3",
       );
+      expect(
+        requiredByTestId(view.container, "clip-pill").style.backgroundColor,
+      ).toBe("rgb(17, 34, 51)");
     });
   });
 
@@ -431,21 +470,21 @@ describe("HudApp integration", () => {
     const clearTimeoutSpy = vi.spyOn(window, "clearTimeout");
 
     // act
-    const view = render(<HudApp />);
-    await waitFor(() => {
-      expect(screen.getByTestId("counter-text")).toHaveTextContent("1:1:1");
-    });
-    act(() => {
-      hudApi.emit(
-        makeState({
-          clipColor: null,
-          clipIndex: null,
-          counterText: "9:9:9",
-          trackIndex: 1,
-        }),
+    const view = await render(<HudApp />);
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "1:1:1",
       );
     });
-    view.unmount();
+    hudApi.emit(
+      makeState({
+        clipColor: null,
+        clipIndex: null,
+        counterText: "9:9:9",
+        trackIndex: 1,
+      }),
+    );
+    await view.unmount();
 
     // assert
     expect(clearTimeoutSpy).toHaveBeenCalled();
@@ -464,37 +503,38 @@ describe("HudApp integration", () => {
     );
 
     // act
-    render(<HudApp />);
-    await waitFor(() => {
-      expect(screen.getByTestId("counter-text")).toHaveTextContent("4:1:1");
-    });
-    await waitFor(() => {
-      expect(screen.getByTestId("counter-text").parentElement).toHaveClass(
-        "border-[#4a5a45]",
+    const view = await render(<HudApp />);
+    await vi.waitFor(() => {
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "4:1:1",
       );
     });
-    await act(async () => {
-      await new Promise<void>((resolve) => {
-        window.setTimeout(() => {
-          resolve();
-        }, 170);
-      });
+    expect(
+      requiredByTestId(view.container, "counter-text").parentElement?.className,
+    ).toContain("border-[#4a5a45]");
+    await new Promise<void>((resolve) => {
+      window.setTimeout(() => {
+        resolve();
+      }, 170);
     });
-    act(() => {
-      hudApi.emit(
-        makeState({
-          beatFlashToken: 5,
-          counterText: "4:1:2",
-          isDownbeat: false,
-          isLastBar: false,
-        }),
-      );
-    });
+    hudApi.emit(
+      makeState({
+        beatFlashToken: 5,
+        counterText: "4:1:2",
+        isDownbeat: false,
+        isLastBar: false,
+      }),
+    );
 
     // assert
-    expect(screen.getByTestId("counter-text").parentElement).not.toHaveClass(
-      "border-[#4a5a45]",
-    );
-    expect(screen.getByTestId("counter-text")).toHaveTextContent("4:1:2");
+    await vi.waitFor(() => {
+      expect(
+        requiredByTestId(view.container, "counter-text").parentElement
+          ?.className,
+      ).not.toContain("border-[#4a5a45]");
+      expect(requiredByTestId(view.container, "counter-text").textContent).toBe(
+        "4:1:2",
+      );
+    });
   });
 });
