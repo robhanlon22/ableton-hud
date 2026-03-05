@@ -659,6 +659,71 @@ describe("main/index module", () => {
     windowInstance.emit("closed");
     bridge.emitState(pushedState);
   });
+
+  it("forwards disconnected and reconnected bridge snapshots to renderer", async () => {
+    // arrange
+    await import("./index");
+    await runtime.resolveWhenReady();
+    const windowInstance = runtime.windows[0];
+    const bridge = runtime.bridgeInstances[0];
+    expect(bridge).toBeDefined();
+
+    const didFinishLoadListener =
+      windowInstance.webContents.listeners.get("did-finish-load")?.[0];
+    expect(didFinishLoadListener).toBeTypeOf("function");
+    didFinishLoadListener?.();
+    windowInstance.webContents.send.mockClear();
+
+    const disconnectedState = {
+      ...createDefaultHudState(),
+      connected: false,
+      counterText: "0:0:0",
+      isPlaying: false,
+    };
+    const reconnectedState = {
+      ...createDefaultHudState(),
+      connected: true,
+      counterText: "4:1:1",
+      isPlaying: true,
+      trackName: "Recovered Track",
+    };
+
+    // act
+    bridge.emitState(disconnectedState);
+    bridge.emitState(reconnectedState);
+
+    // assert
+    expect(windowInstance.webContents.send).toHaveBeenNthCalledWith(
+      1,
+      HUD_CHANNELS.state,
+      expect.objectContaining({
+        connected: false,
+        counterText: "0:0:0",
+      }),
+    );
+    expect(windowInstance.webContents.send).toHaveBeenNthCalledWith(
+      2,
+      HUD_CHANNELS.state,
+      expect.objectContaining({
+        connected: true,
+        counterText: "4:1:1",
+        isPlaying: true,
+        trackName: "Recovered Track",
+      }),
+    );
+
+    const getInitialStateHandler = runtime.ipcHandlers.get(
+      HUD_CHANNELS.getInitialState,
+    );
+    expect(getInitialStateHandler).toBeTypeOf("function");
+    expect(getInitialStateHandler?.({})).toEqual(
+      expect.objectContaining({
+        connected: true,
+        counterText: "4:1:1",
+        trackName: "Recovered Track",
+      }),
+    );
+  });
 });
 
 afterAll(() => {

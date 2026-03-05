@@ -25,7 +25,7 @@ interface BridgeRuntime {
   applySelectedTrack: (trackIndex: number) => Promise<void>;
   beatCounter: number;
   beatFlashToken: number;
-  bootstrap: () => Promise<void>;
+  bootstrap: (epoch?: number) => Promise<void>;
   clearClipSubscription: (preserveDisplay?: boolean) => void;
   clearObserverGroup: (cleanups: (() => Promise<void> | void)[]) => void;
   clearSceneSubscription: (preserveDisplay?: boolean) => void;
@@ -33,7 +33,10 @@ interface BridgeRuntime {
   clipMeta: ClipTimingMeta;
   clipName: null | string;
   clipObserverCleanups: Cleanup[];
+  connect: () => Promise<void>;
   connected: boolean;
+  connectInFlight: boolean;
+  connectionEpoch: number;
   currentPosition: null | number;
   emit: () => void;
   getTrack: (trackIndex: number) => Promise<LiveTrack | null>;
@@ -51,6 +54,7 @@ interface BridgeRuntime {
   mode: HudMode;
   pendingSelectedTrack: null | number;
   previousPosition: null | number;
+  reconnectAttempt: number;
   registerCleanup: (cleanupGroup: Cleanup[], stop: Cleanup | null) => void;
 
   resetClipRunState: () => void;
@@ -97,6 +101,7 @@ interface BridgeRuntime {
   sceneColor: null | number;
   sceneName: null | string;
   sceneObserverCleanups: Cleanup[];
+  scheduleReconnect: (reason: "connect-failed" | "disconnect") => void;
   selectedTrack: null | number;
   selectedTrackToken: number;
   setMode: (mode: HudMode) => void;
@@ -106,6 +111,7 @@ interface BridgeRuntime {
   song: LiveSong;
   songView: LiveSongView;
   start: () => void;
+  started: boolean;
   stop: () => void;
   subscribeClip: (
     trackIndex: number,
@@ -337,6 +343,164 @@ describe("AbletonLiveBridge", () => {
     // assert
     expect(onState).toHaveBeenCalled();
     expect(onState.mock.lastCall?.[0].connected).toBe(false);
+    bridge.stop();
+  });
+
+  it("retries after startup connect failure and resets backoff after connect", async () => {
+    // arrange
+    vi.useFakeTimers();
+    const { bridge, harness } = await createBridge();
+    harness.instance.connect.mockRejectedValueOnce(new Error("boot-fail"));
+
+    // act
+    bridge.start();
+    await flushMicrotasks();
+    await vi.advanceTimersByTimeAsync(500);
+    await flushMicrotasks();
+    expect(harness.instance.connect).toHaveBeenCalledTimes(2);
+
+    const connectHandler = harness.eventHandlers.get("connect");
+    connectHandler?.();
+    expect(bridge.reconnectAttempt).toBe(0);
+
+    const disconnectHandler = harness.eventHandlers.get("disconnect");
+    disconnectHandler?.();
+
+    // assert
+    expect(bridge.reconnectAttempt).toBe(1);
+    bridge.stop();
+    vi.useRealTimers();
+  });
+
+  it("does not run concurrent connect attempts while one is in flight", async () => {
+    // arrange
+    vi.useFakeTimers();
+    const { bridge, harness } = await createBridge();
+    let resolveConnect: () => void = () => {
+      throw new TypeError("Expected connect resolver to be assigned.");
+    };
+    harness.instance.connect.mockImplementation(() => {
+      return new Promise<void>((resolve) => {
+        resolveConnect = resolve;
+      });
+    });
+    const connectMethod = vi.spyOn(bridge, "connect");
+
+    bridge.start();
+    void bridge.connect();
+    // act
+    await flushMicrotasks();
+
+    // assert
+    expect(connectMethod).toHaveBeenCalledTimes(2);
+    expect(harness.instance.connect).toHaveBeenCalledTimes(1);
+    resolveConnect();
+    await flushMicrotasks();
+    bridge.stop();
+    vi.useRealTimers();
+  });
+
+  it("cancels pending reconnect timer when stopping bridge", async () => {
+    // arrange
+    vi.useFakeTimers();
+    const { bridge, harness } = await createBridge();
+    harness.instance.connect.mockRejectedValue(new Error("offline"));
+
+    bridge.start();
+    await flushMicrotasks();
+    bridge.stop();
+    // act
+    await vi.advanceTimersByTimeAsync(5000);
+    await flushMicrotasks();
+
+    // assert
+    expect(harness.instance.connect).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("ignores late connect events after stop", async () => {
+    // arrange
+    const { bridge, harness } = await createBridge();
+    const bootstrapSpy = vi.spyOn(bridge, "bootstrap");
+    const connectHandler = harness.eventHandlers.get("connect");
+
+    // act
+    bridge.start();
+    bridge.stop();
+    connectHandler?.();
+    await flushMicrotasks();
+
+    // assert
+    expect(bridge.connected).toBe(false);
+    expect(bootstrapSpy).not.toHaveBeenCalled();
+  });
+
+  it("ignores late disconnect events after stop", async () => {
+    // arrange
+    const { bridge, harness } = await createBridge();
+    const emitSpy = vi.spyOn(bridge, "emit");
+    const disconnectHandler = harness.eventHandlers.get("disconnect");
+
+    // act
+    bridge.start();
+    bridge.stop();
+    disconnectHandler?.();
+    await flushMicrotasks();
+
+    // assert
+    expect(emitSpy).not.toHaveBeenCalled();
+    expect(bridge.connected).toBe(false);
+  });
+
+  it("returns early from bootstrap when epoch is stale", async () => {
+    // arrange
+    const { bridge } = await createBridge();
+    const observeSpy = vi.spyOn(bridge, "safeSongViewObserve");
+
+    // act
+    await bridge.bootstrap(-1);
+
+    // assert
+    expect(observeSpy).not.toHaveBeenCalled();
+  });
+
+  it("skips retry scheduling when connect fails after bridge stops", async () => {
+    // arrange
+    const { bridge, harness } = await createBridge();
+    let rejectConnect: (error: Error) => void = () => {
+      throw new TypeError("Expected connect rejector to be assigned.");
+    };
+    harness.instance.connect.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectConnect = reject;
+        }),
+    );
+    const retrySpy = vi.spyOn(bridge, "scheduleReconnect");
+
+    bridge.start();
+    bridge.stop();
+    // act
+    rejectConnect(new Error("late-failure"));
+    await flushMicrotasks();
+
+    // assert
+    expect(retrySpy).toHaveBeenCalledWith("connect-failed");
+    expect(bridge.reconnectAttempt).toBe(0);
+    expect(bridge.connected).toBe(false);
+  });
+
+  it("returns early when scheduling reconnect while stopped", async () => {
+    // arrange
+    const { bridge } = await createBridge();
+    bridge.started = false;
+    const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
+
+    // act
+    bridge.scheduleReconnect("disconnect");
+
+    // assert
+    expect(timeoutSpy).not.toHaveBeenCalled();
   });
 
   it("updates mode and toggles track lock", async () => {
@@ -731,6 +895,7 @@ describe("AbletonLiveBridge", () => {
     );
     bridge.resolveTrackIndex = vi.fn(() => resolved(2));
     const selectedSpy = vi.spyOn(bridge, "handleSelectedTrack");
+    bridge.started = true;
 
     await bridge.bootstrap();
 

@@ -542,4 +542,78 @@ describe("HudApp integration", () => {
       );
     });
   });
+
+  it("transitions status and metadata through disconnect and reconnect updates", async () => {
+    // arrange
+    const hudApi = installResolvedHudApiMock(
+      makeState({
+        clipName: "Clip A",
+        connected: true,
+        counterText: "3:2:1",
+        isPlaying: true,
+        sceneName: "Scene A",
+        trackName: "Track A",
+      }),
+    );
+
+    // act
+    await render(<HudApp />);
+
+    // assert
+    await vi.waitFor(() => {
+      expect(page.getByLabelText("Playing").element()).toBeInstanceOf(
+        HTMLElement,
+      );
+      expect(page.getByTestId("track-pill").element().textContent).toContain(
+        "Track A",
+      );
+    });
+
+    hudApi.emit(
+      makeState({
+        clipName: null,
+        connected: false,
+        counterText: "0:0:0",
+        isPlaying: false,
+        sceneName: null,
+        trackName: null,
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(page.getByLabelText("Disconnected").element()).toBeInstanceOf(
+        HTMLElement,
+      );
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
+        "0:0:0",
+      );
+    });
+
+    hudApi.emit(
+      makeState({
+        clipName: "Clip B",
+        connected: true,
+        counterText: "9:1:2",
+        isPlaying: true,
+        sceneName: "Scene B",
+        trackName: "Track B",
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(page.getByLabelText("Playing").element()).toBeInstanceOf(
+        HTMLElement,
+      );
+      expect(page.getByTestId("track-pill").element().textContent).toContain(
+        "Track B",
+      );
+      expect(page.getByTestId("scene-pill").element().textContent).toContain(
+        "Scene B",
+      );
+      expect(page.getByTestId("clip-pill").element().textContent).toContain(
+        "Clip B",
+      );
+      expect(page.getByTestId("counter-text").element().textContent).toBe(
+        "9:1:2",
+      );
+    });
+  });
 });

@@ -192,6 +192,9 @@ const defaultLiveFactory: LiveFactory = {
     }) as unknown as LiveClient,
 };
 
+const RECONNECT_BASE_DELAY_MS = 500;
+const RECONNECT_MAX_DELAY_MS = 5000;
+
 export class AbletonLiveBridge {
   private activeClip: null | { clip: number; track: number } = null;
   private activeScene: null | number = null;
@@ -207,6 +210,8 @@ export class AbletonLiveBridge {
   private clipName: null | string = null;
   private clipObserverCleanups: ObserverCleanup[] = [];
   private connected = false;
+  private connectInFlight = false;
+  private connectionEpoch = 0;
   private currentPosition: null | number = null;
   private isPlaying = false;
   private lastWholeBeat: null | number = null;
@@ -218,6 +223,8 @@ export class AbletonLiveBridge {
   private onState: (state: HudState) => void;
   private pendingSelectedTrack: null | number = null;
   private previousPosition: null | number = null;
+  private reconnectAttempt = 0;
+  private reconnectTimer: null | ReturnType<typeof setTimeout> = null;
   private sceneColor: null | number = null;
   private sceneName: null | string = null;
   private sceneObserverCleanups: ObserverCleanup[] = [];
@@ -266,16 +273,33 @@ export class AbletonLiveBridge {
     this.songView = this.live.songView;
 
     this.live.on("connect", () => {
+      if (!this.started) {
+        return;
+      }
+
       this.connected = true;
-      void this.bootstrap();
+      this.clearReconnectTimer();
+      this.reconnectAttempt = 0;
+      const epoch = ++this.connectionEpoch;
+      void this.bootstrap(epoch);
       this.emit();
     });
 
     this.live.on("disconnect", () => {
+      if (!this.started) {
+        return;
+      }
+
       this.connected = false;
+      this.connectionEpoch += 1;
+      this.pendingSelectedTrack = null;
+      this.selectedTrack = null;
+      this.trackColor = null;
+      this.trackName = null;
       this.clearObserverGroup(this.songObserverCleanups);
       this.clearTrackSubscription();
       this.emit();
+      this.scheduleReconnect("disconnect");
     });
   }
 
@@ -311,8 +335,11 @@ export class AbletonLiveBridge {
 
   stop(): void {
     this.started = false;
+    this.connectionEpoch += 1;
+    this.clearReconnectTimer();
     this.clearObserverGroup(this.songObserverCleanups);
     this.clearTrackSubscription();
+    this.connectInFlight = false;
     this.connected = false;
     this.live.disconnect();
   }
@@ -394,7 +421,11 @@ export class AbletonLiveBridge {
     this.emit();
   }
 
-  private async bootstrap(): Promise<void> {
+  private async bootstrap(epoch = this.connectionEpoch): Promise<void> {
+    if (!this.isCurrentEpoch(epoch)) {
+      return;
+    }
+
     this.clearObserverGroup(this.songObserverCleanups);
     this.clearTrackSubscription();
 
@@ -453,6 +484,9 @@ export class AbletonLiveBridge {
         this.safeSongGet("is_playing"),
         this.safeSongGet("current_song_time"),
       ]);
+    if (!this.isCurrentEpoch(epoch)) {
+      return;
+    }
 
     this.signatureNumerator = Math.max(
       1,
@@ -495,6 +529,13 @@ export class AbletonLiveBridge {
     }
   }
 
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
   private clearSceneSubscription(preserveDisplay = false): void {
     this.clearObserverGroup(this.sceneObserverCleanups);
 
@@ -511,11 +552,24 @@ export class AbletonLiveBridge {
   }
 
   private async connect(): Promise<void> {
+    if (!this.started || this.connected || this.connectInFlight) {
+      return;
+    }
+
+    this.connectInFlight = true;
+    let shouldRetry = false;
     try {
       await this.live.connect();
     } catch {
       this.connected = false;
       this.emit();
+      shouldRetry = true;
+    } finally {
+      this.connectInFlight = false;
+    }
+
+    if (shouldRetry) {
+      this.scheduleReconnect("connect-failed");
     }
   }
 
@@ -762,6 +816,10 @@ export class AbletonLiveBridge {
     return this.activeClip?.track === track && this.activeClip.clip === clip;
   }
 
+  private isCurrentEpoch(epoch: number): boolean {
+    return this.started && epoch === this.connectionEpoch;
+  }
+
   private isNaturalLoopWrap(
     previousPosition: number,
     currentPosition: number,
@@ -781,6 +839,15 @@ export class AbletonLiveBridge {
       wrappedDelta >= -EPSILON &&
       wrappedDelta <= loopSpan + 1
     );
+  }
+
+  private nextReconnectDelayMs(): number {
+    const delay = Math.min(
+      RECONNECT_BASE_DELAY_MS * 2 ** this.reconnectAttempt,
+      RECONNECT_MAX_DELAY_MS,
+    );
+    this.reconnectAttempt += 1;
+    return delay;
   }
 
   private registerCleanup(
@@ -959,6 +1026,20 @@ export class AbletonLiveBridge {
     listener: (value: unknown) => void,
   ): Promise<null | ObserverCleanup> {
     return this.safeObserve(() => track.observe(property, listener));
+  }
+
+  private scheduleReconnect(reason: "connect-failed" | "disconnect"): void {
+    void reason;
+    if (!this.started || this.connected || this.connectInFlight) {
+      return;
+    }
+
+    this.clearReconnectTimer();
+    const delay = this.nextReconnectDelayMs();
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      void this.connect();
+    }, delay);
   }
 
   private async subscribeClip(

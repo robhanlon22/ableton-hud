@@ -371,6 +371,50 @@ test.describe("Electron HUD", () => {
     }
   });
 
+  test("automatically reconnects after an unexpected live socket drop", async () => {
+    // arrange
+    const initialPort = fakeServer.port;
+    // act
+    const app = await launchHudApp({ livePort: initialPort });
+
+    // assert
+    try {
+      await waitForHudBootstrap(app);
+      await app.page.locator("[aria-label='Playing']").waitFor();
+
+      fakeServer.setTrack({ name: "Track A" });
+      fakeServer.setScene({ name: "Scene A" });
+      fakeServer.setClip({ name: "Clip A", playingPosition: 2.5 });
+      fakeServer.setSong({ currentSongTime: 2.5, isPlaying: true });
+      await fakeServer.stabilize();
+      await app.page.getByTestId("track-pill").waitFor();
+
+      fakeServer.crashConnections();
+      await app.page.locator("[aria-label='Disconnected']").waitFor();
+
+      await fakeServer.stop();
+      fakeServer = await FakeAbletonLiveServer.start({ port: initialPort });
+      await fakeServer.stabilize();
+
+      fakeServer.setTrack({ name: "Track B" });
+      fakeServer.setScene({ name: "Scene B" });
+      fakeServer.setClip({ name: "Clip B", playingPosition: 9.75 });
+      fakeServer.setSong({ currentSongTime: 9.75, isPlaying: true });
+      await fakeServer.stabilize();
+      await app.page.locator("[aria-label='Playing']").waitFor();
+      const reconnectStatus = app.page.locator("[aria-label='Playing']");
+      await expect(reconnectStatus).toBeVisible();
+      await expect(app.page.getByTestId("track-pill")).toContainText("Track B");
+      await expect(app.page.getByTestId("scene-pill")).toContainText("Scene B");
+      await expect(app.page.getByTestId("clip-pill")).toContainText("Clip B");
+      await expect(app.page.getByTestId("counter-text")).not.toHaveText(
+        "0:0:0",
+      );
+    } finally {
+      await closeHudApp(app);
+    }
+  });
+
   test.describe("Fullscreen overlay policy", () => {
     test.skip(
       process.platform !== "darwin",

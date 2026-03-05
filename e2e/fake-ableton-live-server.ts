@@ -43,6 +43,10 @@ interface SongState {
   signatureNumerator: number;
 }
 
+interface StartFakeServerOptions {
+  port?: number;
+}
+
 interface TrackState {
   clipSlots: ClipSlotState[];
   color: number;
@@ -119,10 +123,20 @@ export class FakeAbletonLiveServer {
   private tickTimer: NodeJS.Timeout | null = null;
   private wss: null | WebSocketServer = null;
 
-  static async start(): Promise<FakeAbletonLiveServer> {
+  static async start(
+    options: StartFakeServerOptions = {},
+  ): Promise<FakeAbletonLiveServer> {
     const instance = new FakeAbletonLiveServer();
-    await instance.startInternal();
+    await instance.startInternal(options);
     return instance;
+  }
+
+  crashConnections(): void {
+    for (const client of this.clients) {
+      client.terminate();
+    }
+    this.clients.clear();
+    this.observers.clear();
   }
 
   setClip(next: Partial<ClipState>): void {
@@ -483,11 +497,11 @@ export class FakeAbletonLiveServer {
     return null;
   }
 
-  private async startInternal(): Promise<void> {
+  private async startInternal(options: StartFakeServerOptions): Promise<void> {
     this.wss = new WebSocketServer({
       host: "127.0.0.1",
       path: "/ableton-live",
-      port: 0,
+      port: options.port ?? 0,
     });
 
     this.wss.on("connection", (socket) => {
