@@ -83,3 +83,22 @@ This runs a universal (`--universal`) macOS dir build via `electron-builder`.
 Expected output is in `dist/` (for example `dist/mac-universal/Ableton HUD.app`).
 
 The app is unsigned. First launch may require Control-click -> Open in Finder.
+
+## Automated Releases (GitHub Actions)
+
+Cut a tag locally and push it to trigger the release workflow:
+
+```bash
+git tag -a v0.1.0 -m "v0.1.0"
+git push origin v0.1.0
+```
+
+The workflow uploads:
+
+- universal macOS zip artifact
+- matching `.sha256` checksum file
+
+Additional CI workflows:
+
+- `Lint`: runs `pre-commit run --all-files` on pull requests and pushes to `main`
+- `Test`: runs `pnpm test` on pull requests and pushes to `main`
