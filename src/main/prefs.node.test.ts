@@ -19,7 +19,6 @@ vi.mock("node:fs/promises", () => ({
 
 describe("PrefStore", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     delete process.env.AOSC_E2E_USER_DATA;
   });
 
@@ -86,6 +85,7 @@ describe("PrefStore", () => {
   it("uses e2e override path and writes file", async () => {
     process.env.AOSC_E2E_USER_DATA = "/tmp/e2e-home";
     const { PrefStore } = await import("./prefs");
+    const getPathCallCountBeforeSave = getPathMock.mock.calls.length;
 
     const store = new PrefStore();
     await store.save({
@@ -101,7 +101,7 @@ describe("PrefStore", () => {
       },
     });
 
-    expect(getPathMock).not.toHaveBeenCalled();
+    expect(getPathMock.mock.calls.length).toBe(getPathCallCountBeforeSave);
     expect(mkdirMock).toHaveBeenCalled();
     expect(writeFileMock).toHaveBeenCalledWith(
       "/tmp/e2e-home/hud-preferences.json",

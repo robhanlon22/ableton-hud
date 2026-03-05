@@ -14,7 +14,6 @@ vi.mock("./app/hud-app", () => ({
 
 describe("renderer entry", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     vi.resetModules();
     document.body.innerHTML = "";
   });

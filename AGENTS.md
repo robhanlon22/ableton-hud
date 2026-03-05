@@ -38,6 +38,7 @@
   - `vi.fn()` for spies/mocks (not ad hoc inline functions).
   - `vi.stubGlobal()` for globals (instead of `Object.defineProperty(window, ...)`).
   - `vi.stubEnv()` for environment variables (instead of mutating `process.env` directly).
+  - Do not add manual mock lifecycle cleanup (`vi.clearAllMocks`, `vi.resetAllMocks`, `vi.restoreAllMocks`, `vi.unstubAllEnvs`, `vi.unstubAllGlobals`) in tests; Vitest config enables `clearMocks`, `restoreMocks`, `unstubEnvs`, and `unstubGlobals` globally.
 - For renderer tests, prefer `render` from `vitest-browser-react` and async browser-safe assertions/interactions.
 - Typical local gate:
   - `pnpm exec eslint .`

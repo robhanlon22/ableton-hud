@@ -8,6 +8,7 @@ export default defineConfig({
   },
   plugins: [react()],
   test: {
+    clearMocks: true,
     coverage: {
       enabled: true,
       exclude: [
@@ -59,5 +60,8 @@ export default defineConfig({
         },
       }),
     ],
+    restoreMocks: true,
+    unstubEnvs: true,
+    unstubGlobals: true,
   },
 });

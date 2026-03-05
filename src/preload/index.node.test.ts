@@ -24,7 +24,6 @@ vi.mock("electron", () => ({
 
 describe("preload hudApi", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     vi.resetModules();
   });
 
@@ -134,7 +133,7 @@ describe("preload hudApi", () => {
       onHudState: (listener: (state: unknown) => void) => () => void;
     };
     api.onHudState(callback);
-    const listener = onMock.mock.calls[0][1] as (
+    const listener = onMock.mock.calls.at(-1)?.[1] as (
       event: unknown,
       state: unknown,
     ) => void;

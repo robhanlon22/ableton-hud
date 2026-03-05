@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
 import type { HudState } from "../../../shared/types";
@@ -168,11 +168,6 @@ function requiredElement(root: ParentNode, selector: string): HTMLElement {
 function stubHudApi(hudApi: Window["hudApi"]): void {
   vi.stubGlobal("hudApi", hudApi);
 }
-
-afterEach(() => {
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
-});
 
 describe("HudApp integration", () => {
   it("hydrates from hudApi and forwards toggle commands", async () => {
