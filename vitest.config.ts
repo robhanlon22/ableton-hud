@@ -5,6 +5,11 @@ export default defineConfig({
     coverage: {
       enabled: true,
       provider: "v8",
+      reportOnFailure: true,
+      thresholds: {
+        100: true,
+        perFile: true,
+      },
     },
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],

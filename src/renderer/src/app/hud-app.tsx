@@ -20,6 +20,7 @@ import {
 } from "../components/ui/card";
 import { Separator } from "../components/ui/separator";
 import { cn } from "../lib/utils";
+import { flashDuration } from "./hud-timing";
 
 const CLIP_HANDOFF_HOLD_MS = 90;
 
@@ -49,7 +50,7 @@ export function HudApp(): React.JSX.Element {
   const [heldClipColor, setHeldClipColor] = useState<null | number>(null);
   const lastFlashToken = useRef(-1);
   const latestHudStateRef = useRef<HudState>(hudState);
-  const pendingNullClipStateRef = useRef<HudState | null>(null);
+  const pendingNullClipStateRef = useRef<HudState>(hudState);
   const pendingNullClipTimerRef = useRef<null | number>(null);
 
   useEffect(() => {
@@ -76,17 +77,11 @@ export function HudApp(): React.JSX.Element {
       if (shouldHoldNullClipTransition(previousState, nextState)) {
         pendingNullClipStateRef.current = nextState;
         pendingNullClipTimerRef.current ??= window.setTimeout(() => {
-          if (!mounted) {
-            return;
-          }
-
           const pendingState = pendingNullClipStateRef.current;
-          if (pendingState) {
-            latestHudStateRef.current = pendingState;
-            setHudState(pendingState);
-          }
+          latestHudStateRef.current = pendingState;
+          setHudState(pendingState);
 
-          pendingNullClipStateRef.current = null;
+          pendingNullClipStateRef.current = pendingState;
           pendingNullClipTimerRef.current = null;
         }, CLIP_HANDOFF_HOLD_MS);
         return;
@@ -96,7 +91,7 @@ export function HudApp(): React.JSX.Element {
         window.clearTimeout(pendingNullClipTimerRef.current);
         pendingNullClipTimerRef.current = null;
       }
-      pendingNullClipStateRef.current = null;
+      pendingNullClipStateRef.current = nextState;
 
       latestHudStateRef.current = nextState;
       setHudState(nextState);
@@ -130,7 +125,7 @@ export function HudApp(): React.JSX.Element {
         window.clearTimeout(pendingNullClipTimerRef.current);
         pendingNullClipTimerRef.current = null;
       }
-      pendingNullClipStateRef.current = null;
+      pendingNullClipStateRef.current = latestHudStateRef.current;
       unsubscribe();
     };
   }, []);
@@ -417,21 +412,6 @@ function contrastRatio(l1: number, l2: number): number {
  */
 function displayName(value: null | string): string {
   return value?.trim() ?? "";
-}
-
-/**
- * Computes flash animation duration for the current musical position.
- * @param state - HUD state used to derive downbeat and last-bar emphasis.
- * @returns The flash duration in milliseconds.
- */
-function flashDuration(state: HudState): number {
-  if (state.isLastBar && state.isDownbeat) {
-    return 320;
-  }
-  if (state.isLastBar || state.isDownbeat) {
-    return 230;
-  }
-  return 150;
 }
 
 /**

@@ -153,10 +153,7 @@ function toMusicalPositionParts(
     timingGrid.beatsPerDisplayBar - 1,
   );
 
-  let withinBeat = withinBar - clampedBeatIndex * timingGrid.beatLength;
-  if (withinBeat < 0) {
-    withinBeat = 0;
-  }
+  const withinBeat = withinBar - clampedBeatIndex * timingGrid.beatLength;
 
   const sixteenthIndex = Math.floor(
     (withinBeat + EPSILON) / timingGrid.sixteenthLength,

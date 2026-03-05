@@ -89,4 +89,26 @@ describe("counter", () => {
     expect(computeIsLastBar(4.1, 4)).toBe(false);
     expect(computeIsLastBar(0, 4)).toBe(false);
   });
+
+  it("falls back to common time when signature inputs are invalid", () => {
+    expect(computeBeatsPerBar(Number.NaN, 0)).toBe(4);
+    expect(computeBeatsPerBar(-7, Number.POSITIVE_INFINITY)).toBe(4);
+    expect(computeBeatsPerBar(5, 0)).toBe(5);
+    expect(computeBeatsPerBar(Number.NaN, 8)).toBe(2);
+  });
+
+  it("handles defensive clamping branches in musical position conversion", () => {
+    const malformedGrid = {
+      beatLength: -1,
+      beatsPerBar: -4,
+      beatsPerDisplayBar: 4,
+      sixteenthLength: -0.25,
+    };
+
+    expect(toElapsedCounterParts(Number.NaN, malformedGrid)).toEqual({
+      bar: 0,
+      beat: 1,
+      sixteenth: 1,
+    });
+  });
 });

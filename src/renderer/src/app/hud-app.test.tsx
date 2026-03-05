@@ -116,6 +116,110 @@ describe("HudSurface", () => {
     expect(screen.getByTestId("track-pill").textContent).toBe("");
     expect(screen.getByTestId("scene-pill").textContent).toBe("");
   });
+
+  it("renders topmost toggle metadata when always-on-top is enabled", () => {
+    render(
+      <HudSurface
+        isFlashActive={false}
+        onToggleMode={vi.fn()}
+        onToggleTopmost={vi.fn()}
+        state={makeState({ alwaysOnTop: true })}
+      />,
+    );
+
+    const topmostButton = screen.getByRole("button", {
+      name: "Set window normal",
+    });
+    expect(topmostButton).toHaveAttribute("title", "FLOAT");
+  });
+
+  it("renders remaining mode label", () => {
+    render(
+      <HudSurface
+        isFlashActive={false}
+        onToggleMode={vi.fn()}
+        onToggleTopmost={vi.fn()}
+        state={makeState({ mode: "remaining" })}
+      />,
+    );
+
+    expect(screen.getByTestId("mode-toggle")).toHaveTextContent("Remaining");
+  });
+
+  it("renders status labels for disconnected and stopped states", () => {
+    const { rerender } = render(
+      <HudSurface
+        isFlashActive={false}
+        onToggleMode={vi.fn()}
+        onToggleTopmost={vi.fn()}
+        state={makeState({ connected: false, isPlaying: false })}
+      />,
+    );
+
+    expect(screen.getByLabelText("Disconnected")).toBeInTheDocument();
+
+    rerender(
+      <HudSurface
+        isFlashActive={false}
+        onToggleMode={vi.fn()}
+        onToggleTopmost={vi.fn()}
+        state={makeState({
+          connected: true,
+          isLastBar: false,
+          isPlaying: false,
+        })}
+      />,
+    );
+
+    expect(screen.getByLabelText("Stopped")).toBeInTheDocument();
+  });
+
+  it("applies flash panel classes for downbeat and last-bar combinations", () => {
+    const { rerender } = render(
+      <HudSurface
+        isFlashActive={true}
+        onToggleMode={vi.fn()}
+        onToggleTopmost={vi.fn()}
+        state={makeState({ isDownbeat: true, isLastBar: true })}
+      />,
+    );
+
+    let flashPanel = screen.getByTestId("counter-text").parentElement;
+    expect(flashPanel).toHaveClass("border-[#83545a]");
+
+    rerender(
+      <HudSurface
+        isFlashActive={true}
+        onToggleMode={vi.fn()}
+        onToggleTopmost={vi.fn()}
+        state={makeState({ isDownbeat: false, isLastBar: true })}
+      />,
+    );
+    flashPanel = screen.getByTestId("counter-text").parentElement;
+    expect(flashPanel).toHaveClass("border-[#7a4f54]");
+
+    rerender(
+      <HudSurface
+        isFlashActive={true}
+        onToggleMode={vi.fn()}
+        onToggleTopmost={vi.fn()}
+        state={makeState({ isDownbeat: true, isLastBar: false })}
+      />,
+    );
+    flashPanel = screen.getByTestId("counter-text").parentElement;
+    expect(flashPanel).toHaveClass("border-[#546a4b]");
+
+    rerender(
+      <HudSurface
+        isFlashActive={true}
+        onToggleMode={vi.fn()}
+        onToggleTopmost={vi.fn()}
+        state={makeState({ isDownbeat: false, isLastBar: false })}
+      />,
+    );
+    flashPanel = screen.getByTestId("counter-text").parentElement;
+    expect(flashPanel).toHaveClass("border-[#4a5a45]");
+  });
 });
 
 describe("shouldHoldNullClipTransition", () => {
@@ -148,6 +252,26 @@ describe("shouldHoldNullClipTransition", () => {
       trackIndex: 2,
     });
     const next = makeState({ clipIndex: null, isPlaying: true, trackIndex: 2 });
+    expect(shouldHoldNullClipTransition(previous, next)).toBe(false);
+  });
+
+  it("does not hold when next clip index is present", () => {
+    const previous = makeState({
+      clipIndex: 3,
+      isPlaying: true,
+      trackIndex: 1,
+    });
+    const next = makeState({ clipIndex: 2, isPlaying: true, trackIndex: 2 });
+    expect(shouldHoldNullClipTransition(previous, next)).toBe(false);
+  });
+
+  it("does not hold when either track index is missing", () => {
+    const previous = makeState({
+      clipIndex: 2,
+      isPlaying: true,
+      trackIndex: null,
+    });
+    const next = makeState({ clipIndex: null, isPlaying: true, trackIndex: 1 });
     expect(shouldHoldNullClipTransition(previous, next)).toBe(false);
   });
 });
