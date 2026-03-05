@@ -1,61 +1,149 @@
-# Repository Guidelines
+# AOSC Agent Operating Contract
 
-## Project Structure & Module Organization
+## Purpose
 
-- `src/main/`: Electron main process logic (window lifecycle, OSC bridge, preferences).
-- `src/preload/`: `contextBridge` API exposed to renderer (`window.hudApi`).
-- `src/renderer/src/`: React UI (`app/`, `components/ui/`, `lib/`, test setup).
-- `src/shared/`: Shared runtime types/schemas used across main/preload/renderer.
-- `e2e/`: Playwright Electron end-to-end tests.
-- Build outputs are in `out/` (runtime) and `dist/` (packaging artifacts); do not edit generated files.
+- Execute repository tasks autonomously, safely, and verifiably.
+- Prefer deterministic workflows and CI-parity checks over ad hoc local behavior.
+- Keep instructions explicit, local, and enforceable.
 
-## Build, Test, and Development Commands
+## Autonomy Contract
 
-- `pnpm dev`: Run Electron + Vite in development mode.
-- `pnpm dev:debug`: Dev mode with debug script helpers.
-- `pnpm build`: Build main/preload/renderer bundles to `out/`.
-- `pnpm test`: Run Vitest unit/integration tests with coverage enforcement.
-- `pnpm run test:e2e`: Build app, then run Playwright Electron E2E tests.
-- `pnpm run typecheck`: Run TypeScript checks (`tsc --noEmit`).
-- `pnpm run dist:mac`: Produce macOS distributable directory.
+- Execute end-to-end unless blocked by missing credentials, destructive-risk decisions, or unresolved product ambiguity.
+- Do not stop at analysis when implementation is expected.
+- When blocked, report:
+  - exact blocker
+  - what was already tried
+  - the smallest next action needed from the user
+- Use parallel work for independent exploration, but serialize edits that touch the same files.
 
-## Coding Style & Naming Conventions
+## Execution Algorithm
 
-- Language: TypeScript (strict). Use 2-space indentation and ES module syntax.
-- Follow ESLint config in `eslint.config.mts` (`typescript-eslint`, `jsdoc`, `tsdoc`, `perfectionist`).
-- Prefer descriptive, explicit names (`createDefaultHudState`, `handleSelectedTrack`).
-- Keep comments minimal but meaningful; add TSDoc/JSDoc for non-obvious exported behavior.
-- Test files: `*.test.ts` / `*.test.tsx` colocated with source areas.
+1. Ground in repo truth first:
 
-## Testing Guidelines
+- inspect scripts/config/tests before changing code
+- prefer existing patterns over inventing new ones
 
-- Frameworks: Vitest Browser Mode (`@vitest/browser` + `@vitest/browser-playwright` + `vitest-browser-react`) for unit/integration, Playwright for Electron E2E.
-- Coverage is mandatory and strict: `coverage.thresholds.{100:true, perFile:true}` in `vitest.config.ts`.
-- Do not bypass coverage with ignore pragmas for runtime code; improve design/tests instead.
-- Test structure is strict: always follow `arrange -> act -> assert` in that order.
-- Tests and test data must be branch-free where possible: avoid conditional logic in test bodies/fixtures; use explicit, fixed assertions.
+2. Make minimal, reversible edits:
+
+- avoid broad rewrites unless required
+- keep behavior-preserving changes behavior-preserving
+
+3. Validate in risk order:
+
+- run focused checks first
+- run broader gates when touched surface warrants it
+
+4. Report with evidence:
+
+- list exact commands executed
+- state what passed and what was not run
+
+## Repo Map
+
+- `src/main/`: Electron main process (window lifecycle, bridge, prefs, IPC handlers)
+- `src/preload/`: `contextBridge` API surface (`window.hudApi`)
+- `src/renderer/src/`: React UI and browser tests
+- `src/shared/`: shared runtime schemas/types/contracts
+- `e2e/`: Playwright Electron end-to-end tests + fake Ableton Live websocket server
+- `out/`, `dist/`, `coverage/`, `test-results/`: generated artifacts (do not edit manually)
+
+## Non-Negotiable Technical Rules
+
+- TypeScript is strict. Keep explicit types where behavior/contracts are non-obvious.
+- Keep IPC schema-first:
+  - channels and schemas live in `src/shared/ipc.ts`
+  - parse/validate inbound IPC payloads in main/preload
+  - validate outbound HUD state before send
+- For main-process IPC registration, remove before re-register:
+  - `ipcMain.removeHandler(channel)` before `ipcMain.handle(channel, handler)`
+- Keep bridge code injectable and fault-tolerant:
+  - preserve dependency injection seams used by tests
+  - route external Ableton access through safe wrappers/fallback behavior
+- Do not hardcode duplicate protocol/channel constants outside shared contract files.
+
+## Testing Rules
+
+- Use runtime-specific Vitest file names only:
+  - `*.browser.test.ts` / `*.browser.test.tsx`
+  - `*.node.test.ts` / `*.node.test.tsx`
+- Keep strict test structure in every test body:
+  - `// arrange`
+  - `// act`
+  - `// assert`
+- Coverage is strict and mandatory:
+  - `pnpm test` runs with coverage by default
+  - thresholds require 100% and per-file compliance
+- Do not bypass coverage with ignore pragmas for runtime code.
 - Use Vitest mocking primitives consistently:
-  - `vi.fn()` for spies/mocks (not ad hoc inline functions).
-  - `vi.stubGlobal()` for globals (instead of `Object.defineProperty(window, ...)`).
-  - `vi.stubEnv()` for environment variables (instead of mutating `process.env` directly).
-  - Do not add manual mock lifecycle cleanup (`vi.clearAllMocks`, `vi.resetAllMocks`, `vi.restoreAllMocks`, `vi.unstubAllEnvs`, `vi.unstubAllGlobals`) in tests; Vitest config enables `clearMocks`, `restoreMocks`, `unstubEnvs`, and `unstubGlobals` globally.
-- Browser tests:
-  - Prefer `render` from `vitest-browser-react` and async browser-safe assertions/interactions.
-  - Use Vitest Browser Locators (`vitest/browser`, `page.getBy*`, `locator.*`) instead of `document.querySelector`/`element.querySelector`.
-  - Prefer awaited locator assertions (`await expect.element(page.getBy...).to...`) over manual nullable reads; use `query()` only when a nullable element lookup is explicitly required.
-  - Avoid custom locator wrapper helpers (for example `requiredByTestId`); use direct `page.getBy*` calls in test bodies so intent stays explicit.
-  - Avoid direct DOM assertion style in browser tests (`.textContent`, `.className`, `.parentElement`, manual attribute scraping) when a rich browser assertion exists; prefer `toHaveTextContent`, `toHaveClass`, `toHaveAttribute`, `toBeInTheDocument`, and related locator matchers.
-- Typical local gate:
+  - `vi.fn()` for mocks/spies
+  - `vi.stubEnv()` for env variables
+  - `vi.stubGlobal()` for globals
+- Do not manually clear/reset/restore/unstub mocks/env/globals in tests; config handles lifecycle.
+
+## Browser Test Rules
+
+- Prefer `render` from `vitest-browser-react`.
+- Use Vitest browser locators and rich assertions:
+  - `page.getBy*`, locator-based interactions/assertions
+  - `toHaveTextContent`, `toHaveClass`, `toHaveAttribute`, `toBeInTheDocument`, etc.
+- Avoid direct DOM scraping patterns when rich assertions exist:
+  - no `document.querySelector` driven assertions
+  - no manual `.textContent` / `.className` checks as first choice
+  - no `parentElement` traversal for assertions
+- Avoid custom wrapper helpers that obscure intent; keep selector/assertion intent inline in tests.
+
+## E2E Rules
+
+- E2E must be deterministic and not depend on a running local Ableton instance.
+- Use fake websocket transport server from `e2e/fake-ableton-live-server.ts`.
+- Launch compiled app entry (`out/main/index.js`) and isolate user/profile directories per test flow.
+- Keep cleanup in `finally` blocks.
+- Preserve serialized Playwright Electron execution unless harness architecture changes:
+  - `workers: 1`
+  - `fullyParallel: false`
+  - `trace: retain-on-failure`
+
+## Validation Matrix
+
+- Fast local sanity (common):
   - `pnpm exec eslint .`
   - `pnpm exec tsc --noEmit`
   - `pnpm test`
+- When touching Electron runtime/renderer bridge or e2e flows:
+  - `pnpm run test:e2e`
+- CI parity before merge (recommended full gate):
+  - `pnpm install --frozen-lockfile`
+  - `pre-commit run --all-files`
+  - `pnpm test`
+  - `pnpm run typecheck`
+  - `pnpm run test:e2e`
+- Release-surface changes:
+  - `pnpm test`
+  - `pnpm typecheck`
+  - `pnpm run test:e2e`
+  - `pnpm dist:mac`
 
-## Commit & Pull Request Guidelines
+## Anti-Patterns
 
-- Use concise, imperative commit messages (examples in history: `Add ...`, `Enable ...`, `Enforce ...`).
-- Optional prefixes like `chore:` are acceptable for maintenance changes.
-- Before pushing, ensure pre-commit hooks pass (Prettier, ESLint, TypeScript).
-- PRs should include:
-  - Clear scope summary.
-  - Verification commands run and results.
-  - Screenshots/GIFs for UI changes and notes for workflow/config updates.
+- Do not add plain `src/**/*.test.ts(x)` files that miss project globs.
+- Do not mutate `process.env` directly in tests.
+- Do not increase E2E parallelism without redesigning isolation/harness guarantees.
+- Do not run raw Playwright commands as a substitute for canonical `pnpm run test:e2e` flow.
+- Do not weaken coverage thresholds or add runtime coverage ignores to force passing CI.
+- Do not hide failing checks; report failures with exact command and key error.
+
+## Commit And PR Expectations
+
+- Use concise, imperative commit messages.
+- Keep commit scope coherent; avoid mixing unrelated refactors.
+- Before push, ensure relevant gates pass.
+- In PR summaries include:
+  - scope and intent
+  - commands run and results
+  - screenshots/GIFs for visible UI changes
+
+## Maintenance
+
+- Keep this file synchronized with repo reality.
+- If workflows, scripts, or test contracts change, update `AGENTS.md` in the same PR.
+- Prefer adding narrowly scoped nested `AGENTS.md` files only when subtree rules diverge materially.
