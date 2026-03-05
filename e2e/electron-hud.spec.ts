@@ -10,23 +10,12 @@ import {
 
 import type { HudState } from "../src/shared/types";
 
-import { createDefaultHudState, HUD_CHANNELS } from "../src/shared/ipc";
+import { createDefaultHudState } from "../src/shared/ipc";
 
 const MAIN_ENTRY = resolve(process.cwd(), "out/main/index.js");
 
-interface EvaluateElectronContext {
-  BrowserWindow: {
-    getAllWindows: () => {
-      webContents: {
-        send: (channel: string, payload: HudState) => void;
-      };
-    }[];
-  };
-}
-
-interface HudStateEvent {
-  channel: string;
-  state: HudState;
+interface HudApiWithInjection {
+  __injectState?: (state: HudState) => Promise<void>;
 }
 
 interface RunningHudApp {
@@ -49,27 +38,17 @@ async function closeHudApp(app: RunningHudApp): Promise<void> {
 
 /**
  * Pushes a HUD state directly into the renderer IPC subscription channel.
- * @param electronApp - Electron application handle for main-process evaluation.
+ * @param page - Renderer page handle used to call preload test hooks.
  * @param payload - HUD state payload to inject.
  */
-async function injectHudState(
-  electronApp: ElectronApplication,
-  payload: HudState,
-): Promise<void> {
-  await electronApp.evaluate(
-    ({ BrowserWindow }, event) => {
-      const context = { BrowserWindow } as EvaluateElectronContext;
-      const firstWindow = context.BrowserWindow.getAllWindows().at(0);
-      if (!firstWindow) {
-        throw new Error("Expected a BrowserWindow instance for HUD injection.");
-      }
-      firstWindow.webContents.send(event.channel, event.state);
-    },
-    {
-      channel: HUD_CHANNELS.state,
-      state: payload,
-    } satisfies HudStateEvent,
-  );
+async function injectHudState(page: Page, payload: HudState): Promise<void> {
+  await page.evaluate(async (nextState) => {
+    const hudApi = window.hudApi as HudApiWithInjection;
+    if (!hudApi.__injectState) {
+      throw new Error("Expected hudApi.__injectState in E2E mock mode.");
+    }
+    await hudApi.__injectState(nextState);
+  }, payload);
 }
 
 /**
@@ -84,7 +63,7 @@ async function injectHudStateUntilRendered(
   await expect
     .poll(
       async () => {
-        await injectHudState(app.electronApp, payload);
+        await injectHudState(app.page, payload);
         return app.page.getByTestId("counter-text").textContent();
       },
       {
@@ -108,6 +87,7 @@ async function launchHudApp(): Promise<RunningHudApp> {
     args: [MAIN_ENTRY],
     env: {
       ...process.env,
+      AOSC_E2E_MOCK: "1",
       HOME: tempHome,
       USERPROFILE: tempHome,
       XDG_CACHE_HOME: join(tempHome, ".cache"),
@@ -122,6 +102,15 @@ async function launchHudApp(): Promise<RunningHudApp> {
     page,
     tempHome,
   };
+}
+
+/**
+ * Waits for the renderer to finish mounting subscriptions before event assertions.
+ * @param app - Running app handles.
+ */
+async function waitForHudBootstrap(app: RunningHudApp): Promise<void> {
+  await expect(app.page.getByTestId("hud-root")).toBeVisible();
+  await app.page.waitForTimeout(300);
 }
 
 test.describe("Electron HUD", () => {
@@ -140,6 +129,7 @@ test.describe("Electron HUD", () => {
     const app = await launchHudApp();
 
     try {
+      await waitForHudBootstrap(app);
       const modeToggle = app.page.getByTestId("mode-toggle");
       await expect(modeToggle).toHaveText("Elapsed");
 
@@ -154,7 +144,7 @@ test.describe("Electron HUD", () => {
     const app = await launchHudApp();
 
     try {
-      await expect(app.page.getByTestId("hud-root")).toBeVisible();
+      await waitForHudBootstrap(app);
       const toggleButton = app.page.getByRole("button", {
         name: /Set window (normal|floating)/,
       });
@@ -177,7 +167,7 @@ test.describe("Electron HUD", () => {
     const app = await launchHudApp();
 
     try {
-      await expect(app.page.getByTestId("hud-root")).toBeVisible();
+      await waitForHudBootstrap(app);
       const injectedState: HudState = {
         ...createDefaultHudState("remaining", true),
         beatFlashToken: 7,
