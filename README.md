@@ -98,6 +98,8 @@ The workflow uploads:
 - universal macOS zip artifact
 - matching `.sha256` checksum file
 
+Release runs are immutable: if a release for that tag already exists, the workflow fails instead of replacing assets. Use a new version tag for retries.
+
 Additional CI workflows:
 
 - `Lint`: runs `pre-commit run --all-files` on pull requests and pushes to `main`

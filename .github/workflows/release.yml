@@ -70,7 +70,7 @@ jobs:
           echo "zip_path=${zip_path}" >> "${GITHUB_OUTPUT}"
           echo "sha_path=${sha_path}" >> "${GITHUB_OUTPUT}"
 
-      - name: Create or update GitHub Release
+      - name: Create immutable GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.package.outputs.tag }}
@@ -80,11 +80,11 @@ jobs:
           set -euo pipefail
 
           if gh release view "${TAG}" >/dev/null 2>&1; then
-            echo "Release ${TAG} already exists; uploading artifacts with --clobber."
-          else
-            gh release create "${TAG}" \
-              --title "${TAG}" \
-              --generate-notes
+            echo "Release ${TAG} already exists; immutability enabled, refusing to modify." >&2
+            exit 1
           fi
 
-          gh release upload "${TAG}" "${ZIP_PATH}" "${SHA_PATH}" --clobber
+          gh release create "${TAG}" "${ZIP_PATH}" "${SHA_PATH}" \
+            --title "${TAG}" \
+            --generate-notes \
+            --verify-tag
