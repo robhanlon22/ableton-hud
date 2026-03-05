@@ -49,6 +49,29 @@ if (rendererDebugPort) {
 }
 
 /**
+ * Applies the floating-window policy used by the HUD.
+ * @param win - Main HUD window instance.
+ * @param enabled - Whether FLOAT mode is enabled.
+ */
+function applyHudTopmost(win: BrowserWindow, enabled: boolean): void {
+  if (process.platform === "darwin") {
+    if (enabled) {
+      win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      win.setAlwaysOnTop(true, "screen-saver");
+      return;
+    }
+
+    win.setAlwaysOnTop(false);
+    if (win.isVisibleOnAllWorkspaces()) {
+      win.setVisibleOnAllWorkspaces(false);
+    }
+    return;
+  }
+
+  win.setAlwaysOnTop(enabled);
+}
+
+/**
  *
  */
 async function createWindow(): Promise<void> {
@@ -99,7 +122,7 @@ async function createWindow(): Promise<void> {
 
   mainWindow = new BrowserWindow({
     ...initialBounds,
-    alwaysOnTop: prefs.alwaysOnTop,
+    alwaysOnTop: false,
     autoHideMenuBar: true,
     resizable: !isCompactView,
     titleBarStyle: "default",
@@ -111,6 +134,7 @@ async function createWindow(): Promise<void> {
       sandbox: false,
     },
   });
+  applyHudTopmost(mainWindow, prefs.alwaysOnTop);
 
   const rendererUrl =
     process.env.ELECTRON_RENDERER_URL ?? process.env.VITE_DEV_SERVER_URL;
@@ -284,7 +308,8 @@ function registerIpcHandlers(): void {
       return;
     }
 
-    mainWindow.setAlwaysOnTop(!mainWindow.isAlwaysOnTop());
+    const nextEnabled = !mainWindow.isAlwaysOnTop();
+    applyHudTopmost(mainWindow, nextEnabled);
     await persistPrefs();
 
     const nextState = latestHudState

@@ -14,7 +14,13 @@ import { createDefaultHudState } from "../src/shared/ipc";
 
 const MAIN_ENTRY = resolve(process.cwd(), "out/main/index.js");
 
+interface LaunchHudAppOptions {
+  existingTempHome?: string;
+  mockMode?: boolean;
+}
+
 interface PersistedPrefs {
+  alwaysOnTop?: boolean;
   compactMode: boolean;
   windowBounds?: {
     height: number;
@@ -33,6 +39,11 @@ interface RunningHudApp {
 interface WindowContentSize {
   height: number;
   width: number;
+}
+
+interface WindowOverlayState {
+  alwaysOnTop: boolean;
+  visibleOnAllWorkspaces: boolean;
 }
 
 /**
@@ -93,10 +104,13 @@ async function injectHudStateUntilRendered(
 
 /**
  * Launches the compiled Electron app with isolated user data for deterministic tests.
- * @param existingTempHome - Optional existing user profile directory to reuse.
+ * @param options - Launch options for profile reuse and mock-mode selection.
  * @returns Running Electron app handles for each test case.
  */
-async function launchHudApp(existingTempHome?: string): Promise<RunningHudApp> {
+async function launchHudApp(
+  options: LaunchHudAppOptions = {},
+): Promise<RunningHudApp> {
+  const { existingTempHome, mockMode = true } = options;
   const tempHome =
     existingTempHome ??
     (await mkdtemp(join(tmpdir(), "ableton-hud-playwright-home-")));
@@ -105,7 +119,7 @@ async function launchHudApp(existingTempHome?: string): Promise<RunningHudApp> {
     args: [MAIN_ENTRY],
     env: {
       ...process.env,
-      AOSC_E2E_MOCK: "1",
+      AOSC_E2E_MOCK: mockMode ? "1" : "0",
       AOSC_E2E_USER_DATA: tempHome,
       HOME: tempHome,
       USERPROFILE: tempHome,
@@ -145,6 +159,23 @@ async function readWindowContentSize(
     const mainWindow = BrowserWindow.getAllWindows()[0];
     const [width, height] = mainWindow.getContentSize();
     return { height, width };
+  });
+}
+
+/**
+ * Reads topmost/workspace visibility state from the active main window.
+ * @param app - Running app handles.
+ * @returns Overlay policy flags from BrowserWindow.
+ */
+async function readWindowOverlayState(
+  app: RunningHudApp,
+): Promise<WindowOverlayState> {
+  return app.electronApp.evaluate(({ BrowserWindow }) => {
+    const mainWindow = BrowserWindow.getAllWindows()[0];
+    return {
+      alwaysOnTop: mainWindow.isAlwaysOnTop(),
+      visibleOnAllWorkspaces: mainWindow.isVisibleOnAllWorkspaces(),
+    };
   });
 }
 
@@ -293,7 +324,7 @@ test.describe("Electron HUD", () => {
       await closeHudApp(app, false);
     }
 
-    const relaunchedApp = await launchHudApp(stableHome);
+    const relaunchedApp = await launchHudApp({ existingTempHome: stableHome });
     try {
       await waitForHudBootstrap(relaunchedApp);
       const compactToggle = relaunchedApp.page.getByTestId("compact-toggle");
@@ -352,5 +383,70 @@ test.describe("Electron HUD", () => {
     } finally {
       await closeHudApp(app);
     }
+  });
+
+  test.describe("Fullscreen overlay policy", () => {
+    test.skip(
+      process.platform !== "darwin",
+      "Fullscreen workspace policy is macOS-specific.",
+    );
+
+    test("applies fullscreen overlay policy from persisted alwaysOnTop on launch", async () => {
+      const app = await launchHudApp({ mockMode: false });
+
+      try {
+        await waitForHudBootstrap(app);
+        await expect
+          .poll(async () => readWindowOverlayState(app))
+          .toEqual({
+            alwaysOnTop: true,
+            visibleOnAllWorkspaces: true,
+          });
+      } finally {
+        await closeHudApp(app);
+      }
+    });
+
+    test("applies and clears fullscreen overlay policy via hud:toggle-topmost IPC", async () => {
+      const app = await launchHudApp({ mockMode: false });
+
+      try {
+        await waitForHudBootstrap(app);
+        const toggleButton = app.page.getByRole("button", {
+          name: /Set window (normal|floating)/,
+        });
+        await expect(toggleButton).toHaveAttribute("title", "FLOAT");
+
+        await toggleButton.click();
+        await expect(toggleButton).toHaveAttribute("title", "NORMAL");
+        await expect
+          .poll(async () => readWindowOverlayState(app))
+          .toEqual({
+            alwaysOnTop: false,
+            visibleOnAllWorkspaces: false,
+          });
+        await expect
+          .poll(async () => readPersistedPrefs(app.tempHome))
+          .toMatchObject({
+            alwaysOnTop: false,
+          });
+
+        await toggleButton.click();
+        await expect(toggleButton).toHaveAttribute("title", "FLOAT");
+        await expect
+          .poll(async () => readWindowOverlayState(app))
+          .toEqual({
+            alwaysOnTop: true,
+            visibleOnAllWorkspaces: true,
+          });
+        await expect
+          .poll(async () => readPersistedPrefs(app.tempHome))
+          .toMatchObject({
+            alwaysOnTop: true,
+          });
+      } finally {
+        await closeHudApp(app);
+      }
+    });
   });
 });
