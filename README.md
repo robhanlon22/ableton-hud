@@ -1,122 +1,137 @@
 # Ableton HUD
 
-Desktop timing HUD for Ableton Live via [ableton-live](https://github.com/ricardomatias/ableton-live).
+A macOS desktop HUD for Ableton Live that shows clip timing (`Bar:Beat:16th`) in a compact always-on-top window.
 
-It follows the selected track's currently playing Session slot/clip and shows a compact musical counter UI.
+> macOS-only right now. Release builds are unsigned, so first launch may require Finder `Control-click -> Open`.
 
-## Current Feature Set
+## What You Get
 
-- Musical counter in `Bar:Beat:16th` format.
-- Toggle between:
-  - `Elapsed` mode (counts up from launch or loop start)
-  - `Remaining` mode (counts down to clip end or loop end)
-- Last-bar warning color behavior.
-- Beat flash animation with stronger emphasis on downbeat.
-- Header metadata pills:
-  - clip name
-  - track name
-  - scene name
-- Each metadata pill uses Ableton-provided color (with auto-contrast text).
-- Status icon badge (icon-only): playing, stopped, disconnected.
-- Float/normal toggle (always-on-top on/off).
-- Resizable window with persisted position and content size.
-  - default content size: `370x180`
-  - native full-width macOS title bar.
-- Clip handoff smoothing to avoid brief no-clip flicker during track transitions.
+- Fast musical counter in `Bar:Beat:16th`
+- `Elapsed` and `Remaining` timing modes
+- Last-bar visual warning behavior
+- Beat flash with downbeat emphasis
+- Clip, track, and scene chips with Live colors
+- Floating/normal window toggle
+- Track lock toggle
+- Compact mode for counter-only view
+- Persisted window position, size, mode, and UI preferences
 
-Notes:
+## Screenshots
 
-- No loop-cycle counter is displayed.
-- Empty metadata names still render as empty pills (for stable visual layout).
+![Connected HUD in Elapsed mode](docs/screenshots/hud-connected-elapsed.png)
+![Connected HUD in Remaining mode](docs/screenshots/hud-connected-remaining.png)
+![Compact counter view](docs/screenshots/hud-compact.png)
 
-## Requirements
+## Quick Start (Release Consumer)
 
-- macOS
-- Ableton Live with the ableton-live Max device installed and running
+1. Download the latest macOS universal release assets from GitHub Releases:
+
+- `Ableton-HUD-vX.Y.Z-mac-universal.zip`
+- `Ableton-HUD-vX.Y.Z-mac-universal.zip.sha256`
+
+2. Verify checksum:
+
+```bash
+shasum -a 256 -c Ableton-HUD-vX.Y.Z-mac-universal.zip.sha256
+```
+
+3. Unzip and launch `Ableton HUD.app`.
+4. In Ableton Live, install/run the `ableton-live` Max device so the HUD can connect.
+
+Expected behavior:
+
+- Connected + transport running: counter advances and chips populate.
+- Disconnected transport: HUD stays up with disconnected status.
+
+## Ableton / Transport Prerequisites
+
+- Ableton Live running
+- `ableton-live` Max device installed and active
+- Default bridge endpoint: `ws://127.0.0.1:9001/ableton-live`
+
+Optional overrides:
+
+- `AOSC_LIVE_HOST` (default `127.0.0.1`)
+- `AOSC_LIVE_PORT` (default `9001`)
+
+## Controls
+
+- `Elapsed` / `Remaining`: switch counter direction
+- `FLOAT` / `NORMAL`: toggle always-on-top behavior
+- `UNLOCKED` / `LOCKED`: follow selected track or keep current track pinned
+- `COLLAPSE DETAILS` / `EXPAND DETAILS`: switch full vs compact layout
+
+## Troubleshooting
+
+| Symptom                                | What to check                                                                                                                                       |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Counter stays `0:0:0`                  | Confirm Ableton Live transport is running and `ableton-live` device is connected on the same host/port as HUD.                                      |
+| Status shows disconnected              | Verify Live + device are running and endpoint is reachable at `AOSC_LIVE_HOST:AOSC_LIVE_PORT`.                                                      |
+| Scene chip with no color appears black | Current behavior should render no-color scene as unfilled/outline style; update to latest build if you still see black fill.                        |
+| App opens in compact mode unexpectedly | Preferences are persisted. Toggle `EXPAND DETAILS` once; next launch should keep the chosen mode.                                                   |
+| Debug port conflict in dev debug mode  | `pnpm run dev:debug` auto-selects the next free ports from `AOSC_MAIN_DEBUG_PORT` (default `9230`) and `AOSC_RENDERER_DEBUG_PORT` (default `9222`). |
+
+## Developer Workflow
+
+Requirements:
+
 - Node.js 22+
+- pnpm 10+
+- macOS for Electron/macOS packaging workflows
 
-## Transport Assumptions
-
-Transport endpoint is hardcoded:
-
-- ableton-live WebSocket: `ws://127.0.0.1:9001/ableton-live`
-
-## Development
+Install:
 
 ```bash
 pnpm install
+```
+
+Run app in dev:
+
+```bash
 pnpm run dev
 ```
 
-## Debug Dev Mode
+Run app in debug dev mode (auto-select free inspector/CDP ports):
 
 ```bash
 pnpm run dev:debug
 ```
 
-This auto-selects free ports (starting from the values below):
-
-- Main process inspector: `9230` (override start with `AOSC_MAIN_DEBUG_PORT`)
-- Renderer CDP (DevTools protocol): `9222` (override start with `AOSC_RENDERER_DEBUG_PORT`)
-
-## Validation
+Validate:
 
 ```bash
 pnpm test
 pnpm run typecheck
 pnpm run build
-```
-
-`pnpm test` runs:
-
-- node timing/counter tests
-- jsdom renderer component tests
-
-## Playwright Electron E2E
-
-```bash
-pnpm install
 pnpm run test:e2e
-pnpm run test:e2e:headed
 ```
 
-These tests run against the built Electron app and use deterministic injected HUD state.
-Ableton Live/ableton-live transport are not required for CI E2E.
-
-On failure, Playwright outputs are expected in:
-
-- `test-results/playwright`
-- `playwright-report`
-
-## Build macOS `.app`
+Build local macOS app directory:
 
 ```bash
 pnpm run dist:mac
 ```
 
-This runs a universal (`--universal`) macOS dir build via `electron-builder`.
-Expected output is in `dist/` (for example `dist/mac-universal/Ableton HUD.app`).
+Output example: `dist/mac-universal/Ableton HUD.app`
 
-The app is unsigned. First launch may require Control-click -> Open in Finder.
+## Releases
 
-## Automated Releases (GitHub Actions)
-
-Cut a tag locally and push it to trigger the release workflow:
+Tag and push to trigger the release workflow:
 
 ```bash
 git tag -a v0.1.0 -m "v0.1.0"
 git push origin v0.1.0
 ```
 
-The workflow uploads:
+Release workflow behavior:
 
-- universal macOS zip artifact
-- matching `.sha256` checksum file
+- Runs test, typecheck, and Electron E2E gates
+- Builds universal macOS app
+- Publishes:
+  - `Ableton-HUD-vX.Y.Z-mac-universal.zip`
+  - `Ableton-HUD-vX.Y.Z-mac-universal.zip.sha256`
+- Enforces immutable releases (existing tag release is not modified)
 
-Release runs are immutable: if a release for that tag already exists, the workflow fails instead of replacing assets. Use a new version tag for retries.
+## License
 
-Additional CI workflows:
-
-- `Lint`: runs `pre-commit run --all-files` on pull requests and pushes to `main`
-- `Test`: runs `pnpm test` on pull requests and pushes to `main`
-- `E2E`: runs `pnpm run test:e2e` on pull requests and pushes to `main` (macOS)
+[MIT](LICENSE)
