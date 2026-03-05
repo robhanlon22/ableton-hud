@@ -193,11 +193,13 @@ export function HudApp(): React.JSX.Element {
         370,
         Math.max(320, Math.ceil((hudState.counterText.length + 1) * 52)),
       );
-      void window.hudApi
-        .setCompactView({
-          enabled: true,
-          height: Math.max(1, Math.ceil(rect?.height ?? 1)),
-          width: compactWidth,
+      void Promise.resolve()
+        .then(() => {
+          return window.hudApi.setCompactView({
+            enabled: true,
+            height: Math.max(1, Math.ceil((rect?.height ?? 1) + 4)),
+            width: compactWidth,
+          });
         })
         .catch(disableCompactView);
     });
@@ -282,16 +284,16 @@ export function HudSurface(props: HudSurfaceProps): React.JSX.Element {
   }, [isCompactView, state.isLastBar]);
 
   const flashClass = useMemo(
-    () => panelFlashClass(state, isFlashActive),
-    [state, isFlashActive],
+    () => panelFlashClass(state, isFlashActive, isCompactView),
+    [isCompactView, state, isFlashActive],
   );
 
   const counterPanel = (
     <div
       className={cn(
         "relative rounded-sm border border-ableton-border bg-ableton-panel px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors duration-100",
-        isCompactView ? "self-center border-transparent shadow-none" : "w-full",
-        state.isLastBar && "border-[#705858] bg-zinc-900/95",
+        isCompactView ? "self-center border-0 shadow-none" : "w-full",
+        state.isLastBar && !isCompactView && "border-[#705858] bg-zinc-900/95",
         flashClass,
       )}
       data-testid="counter-panel"
@@ -587,11 +589,20 @@ function modeLabel(mode: HudMode): string {
  * Selects panel highlight classes for the active beat flash state.
  * @param state - HUD state containing downbeat/last-bar flags.
  * @param isFlashActive - Whether flash styling should currently be shown.
+ * @param isCompactView - Whether compact mode is active.
  * @returns A space-delimited class string for flash styling.
  */
-function panelFlashClass(state: HudState, isFlashActive: boolean): string {
+function panelFlashClass(
+  state: HudState,
+  isFlashActive: boolean,
+  isCompactView: boolean,
+): string {
   if (!isFlashActive) {
     return "";
+  }
+
+  if (isCompactView) {
+    return state.isLastBar ? "bg-[#32252a]" : "bg-[#272f25]";
   }
 
   if (state.isLastBar && state.isDownbeat) {

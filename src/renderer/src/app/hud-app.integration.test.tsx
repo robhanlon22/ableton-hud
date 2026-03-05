@@ -312,7 +312,7 @@ describe("HudApp integration", () => {
     await vi.waitFor(() => {
       expect(hudApi.setCompactView).toHaveBeenCalledWith({
         enabled: true,
-        height: 1,
+        height: 5,
         width: 320,
       });
     });

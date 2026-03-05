@@ -340,6 +340,28 @@ describe("HudSurface", () => {
     flashPanel = requiredByTestId(view.container, "counter-text").parentElement;
     expect(flashPanel?.className).toContain("border-[#4a5a45]");
   });
+
+  it("uses compact flash styling without border classes", async () => {
+    const view = await render(
+      <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={true}
+        isFlashActive={true}
+        onToggleCompactView={vi.fn()}
+        onToggleMode={vi.fn()}
+        onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
+        state={makeState({ isLastBar: true })}
+      />,
+    );
+
+    const flashPanel = requiredByTestId(
+      view.container,
+      "counter-text",
+    ).parentElement;
+    expect(flashPanel?.className).toContain("bg-[#32252a]");
+    expect(flashPanel?.className).not.toContain("border-[#7a4f54]");
+  });
 });
 
 describe("shouldHoldNullClipTransition", () => {

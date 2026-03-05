@@ -35,7 +35,7 @@ let preCompactBounds: null | {
 const WINDOW_CONTENT_WIDTH = 370;
 const WINDOW_CONTENT_HEIGHT = 180;
 const COMPACT_CONTENT_WIDTH = 320;
-const COMPACT_CONTENT_HEIGHT = 130;
+const COMPACT_CONTENT_HEIGHT = 138;
 
 const prefStore = new PrefStore();
 const isE2EMock = process.env.AOSC_E2E_MOCK === "1";
