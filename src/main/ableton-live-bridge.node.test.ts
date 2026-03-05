@@ -1,6 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ClipTimingMeta, HudMode, HudState } from "../shared/types";
+import type {
+  ClipProperty,
+  LiveClip,
+  LiveClipSlot,
+  LiveScene,
+  LiveSong,
+  LiveSongView,
+  LiveTrack,
+  SceneProperty,
+  SongProperty,
+  TrackProperty,
+} from "./ableton-live-bridge";
 
 interface BridgeOverrides {
   host?: string;
@@ -28,7 +40,6 @@ interface BridgeRuntime {
   handlePlayingPosition: (position: number) => void;
   handlePlayingSlot: (slotIndex: number) => Promise<void>;
   handleSelectedTrack: (trackIndex: number) => void;
-  handleSelectedTrackPayload: (payload: unknown) => Promise<void>;
   handleSongTime: (songTime: number) => void;
   isNaturalLoopWrap: (
     previousPosition: number,
@@ -118,75 +129,25 @@ interface BridgeRuntime {
 }
 
 type Cleanup = () => void;
-type ClipProperty =
-  | "color"
-  | "length"
-  | "loop_end"
-  | "loop_start"
-  | "looping"
-  | "name"
-  | "playing_position";
 interface LiveHarness {
   eventHandlers: Map<string, () => void>;
   instance: {
     connect: ReturnType<typeof vi.fn<() => Promise<void>>>;
     disconnect: ReturnType<typeof vi.fn<() => void>>;
     on: ReturnType<typeof vi.fn<(event: string, cb: () => void) => void>>;
-    song: RuntimeSong;
-    songView: RuntimeSongView;
+    song: LiveSong;
+    songView: LiveSongView;
   };
   options: null | { host: string; port: number };
 }
 type Observer = (value: unknown) => void;
 
-interface RuntimeClip {
-  get: (property: ClipProperty) => Promise<unknown>;
-  observe: (property: ClipProperty, listener: Observer) => Promise<unknown>;
-}
-
-interface RuntimeClipSlot {
-  clip: () => Promise<unknown>;
-  get: (property: "has_clip") => Promise<unknown>;
-}
-
-interface RuntimeScene {
-  get: (property: SceneProperty) => Promise<unknown>;
-  observe: (property: SceneProperty, listener: Observer) => Promise<unknown>;
-}
-
-interface RuntimeSong {
-  child: (child: "scenes" | "tracks", index: number) => Promise<unknown>;
-  children: (child: "tracks") => Promise<unknown>;
-  get: (property: SongProperty) => Promise<unknown>;
-  observe: (property: SongProperty, listener: Observer) => Promise<unknown>;
-}
-
-interface RuntimeSongView {
-  get: (property: "selected_track") => Promise<unknown>;
-  observe: (property: "selected_track", listener: Observer) => Promise<unknown>;
-}
-
-interface RuntimeTrack {
-  child: (child: "clip_slots", index: number) => Promise<unknown>;
-  get: (property: TrackProperty) => Promise<unknown>;
-  id?: number;
-  observe: (property: TrackProperty, listener: Observer) => Promise<unknown>;
-  path?: null | string;
-  raw?: {
-    id?: number | string;
-    path?: null | string;
-  };
-}
-
-type SceneProperty = "color" | "name";
-
-type SongProperty =
-  | "current_song_time"
-  | "is_playing"
-  | "signature_denominator"
-  | "signature_numerator";
-
-type TrackProperty = "color" | "name" | "playing_slot_index";
+type RuntimeClip = LiveClip;
+type RuntimeClipSlot = LiveClipSlot;
+type RuntimeScene = LiveScene;
+type RuntimeSong = LiveSong;
+type RuntimeSongView = LiveSongView;
+type RuntimeTrack = LiveTrack;
 
 const wsCtorMock = vi.fn();
 let activeHarness: LiveHarness | null = null;
@@ -447,7 +408,9 @@ describe("AbletonLiveBridge", () => {
 
     bridge.trackLocked = false;
     bridge.resolveTrackIndex = vi.fn(() => resolved(7));
-    await bridge.handleSelectedTrackPayload({ path: "live_set tracks 7" });
+    bridge.handleSelectedTrack(
+      await bridge.resolveTrackIndex({ path: "live_set tracks 7" }),
+    );
 
     expect(applySpy).toHaveBeenCalledWith(7);
   });

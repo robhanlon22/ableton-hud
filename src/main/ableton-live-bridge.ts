@@ -20,7 +20,30 @@ import {
   toRemainingCounterParts,
 } from "./counter";
 
-interface BridgeClip {
+export interface BridgeDeps {
+  hostOverride?: string;
+  liveFactory?: LiveFactory;
+  normalizers?: Partial<PayloadNormalizers>;
+  portOverride?: string;
+  websocketCtor?: typeof globalThis.WebSocket;
+}
+
+export type ClipProperty =
+  | "color"
+  | "length"
+  | "loop_end"
+  | "loop_start"
+  | "looping"
+  | "name"
+  | "playing_position";
+export interface LiveClient {
+  connect: () => Promise<void>;
+  disconnect: () => void;
+  on: (event: "connect" | "disconnect", callback: () => void) => void;
+  song: LiveSong;
+  songView: LiveSongView;
+}
+export interface LiveClip {
   get: (property: ClipProperty) => Promise<unknown>;
   observe: (
     property: ClipProperty,
@@ -28,18 +51,24 @@ interface BridgeClip {
   ) => Promise<unknown>;
 }
 
-interface BridgeClipSlot {
+export interface LiveClipSlot {
   clip: () => Promise<unknown>;
   get: (property: "has_clip") => Promise<unknown>;
 }
-interface BridgeScene {
+
+export interface LiveFactory {
+  create: (options: { host: string; port: number }) => LiveClient;
+}
+
+export interface LiveScene {
   get: (property: SceneProperty) => Promise<unknown>;
   observe: (
     property: SceneProperty,
     listener: (value: unknown) => void,
   ) => Promise<unknown>;
 }
-interface BridgeSong {
+
+export interface LiveSong {
   child: (child: "scenes" | "tracks", index: number) => Promise<unknown>;
   children: (child: "tracks") => Promise<unknown>;
   get: (property: SongProperty) => Promise<unknown>;
@@ -49,7 +78,7 @@ interface BridgeSong {
   ) => Promise<unknown>;
 }
 
-interface BridgeSongView {
+export interface LiveSongView {
   get: (property: "selected_track") => Promise<unknown>;
   observe: (
     property: "selected_track",
@@ -57,7 +86,7 @@ interface BridgeSongView {
   ) => Promise<unknown>;
 }
 
-interface BridgeTrack {
+export interface LiveTrack {
   child: (child: "clip_slots", index: number) => Promise<unknown>;
   get: (property: TrackProperty) => Promise<unknown>;
   id?: number;
@@ -65,40 +94,103 @@ interface BridgeTrack {
     property: TrackProperty,
     listener: (value: unknown) => void,
   ) => Promise<unknown>;
-  path?: string;
+  path?: null | string;
   raw?: {
     id?: number | string;
-    path?: string;
+    path?: null | string;
   };
 }
 
-type ClipProperty =
-  | "color"
-  | "length"
-  | "loop_end"
-  | "loop_start"
-  | "looping"
-  | "name"
-  | "playing_position";
+export interface PayloadNormalizers {
+  normalizeCleanup: (cleanup: unknown) => null | ObserverCleanup;
+  normalizeSelectedTrackPayload: (
+    payload: unknown,
+  ) => NormalizedSelectedTrackPayload;
+  normalizeTrackRef: (track: unknown) => NormalizedTrackRef;
+  parseTrackIndexFromPath: (path: null | string) => number;
+  toBoolean: (value: unknown) => boolean;
+  toColorValue: (value: unknown) => null | number;
+  toNumber: (value: unknown, fallback?: number) => number;
+  toSceneColorValue: (value: unknown) => null | number;
+  toStringValue: (value: unknown) => string;
+}
 
-type ObserverCleanup = () => Promise<void> | void;
+export type SceneProperty = "color" | "name";
 
-type SceneProperty = "color" | "name";
-
-type SongProperty =
+export type SongProperty =
   | "current_song_time"
   | "is_playing"
   | "signature_denominator"
   | "signature_numerator";
 
-type TrackProperty = "color" | "name" | "playing_slot_index";
+export type TrackProperty = "color" | "name" | "playing_slot_index";
 
-const LIVE_HOST = process.env.AOSC_LIVE_HOST ?? "127.0.0.1";
-const LIVE_PORT = resolveLivePort(process.env.AOSC_LIVE_PORT);
-
-if (typeof globalThis.WebSocket === "undefined") {
-  Reflect.set(globalThis, "WebSocket", WebSocket);
+interface NormalizedSelectedTrackPayload {
+  directId: null | number;
+  path: null | string;
+  rawPath: null | string;
 }
+
+interface NormalizedTrackRef {
+  id: null | number;
+  path: null | string;
+  rawId: null | number;
+  rawPath: null | string;
+}
+
+type ObserverCleanup = () => Promise<void> | void;
+
+const defaultNormalizers: PayloadNormalizers = {
+  normalizeCleanup: (cleanup) =>
+    typeof cleanup === "function" ? (cleanup as ObserverCleanup) : null,
+  normalizeSelectedTrackPayload: (payload) => {
+    if (typeof payload === "number" && Number.isInteger(payload)) {
+      return {
+        directId: payload,
+        path: null,
+        rawPath: null,
+      };
+    }
+
+    const record = toRecord(payload);
+    const rawRecord = toRecord(record.raw);
+    return {
+      directId: null,
+      path: readString(record.path),
+      rawPath: readString(rawRecord.path),
+    };
+  },
+  normalizeTrackRef: (track) => {
+    const record = toRecord(track);
+    const rawRecord = toRecord(record.raw);
+    const directId =
+      typeof record.id === "number" && Number.isFinite(record.id)
+        ? record.id
+        : null;
+    return {
+      id: directId,
+      path: readString(record.path),
+      rawId: toFiniteNumber(rawRecord.id),
+      rawPath: readString(rawRecord.path),
+    };
+  },
+  parseTrackIndexFromPath,
+  toBoolean,
+  toColorValue,
+  toNumber,
+  toSceneColorValue,
+  toStringValue,
+};
+
+export const defaultPayloadNormalizers = defaultNormalizers;
+
+const defaultLiveFactory: LiveFactory = {
+  create: ({ host, port }) =>
+    new AbletonLive({
+      host,
+      port,
+    }) as unknown as LiveClient,
+};
 
 export class AbletonLiveBridge {
   private activeClip: null | { clip: number; track: number } = null;
@@ -119,9 +211,10 @@ export class AbletonLiveBridge {
   private isPlaying = false;
   private lastWholeBeat: null | number = null;
   private launchPosition: null | number = null;
-  private readonly live: AbletonLive;
+  private readonly live: LiveClient;
   private loopWrapCount = 0;
   private mode: HudMode;
+  private readonly normalizers: PayloadNormalizers;
   private onState: (state: HudState) => void;
   private pendingSelectedTrack: null | number = null;
   private previousPosition: null | number = null;
@@ -132,9 +225,9 @@ export class AbletonLiveBridge {
   private selectedTrackToken = 0;
   private signatureDenominator = 4;
   private signatureNumerator = 4;
-  private readonly song: BridgeSong;
+  private readonly song: LiveSong;
   private songObserverCleanups: ObserverCleanup[] = [];
-  private readonly songView: BridgeSongView;
+  private readonly songView: LiveSongView;
   private started = false;
   private trackColor: null | number = null;
   private trackLocked: boolean;
@@ -146,17 +239,31 @@ export class AbletonLiveBridge {
     mode: HudMode,
     onState: (state: HudState) => void,
     trackLocked = false,
+    deps: BridgeDeps = {},
   ) {
+    const host = deps.hostOverride ?? process.env.AOSC_LIVE_HOST ?? "127.0.0.1";
+    const port = resolveLivePort(
+      deps.portOverride ?? process.env.AOSC_LIVE_PORT,
+    );
+    const websocketCtor = deps.websocketCtor ?? WebSocket;
+    if (typeof globalThis.WebSocket === "undefined") {
+      Reflect.set(globalThis, "WebSocket", websocketCtor);
+    }
+
     this.mode = mode;
     this.onState = onState;
     this.trackLocked = trackLocked;
+    this.normalizers = {
+      ...defaultNormalizers,
+      ...deps.normalizers,
+    };
 
-    this.live = new AbletonLive({
-      host: LIVE_HOST,
-      port: LIVE_PORT,
+    this.live = (deps.liveFactory ?? defaultLiveFactory).create({
+      host,
+      port,
     });
-    this.song = this.live.song as BridgeSong;
-    this.songView = this.live.songView as BridgeSongView;
+    this.song = this.live.song;
+    this.songView = this.live.songView;
 
     this.live.on("connect", () => {
       this.connected = true;
@@ -234,8 +341,12 @@ export class AbletonLiveBridge {
       return;
     }
 
-    this.trackName = toStringValue(await this.safeTrackGet(track, "name"));
-    this.trackColor = toColorValue(await this.safeTrackGet(track, "color"));
+    this.trackName = this.normalizers.toStringValue(
+      await this.safeTrackGet(track, "name"),
+    );
+    this.trackColor = this.normalizers.toColorValue(
+      await this.safeTrackGet(track, "color"),
+    );
 
     const stopPlayingSlot = await this.safeTrackObserve(
       track,
@@ -245,7 +356,7 @@ export class AbletonLiveBridge {
           return;
         }
 
-        void this.handlePlayingSlot(toNumber(slotIndex, -1));
+        void this.handlePlayingSlot(this.normalizers.toNumber(slotIndex, -1));
       },
     );
     this.registerCleanup(this.trackObserverCleanups, stopPlayingSlot);
@@ -255,7 +366,7 @@ export class AbletonLiveBridge {
         return;
       }
 
-      this.trackName = toStringValue(name);
+      this.trackName = this.normalizers.toStringValue(name);
       this.emit();
     });
     this.registerCleanup(this.trackObserverCleanups, stopTrackName);
@@ -268,7 +379,7 @@ export class AbletonLiveBridge {
           return;
         }
 
-        this.trackColor = toColorValue(color);
+        this.trackColor = this.normalizers.toColorValue(color);
         this.emit();
       },
     );
@@ -279,7 +390,7 @@ export class AbletonLiveBridge {
       return;
     }
 
-    await this.handlePlayingSlot(toNumber(playingSlot, -1));
+    await this.handlePlayingSlot(this.normalizers.toNumber(playingSlot, -1));
     this.emit();
   }
 
@@ -290,7 +401,9 @@ export class AbletonLiveBridge {
     const stopSelectedTrack = await this.safeSongViewObserve(
       "selected_track",
       (trackData) => {
-        void this.handleSelectedTrackPayload(trackData);
+        void this.resolveTrackIndex(trackData).then((trackIndex) => {
+          this.handleSelectedTrack(trackIndex);
+        });
       },
     );
     this.registerCleanup(this.songObserverCleanups, stopSelectedTrack);
@@ -298,7 +411,10 @@ export class AbletonLiveBridge {
     const stopSignatureNumerator = await this.safeSongObserve(
       "signature_numerator",
       (value) => {
-        this.signatureNumerator = Math.max(1, Math.round(toNumber(value, 4)));
+        this.signatureNumerator = Math.max(
+          1,
+          Math.round(this.normalizers.toNumber(value, 4)),
+        );
         this.emit();
       },
     );
@@ -307,14 +423,17 @@ export class AbletonLiveBridge {
     const stopSignatureDenominator = await this.safeSongObserve(
       "signature_denominator",
       (value) => {
-        this.signatureDenominator = Math.max(1, Math.round(toNumber(value, 4)));
+        this.signatureDenominator = Math.max(
+          1,
+          Math.round(this.normalizers.toNumber(value, 4)),
+        );
         this.emit();
       },
     );
     this.registerCleanup(this.songObserverCleanups, stopSignatureDenominator);
 
     const stopIsPlaying = await this.safeSongObserve("is_playing", (value) => {
-      this.isPlaying = toBoolean(value);
+      this.isPlaying = this.normalizers.toBoolean(value);
       this.emit();
     });
     this.registerCleanup(this.songObserverCleanups, stopIsPlaying);
@@ -322,7 +441,7 @@ export class AbletonLiveBridge {
     const stopSongTime = await this.safeSongObserve(
       "current_song_time",
       (value) => {
-        this.handleSongTime(toNumber(value, 0));
+        this.handleSongTime(this.normalizers.toNumber(value, 0));
       },
     );
     this.registerCleanup(this.songObserverCleanups, stopSongTime);
@@ -337,17 +456,17 @@ export class AbletonLiveBridge {
 
     this.signatureNumerator = Math.max(
       1,
-      Math.round(toNumber(signatureNumerator, 4)),
+      Math.round(this.normalizers.toNumber(signatureNumerator, 4)),
     );
     this.signatureDenominator = Math.max(
       1,
-      Math.round(toNumber(signatureDenominator, 4)),
+      Math.round(this.normalizers.toNumber(signatureDenominator, 4)),
     );
-    this.isPlaying = toBoolean(isPlaying);
-    this.handleSongTime(toNumber(songTime, 0));
+    this.isPlaying = this.normalizers.toBoolean(isPlaying);
+    this.handleSongTime(this.normalizers.toNumber(songTime, 0));
 
     const selectedTrack = await this.safeSongViewGet("selected_track");
-    await this.handleSelectedTrackPayload(selectedTrack);
+    this.handleSelectedTrack(await this.resolveTrackIndex(selectedTrack));
 
     this.emit();
   }
@@ -502,10 +621,10 @@ export class AbletonLiveBridge {
     });
   }
 
-  private async getTrack(trackIndex: number): Promise<BridgeTrack | null> {
+  private async getTrack(trackIndex: number): Promise<LiveTrack | null> {
     try {
       const track = await this.song.child("tracks", trackIndex);
-      return (track as BridgeTrack | null) ?? null;
+      return (track as LiveTrack | null) ?? null;
     } catch {
       return null;
     }
@@ -584,7 +703,7 @@ export class AbletonLiveBridge {
         return;
       }
 
-      const hasClip = toBoolean(
+      const hasClip = this.normalizers.toBoolean(
         await this.safeClipSlotGet(clipSlot, "has_clip"),
       );
       if (!hasClip || token !== this.selectedTrackToken) {
@@ -619,11 +738,6 @@ export class AbletonLiveBridge {
 
     this.pendingSelectedTrack = null;
     void this.applySelectedTrack(trackIndex);
-  }
-
-  private async handleSelectedTrackPayload(payload: unknown): Promise<void> {
-    const resolvedTrackIndex = await this.resolveTrackIndex(payload);
-    this.handleSelectedTrack(resolvedTrackIndex);
   }
 
   private handleSongTime(songTime: number): void {
@@ -686,206 +800,171 @@ export class AbletonLiveBridge {
   }
 
   private async resolveTrackIndex(selectedTrack: unknown): Promise<number> {
-    if (typeof selectedTrack === "number" && Number.isInteger(selectedTrack)) {
+    const payload =
+      this.normalizers.normalizeSelectedTrackPayload(selectedTrack);
+    if (payload.directId !== null) {
+      const selectedTrackId = payload.directId;
       const tracks = await this.safeSongTracks();
       const matchedTrack = tracks.find((track) => {
-        const directId = typeof track.id === "number" ? track.id : null;
-        const rawId = toNumber(track.raw?.id ?? null, Number.NaN);
+        const normalizedTrack = this.normalizers.normalizeTrackRef(track);
         return (
-          directId === selectedTrack ||
-          (Number.isFinite(rawId) && rawId === selectedTrack)
+          normalizedTrack.id === selectedTrackId ||
+          normalizedTrack.rawId === selectedTrackId
         );
       });
 
       if (matchedTrack) {
-        const parsedIndex = parseTrackIndexFromPath(
-          matchedTrack.path ?? matchedTrack.raw?.path ?? null,
+        const normalizedTrack =
+          this.normalizers.normalizeTrackRef(matchedTrack);
+        const parsedIndex = this.normalizers.parseTrackIndexFromPath(
+          normalizedTrack.path ?? normalizedTrack.rawPath,
         );
         if (parsedIndex >= 0) {
           return parsedIndex;
         }
       }
 
-      return selectedTrack;
+      return selectedTrackId;
     }
 
-    const record = toRecord(selectedTrack);
-    const directPath = readString(record.path);
-    const nestedRawPath = readString(toRecord(record.raw).path);
-    const parsedIndex = parseTrackIndexFromPath(directPath ?? nestedRawPath);
+    const parsedIndex = this.normalizers.parseTrackIndexFromPath(
+      payload.path ?? payload.rawPath,
+    );
     return parsedIndex >= 0 ? parsedIndex : -1;
   }
 
+  private async safeCall<T>(
+    operation: () => Promise<T>,
+    fallback: T,
+  ): Promise<T> {
+    try {
+      return await operation();
+    } catch {
+      return fallback;
+    }
+  }
+
   private async safeClipGet(
-    clip: BridgeClip,
+    clip: LiveClip,
     property: ClipProperty,
   ): Promise<unknown> {
-    try {
-      return await clip.get(property);
-    } catch {
-      return null;
-    }
+    return this.safeCall(() => clip.get(property), null);
   }
 
   private async safeClipObserve(
-    clip: BridgeClip,
+    clip: LiveClip,
     property: ClipProperty,
     listener: (value: unknown) => void,
   ): Promise<null | ObserverCleanup> {
-    try {
-      const stop = await clip.observe(property, listener);
-      return typeof stop === "function" ? (stop as ObserverCleanup) : null;
-    } catch {
-      return null;
-    }
+    return this.safeObserve(() => clip.observe(property, listener));
   }
 
   private async safeClipSlotClip(
-    clipSlot: BridgeClipSlot,
-  ): Promise<BridgeClip | null> {
-    try {
-      const clip = await clipSlot.clip();
-      return (clip as BridgeClip | null) ?? null;
-    } catch {
-      return null;
-    }
+    clipSlot: LiveClipSlot,
+  ): Promise<LiveClip | null> {
+    const clip = await this.safeCall(() => clipSlot.clip(), null);
+    return (clip as LiveClip | null) ?? null;
   }
 
   private async safeClipSlotGet(
-    clipSlot: BridgeClipSlot,
+    clipSlot: LiveClipSlot,
     property: "has_clip",
   ): Promise<unknown> {
-    try {
-      return await clipSlot.get(property);
-    } catch {
-      return null;
-    }
+    return this.safeCall(() => clipSlot.get(property), null);
+  }
+
+  private async safeObserve(
+    operation: () => Promise<unknown>,
+  ): Promise<null | ObserverCleanup> {
+    const cleanup = await this.safeCall(operation, null);
+    return this.normalizers.normalizeCleanup(cleanup);
   }
 
   private async safeSceneGet(
-    scene: BridgeScene,
+    scene: LiveScene,
     property: SceneProperty,
   ): Promise<unknown> {
-    try {
-      return await scene.get(property);
-    } catch {
-      return null;
-    }
+    return this.safeCall(() => scene.get(property), null);
   }
 
   private async safeSceneObserve(
-    scene: BridgeScene,
+    scene: LiveScene,
     property: SceneProperty,
     listener: (value: unknown) => void,
   ): Promise<null | ObserverCleanup> {
-    try {
-      const stop = await scene.observe(property, listener);
-      return typeof stop === "function" ? (stop as ObserverCleanup) : null;
-    } catch {
-      return null;
-    }
+    return this.safeObserve(() => scene.observe(property, listener));
   }
 
   private async safeSongGet(property: SongProperty): Promise<unknown> {
-    try {
-      return await this.song.get(property);
-    } catch {
-      return null;
-    }
+    return this.safeCall(() => this.song.get(property), null);
   }
 
   private async safeSongObserve(
     property: SongProperty,
     listener: (value: unknown) => void,
   ): Promise<null | ObserverCleanup> {
-    try {
-      const stop = await this.song.observe(property, listener);
-      return typeof stop === "function" ? (stop as ObserverCleanup) : null;
-    } catch {
-      return null;
-    }
+    return this.safeObserve(() => this.song.observe(property, listener));
   }
 
   private async safeSongSceneChild(
     sceneIndex: number,
-  ): Promise<BridgeScene | null> {
-    try {
-      const scene = await this.song.child("scenes", sceneIndex);
-      return (scene as BridgeScene | null) ?? null;
-    } catch {
-      return null;
-    }
+  ): Promise<LiveScene | null> {
+    const scene = await this.safeCall(
+      () => this.song.child("scenes", sceneIndex),
+      null,
+    );
+    return (scene as LiveScene | null) ?? null;
   }
 
-  private async safeSongTracks(): Promise<BridgeTrack[]> {
-    try {
-      const tracks = await this.song.children("tracks");
-      return Array.isArray(tracks) ? (tracks as BridgeTrack[]) : [];
-    } catch {
-      return [];
-    }
+  private async safeSongTracks(): Promise<LiveTrack[]> {
+    const tracks = await this.safeCall(
+      () => this.song.children("tracks"),
+      null,
+    );
+    return Array.isArray(tracks) ? (tracks as LiveTrack[]) : [];
   }
 
   private async safeSongViewGet(property: "selected_track"): Promise<unknown> {
-    try {
-      return await this.songView.get(property);
-    } catch {
-      return null;
-    }
+    return this.safeCall(() => this.songView.get(property), null);
   }
 
   private async safeSongViewObserve(
     property: "selected_track",
     listener: (value: unknown) => void,
   ): Promise<null | ObserverCleanup> {
-    try {
-      const stop = await this.songView.observe(property, listener);
-      return typeof stop === "function" ? (stop as ObserverCleanup) : null;
-    } catch {
-      return null;
-    }
+    return this.safeObserve(() => this.songView.observe(property, listener));
   }
 
   private async safeTrackChild(
-    track: BridgeTrack,
+    track: LiveTrack,
     clipSlotIndex: number,
-  ): Promise<BridgeClipSlot | null> {
-    try {
-      const clipSlot = await track.child("clip_slots", clipSlotIndex);
-      return (clipSlot as BridgeClipSlot | null) ?? null;
-    } catch {
-      return null;
-    }
+  ): Promise<LiveClipSlot | null> {
+    const clipSlot = await this.safeCall(
+      () => track.child("clip_slots", clipSlotIndex),
+      null,
+    );
+    return (clipSlot as LiveClipSlot | null) ?? null;
   }
 
   private async safeTrackGet(
-    track: BridgeTrack,
+    track: LiveTrack,
     property: TrackProperty,
   ): Promise<unknown> {
-    try {
-      return await track.get(property);
-    } catch {
-      return null;
-    }
+    return this.safeCall(() => track.get(property), null);
   }
 
   private async safeTrackObserve(
-    track: BridgeTrack,
+    track: LiveTrack,
     property: TrackProperty,
     listener: (value: unknown) => void,
   ): Promise<null | ObserverCleanup> {
-    try {
-      const stop = await track.observe(property, listener);
-      return typeof stop === "function" ? (stop as ObserverCleanup) : null;
-    } catch {
-      return null;
-    }
+    return this.safeObserve(() => track.observe(property, listener));
   }
 
   private async subscribeClip(
     trackIndex: number,
     slotIndex: number,
-    clip: BridgeClip,
+    clip: LiveClip,
     token: number,
   ): Promise<void> {
     const stopPlayingPosition = await this.safeClipObserve(
@@ -896,7 +975,7 @@ export class AbletonLiveBridge {
           return;
         }
 
-        this.handlePlayingPosition(toNumber(value, 0));
+        this.handlePlayingPosition(this.normalizers.toNumber(value, 0));
         this.emit();
       },
     );
@@ -907,7 +986,7 @@ export class AbletonLiveBridge {
         return;
       }
 
-      this.clipName = toStringValue(value);
+      this.clipName = this.normalizers.toStringValue(value);
       this.emit();
     });
     this.registerCleanup(this.clipObserverCleanups, stopClipName);
@@ -917,7 +996,7 @@ export class AbletonLiveBridge {
         return;
       }
 
-      this.clipColor = toColorValue(value);
+      this.clipColor = this.normalizers.toColorValue(value);
       this.emit();
     });
     this.registerCleanup(this.clipObserverCleanups, stopClipColor);
@@ -930,7 +1009,10 @@ export class AbletonLiveBridge {
           return;
         }
 
-        this.clipMeta.length = toNumber(value, this.clipMeta.length);
+        this.clipMeta.length = this.normalizers.toNumber(
+          value,
+          this.clipMeta.length,
+        );
         this.emit();
       },
     );
@@ -944,7 +1026,10 @@ export class AbletonLiveBridge {
           return;
         }
 
-        this.clipMeta.loopStart = toNumber(value, this.clipMeta.loopStart);
+        this.clipMeta.loopStart = this.normalizers.toNumber(
+          value,
+          this.clipMeta.loopStart,
+        );
         this.emit();
       },
     );
@@ -958,7 +1043,10 @@ export class AbletonLiveBridge {
           return;
         }
 
-        this.clipMeta.loopEnd = toNumber(value, this.clipMeta.loopEnd);
+        this.clipMeta.loopEnd = this.normalizers.toNumber(
+          value,
+          this.clipMeta.loopEnd,
+        );
         this.emit();
       },
     );
@@ -969,7 +1057,7 @@ export class AbletonLiveBridge {
         return;
       }
 
-      this.clipMeta.looping = toBoolean(value);
+      this.clipMeta.looping = this.normalizers.toBoolean(value);
       this.emit();
     });
     this.registerCleanup(this.clipObserverCleanups, stopLooping);
@@ -999,13 +1087,22 @@ export class AbletonLiveBridge {
       return;
     }
 
-    this.handlePlayingPosition(toNumber(playingPosition, 0));
-    this.clipColor = toColorValue(clipColor);
-    this.clipName = toStringValue(clipName);
-    this.clipMeta.length = toNumber(clipLength, this.clipMeta.length);
-    this.clipMeta.loopStart = toNumber(loopStart, this.clipMeta.loopStart);
-    this.clipMeta.loopEnd = toNumber(loopEnd, this.clipMeta.loopEnd);
-    this.clipMeta.looping = toBoolean(looping);
+    this.handlePlayingPosition(this.normalizers.toNumber(playingPosition, 0));
+    this.clipColor = this.normalizers.toColorValue(clipColor);
+    this.clipName = this.normalizers.toStringValue(clipName);
+    this.clipMeta.length = this.normalizers.toNumber(
+      clipLength,
+      this.clipMeta.length,
+    );
+    this.clipMeta.loopStart = this.normalizers.toNumber(
+      loopStart,
+      this.clipMeta.loopStart,
+    );
+    this.clipMeta.loopEnd = this.normalizers.toNumber(
+      loopEnd,
+      this.clipMeta.loopEnd,
+    );
+    this.clipMeta.looping = this.normalizers.toBoolean(looping);
   }
 
   private async subscribeScene(
@@ -1029,7 +1126,7 @@ export class AbletonLiveBridge {
           return;
         }
 
-        this.sceneName = toStringValue(value);
+        this.sceneName = this.normalizers.toStringValue(value);
         this.emit();
       },
     );
@@ -1043,7 +1140,7 @@ export class AbletonLiveBridge {
           return;
         }
 
-        this.sceneColor = toSceneColorValue(value);
+        this.sceneColor = this.normalizers.toSceneColorValue(value);
         this.emit();
       },
     );
@@ -1058,21 +1155,9 @@ export class AbletonLiveBridge {
       return;
     }
 
-    this.sceneColor = toSceneColorValue(sceneColor);
-    this.sceneName = toStringValue(sceneName);
+    this.sceneColor = this.normalizers.toSceneColorValue(sceneColor);
+    this.sceneName = this.normalizers.toStringValue(sceneName);
   }
-}
-
-/**
- * Creates zeroed counter parts for initial HUD state.
- * @returns A counter parts object with all fields set to `0`.
- */
-function defaultCounterParts(): CounterParts {
-  return {
-    bar: 0,
-    beat: 0,
-    sixteenth: 0,
-  };
 }
 
 /**
@@ -1080,7 +1165,7 @@ function defaultCounterParts(): CounterParts {
  * @param path - Track path value such as `live_set tracks 2`.
  * @returns The track index, or `-1` when unavailable.
  */
-function parseTrackIndexFromPath(path: null | string): number {
+export function parseTrackIndexFromPath(path: null | string): number {
   if (!path) {
     return -1;
   }
@@ -1094,20 +1179,11 @@ function parseTrackIndexFromPath(path: null | string): number {
 }
 
 /**
- * Reads a string value when present.
- * @param value - The value to inspect.
- * @returns The string, or `null` when the value is not a string.
- */
-function readString(value: unknown): null | string {
-  return typeof value === "string" ? value : null;
-}
-
-/**
  * Resolves the Ableton Live bridge port from environment input.
  * @param value - Optional environment override.
  * @returns A valid TCP port, defaulting to `9001`.
  */
-function resolveLivePort(value: string | undefined): number {
+export function resolveLivePort(value: string | undefined): number {
   if (!value) {
     return 9001;
   }
@@ -1125,7 +1201,7 @@ function resolveLivePort(value: string | undefined): number {
  * @param value - The value to normalize.
  * @returns The normalized boolean representation.
  */
-function toBoolean(value: unknown): boolean {
+export function toBoolean(value: unknown): boolean {
   if (typeof value === "boolean") {
     return value;
   }
@@ -1147,7 +1223,7 @@ function toBoolean(value: unknown): boolean {
  * @param value - The color value to parse.
  * @returns The normalized RGB integer, or `null` when parsing fails.
  */
-function toColorValue(value: unknown): null | number {
+export function toColorValue(value: unknown): null | number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
     return null;
@@ -1162,22 +1238,9 @@ function toColorValue(value: unknown): null | number {
  * @param fallback - The value to use when parsing fails.
  * @returns The parsed number or fallback.
  */
-function toNumber(value: unknown, fallback = 0): number {
+export function toNumber(value: unknown, fallback = 0): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-/**
- * Casts an unknown value to an object record when possible.
- * @param value - The value to inspect.
- * @returns The object record or an empty object.
- */
-function toRecord(value: unknown): Record<string, unknown> {
-  if (value && typeof value === "object") {
-    return value as Record<string, unknown>;
-  }
-
-  return {};
 }
 
 /**
@@ -1185,7 +1248,7 @@ function toRecord(value: unknown): Record<string, unknown> {
  * @param value - Raw scene color value from Live.
  * @returns Normalized RGB color or `null` when scene has no color.
  */
-function toSceneColorValue(value: unknown): null | number {
+export function toSceneColorValue(value: unknown): null | number {
   const color = toColorValue(value);
   return color === 0 ? null : color;
 }
@@ -1195,7 +1258,7 @@ function toSceneColorValue(value: unknown): null | number {
  * @param value - The value to parse.
  * @returns The string representation, or an empty string for unsupported values.
  */
-function toStringValue(value: unknown): string {
+export function toStringValue(value: unknown): string {
   if (typeof value === "string") {
     return value;
   }
@@ -1210,4 +1273,48 @@ function toStringValue(value: unknown): string {
   }
 
   return "";
+}
+
+/**
+ * Creates zeroed counter parts for initial HUD state.
+ * @returns A counter parts object with all fields set to `0`.
+ */
+function defaultCounterParts(): CounterParts {
+  return {
+    bar: 0,
+    beat: 0,
+    sixteenth: 0,
+  };
+}
+
+/**
+ * Reads a string value when present.
+ * @param value - The value to inspect.
+ * @returns The string, or `null` when the value is not a string.
+ */
+function readString(value: unknown): null | string {
+  return typeof value === "string" ? value : null;
+}
+
+/**
+ * Converts unknown input to a finite number when possible.
+ * @param value - Value to parse.
+ * @returns Parsed finite number, or `null` for non-finite values.
+ */
+function toFiniteNumber(value: unknown): null | number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Casts an unknown value to an object record when possible.
+ * @param value - The value to inspect.
+ * @returns The object record or an empty object.
+ */
+function toRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object") {
+    return value as Record<string, unknown>;
+  }
+
+  return {};
 }
