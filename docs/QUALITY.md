@@ -7,6 +7,8 @@ Use this file as the source of truth for validation routing and reporting.
 ### Docs or harness changes
 
 - Run `pre-commit run --all-files`
+- CI lint runs the same command with `SKIP=test-suite` because `pnpm test`
+  already has a dedicated CI job.
 
 ### Electron runtime, preload, renderer bridge, or e2e harness changes
 
@@ -26,11 +28,12 @@ Use this file as the source of truth for validation routing and reporting.
   - `pnpm exec prettier --write --ignore-unknown`
   - `pnpm exec eslint --fix`
   - `pnpm exec tsc --noEmit`
+  - `pnpm test`
 
 ### CI jobs
 
 - `lint.yml`
-  - runs `pre-commit run --all-files`, which includes the docs validator
+  - runs `pre-commit run --all-files` with `SKIP=test-suite`
 - `test.yml`
   - runs `pnpm test`
 - `e2e.yml`

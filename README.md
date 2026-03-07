@@ -107,6 +107,11 @@ pnpm run build
 pnpm run test:e2e
 ```
 
+`pre-commit run --all-files` now includes the docs validator, `tsc --noEmit`,
+and `pnpm test`. The CI lint job skips that test hook via `SKIP` because the
+dedicated `test` workflow already covers it. Run `pnpm run test:e2e` manually
+or rely on the dedicated CI job when you need Electron end-to-end coverage.
+
 Build local macOS app directory:
 
 ```bash

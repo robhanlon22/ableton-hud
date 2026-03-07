@@ -23,3 +23,9 @@ repos:
         entry: node ./scripts/validate-harness-docs.mjs
         pass_filenames: false
         always_run: true
+      - id: test-suite
+        name: pnpm test
+        language: system
+        entry: pnpm test
+        pass_filenames: false
+        always_run: true
