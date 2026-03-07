@@ -100,6 +100,7 @@ pnpm run dev:debug
 Validate:
 
 ```bash
+pre-commit run --all-files
 pnpm test
 pnpm run typecheck
 pnpm run build
@@ -113,6 +114,18 @@ pnpm run dist:mac
 ```
 
 Output example: `dist/mac-universal/Ableton HUD.app`
+
+## Harness Docs
+
+This repo now keeps agent-facing source of truth in versioned files:
+
+- `ARCHITECTURE.md`
+- `docs/QUALITY.md`
+- `docs/product-specs/`
+- `docs/exec-plans/`
+
+The docs lint runs as a pre-commit hook locally and through the existing CI
+lint job's `pre-commit run --all-files`.
 
 ## Releases
 

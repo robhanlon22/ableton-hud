@@ -17,3 +17,9 @@ repos:
         entry: pnpm exec tsc --noEmit
         pass_filenames: false
         always_run: true
+      - id: validate-harness-docs
+        name: validate harness docs
+        language: system
+        entry: node ./scripts/validate-harness-docs.mjs
+        pass_filenames: false
+        always_run: true
