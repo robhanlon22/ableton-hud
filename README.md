@@ -144,6 +144,10 @@ git push origin v0.1.0
 Release workflow behavior:
 
 - Runs test, typecheck, and Electron E2E gates
+- Reuses macOS Electron and Playwright caches warmed from `main` CI before
+  packaging tag releases
+- `main` E2E CI runs an `electron-builder` warm-up pass so release tags can
+  reuse the downloaded universal Electron binaries
 - Builds universal macOS app
 - Publishes:
   - `Ableton-HUD-vX.Y.Z-mac-universal.zip`

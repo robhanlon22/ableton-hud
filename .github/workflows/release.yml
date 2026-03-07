@@ -24,17 +24,16 @@ jobs:
           node-version: "22"
           cache: pnpm
 
-      - name: Cache Electron and Playwright build tooling
+      - name: Cache Electron and Playwright binaries
         uses: actions/cache@v4
         with:
           path: |
             ~/Library/Caches/electron
-            ~/Library/Caches/electron-builder
             ~/Library/Caches/ms-playwright
           key: >-
-            electron-builder-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+            e2e-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
-            electron-builder-${{ runner.os }}-
+            e2e-binaries-${{ runner.os }}-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

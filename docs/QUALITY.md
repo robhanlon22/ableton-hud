@@ -38,6 +38,11 @@ Use this file as the source of truth for validation routing and reporting.
   - runs `pnpm test`
 - `e2e.yml`
   - runs `pnpm run test:e2e`
+  - on `main`, runs an `electron-builder` warm-up pass that populates the macOS
+    Electron binary cache used by tag releases
+- `release.yml`
+  - reuses the macOS Electron and Playwright caches warmed from `main` before
+    building release artifacts
 
 ## Evidence Expectations
 
