@@ -329,6 +329,15 @@ describe("AbletonLiveBridge", () => {
 
     expect(harness.instance.disconnect).toHaveBeenCalledTimes(1);
     expect(onState).toHaveBeenCalled();
+    expect(onState.mock.lastCall?.[0]).toEqual(
+      expect.objectContaining({
+        clipName: null,
+        connected: false,
+        counterText: "0:0:0",
+        sceneName: null,
+        trackName: null,
+      }),
+    );
   });
 
   it("handles connect failure by emitting disconnected state", async () => {

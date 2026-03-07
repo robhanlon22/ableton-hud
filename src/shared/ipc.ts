@@ -81,7 +81,7 @@ export const HudStateSchema: z.ZodType<HudState> = z.object({
  */
 export function createDefaultHudState(
   mode: HudMode = "elapsed",
-  alwaysOnTop = false,
+  alwaysOnTop = true,
   compactView = false,
   trackLocked = false,
 ): HudState {

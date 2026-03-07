@@ -391,6 +391,13 @@ test.describe("Electron HUD", () => {
 
       fakeServer.crashConnections();
       await app.page.locator("[aria-label='Disconnected']").waitFor();
+      await expect(app.page.getByTestId("status-badge")).toContainText(
+        "Disconnected",
+      );
+      await expect(app.page.getByTestId("track-pill")).toContainText("-");
+      await expect(app.page.getByTestId("scene-pill")).toContainText("-");
+      await expect(app.page.getByTestId("clip-pill")).toContainText("-");
+      await expect(app.page.getByTestId("counter-text")).toHaveText("0:0:0");
 
       await fakeServer.stop();
       fakeServer = await FakeAbletonLiveServer.start({ port: initialPort });

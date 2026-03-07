@@ -207,6 +207,7 @@ export function HudSurface(props: HudSurfaceProps): React.JSX.Element {
     state,
   } = props;
   const status = statusKind(state);
+  const isDisconnected = status === "disconnected";
   const clipStyle = metadataPillStyle(state.clipColor);
   const trackStyle = metadataPillStyle(state.trackColor);
   const sceneStyle = metadataPillStyle(state.sceneColor);
@@ -216,9 +217,11 @@ export function HudSurface(props: HudSurfaceProps): React.JSX.Element {
       "h-full w-full overflow-hidden bg-ableton-bg text-ableton-text",
       isCompactView ? "border border-transparent" : "border border-[#4c525c]",
       "bg-[linear-gradient(180deg,#2b3038_0%,#232830_20%,#1a1e26_100%)]",
-      state.isLastBar && "text-ableton-warning",
+      isDisconnected &&
+        "bg-[linear-gradient(180deg,#262b33_0%,#1f242c_20%,#161a22_100%)]",
+      state.isLastBar && !isDisconnected && "text-ableton-warning",
     );
-  }, [isCompactView, state.isLastBar]);
+  }, [isCompactView, isDisconnected, state.isLastBar]);
 
   const flashClass = useMemo(
     () => panelFlashClass(state, isFlashActive, isCompactView),
@@ -230,7 +233,12 @@ export function HudSurface(props: HudSurfaceProps): React.JSX.Element {
       className={cn(
         "relative rounded-sm border border-ableton-border bg-ableton-panel px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors duration-100",
         isCompactView ? "self-center border-0 shadow-none" : "w-full",
-        state.isLastBar && !isCompactView && "border-[#705858] bg-zinc-900/95",
+        isDisconnected &&
+          "border-[#565c66] bg-[#171b22] shadow-[inset_0_1px_0_rgba(255,255,255,0.015)]",
+        state.isLastBar &&
+          !isCompactView &&
+          !isDisconnected &&
+          "border-[#705858] bg-zinc-900/95",
         flashClass,
       )}
       data-testid="counter-panel"
@@ -255,8 +263,9 @@ export function HudSurface(props: HudSurfaceProps): React.JSX.Element {
       </Button>
       <div
         className={cn(
-          "pr-10 font-mono text-[48px] font-semibold leading-none tracking-tight text-ableton-success sm:text-[56px]",
-          state.isLastBar && "text-ableton-warning",
+          "pr-10 font-mono text-[48px] font-semibold leading-none tracking-tight sm:text-[56px]",
+          isDisconnected ? "text-zinc-500" : "text-ableton-success",
+          state.isLastBar && !isDisconnected && "text-ableton-warning",
         )}
         data-testid="counter-text"
       >
@@ -326,11 +335,18 @@ export function HudSurface(props: HudSurfaceProps): React.JSX.Element {
                 <div className="flex items-center">
                   <Badge
                     aria-label={statusLabel(status)}
-                    className="h-6 w-6 justify-center px-0 py-0"
+                    className={cn(
+                      "h-6",
+                      isDisconnected
+                        ? "gap-1.5 px-2.5"
+                        : "w-6 justify-center px-0 py-0",
+                    )}
+                    data-testid="status-badge"
                     title={statusLabel(status)}
                     variant={statusVariant(state)}
                   >
                     {statusIcon(status)}
+                    {isDisconnected ? <span>Disconnected</span> : null}
                   </Badge>
                 </div>
               </div>
@@ -438,10 +454,11 @@ function contrastRatio(l1: number, l2: number): number {
 /**
  * Normalizes nullable metadata labels for UI display.
  * @param value - Nullable name value from HUD state.
- * @returns A trimmed display string, or an empty string when absent.
+ * @returns A trimmed display string, or a minimal placeholder when absent.
  */
 function displayName(value: null | string): string {
-  return value?.trim() ?? "";
+  const trimmedValue = value?.trim();
+  return trimmedValue && trimmedValue.length > 0 ? trimmedValue : "-";
 }
 
 /**
@@ -487,7 +504,7 @@ function panelFlashClass(
   isFlashActive: boolean,
   isCompactView: boolean,
 ): string {
-  if (!isFlashActive) {
+  if (!isFlashActive || !state.connected) {
     return "";
   }
 

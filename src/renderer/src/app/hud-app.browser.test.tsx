@@ -135,7 +135,7 @@ describe("HudSurface", () => {
     expect(scenePill.style.backgroundColor).toBe("rgb(0, 140, 102)");
   });
 
-  it("renders empty metadata pills when names are missing", async () => {
+  it("renders dash placeholders when metadata names are missing", async () => {
     // arrange
     // act
     await render(
@@ -152,9 +152,9 @@ describe("HudSurface", () => {
     );
 
     // assert
-    await expect.element(page.getByTestId("clip-pill")).toHaveTextContent("");
-    await expect.element(page.getByTestId("track-pill")).toHaveTextContent("");
-    await expect.element(page.getByTestId("scene-pill")).toHaveTextContent("");
+    await expect.element(page.getByTestId("clip-pill")).toHaveTextContent("-");
+    await expect.element(page.getByTestId("track-pill")).toHaveTextContent("-");
+    await expect.element(page.getByTestId("scene-pill")).toHaveTextContent("-");
   });
 
   it("renders topmost toggle metadata when always-on-top is enabled", async () => {
@@ -244,6 +244,15 @@ describe("HudSurface", () => {
     await expect
       .element(page.getByLabelText("Disconnected"))
       .toBeInTheDocument();
+    await expect
+      .element(page.getByTestId("status-badge"))
+      .toHaveTextContent("Disconnected");
+    expect(
+      page.getByTestId("counter-panel").element().getAttribute("class") ?? "",
+    ).toContain("bg-[#171b22]");
+    await expect
+      .element(page.getByTestId("counter-text"))
+      .toHaveClass("text-zinc-500");
 
     await view.rerender(
       <HudSurface
@@ -263,6 +272,31 @@ describe("HudSurface", () => {
     );
 
     await expect.element(page.getByLabelText("Stopped")).toBeInTheDocument();
+  });
+
+  it("uses muted counter styling for disconnected compact view", async () => {
+    // arrange
+    // act
+    await render(
+      <HudSurface
+        compactPanelRef={{ current: null }}
+        isCompactView={true}
+        isFlashActive={false}
+        onToggleCompactView={vi.fn()}
+        onToggleMode={vi.fn()}
+        onToggleTopmost={vi.fn()}
+        onToggleTrackLock={vi.fn()}
+        state={makeState({ connected: false, isPlaying: false })}
+      />,
+    );
+
+    // assert
+    await expect
+      .element(page.getByTestId("counter-panel"))
+      .toHaveClass("bg-[#171b22]");
+    await expect
+      .element(page.getByTestId("counter-text"))
+      .toHaveClass("text-zinc-500");
   });
 
   it("applies flash panel classes for downbeat and last-bar combinations", async () => {

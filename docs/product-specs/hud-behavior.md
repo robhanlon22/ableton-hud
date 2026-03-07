@@ -30,9 +30,10 @@ Primary user outcomes:
 ### Disconnected or missing transport data
 
 - The window still renders a complete interface.
-- The transport badge makes the disconnected state explicit.
-- Missing metadata should not collapse layout or produce unreadable fallback
-  styling.
+- Full view makes the disconnected state explicit with a visible status badge.
+- Missing metadata renders minimal dash placeholders instead of blank pills.
+- Disconnect clears transport and metadata back to a neutral, readable
+  presentation instead of leaving stale or dead-looking state behind.
 
 ## Controls
 
@@ -44,6 +45,7 @@ Primary user outcomes:
 ### Floating toggle
 
 - Full view exposes `FLOAT` / `NORMAL` window behavior.
+- Fresh preferences default to floating mode on.
 - The toggle reflects the current always-on-top state after the action
   completes.
 
@@ -66,8 +68,8 @@ Primary user outcomes:
 - Metadata pills use Live colors when available and neutral styling when not.
 - Urgent transport states use stronger warning and flash styling without making
   the counter unreadable.
-- Disconnected or degraded states should still look intentional, not like a
-  broken loading screen.
+- Disconnected or degraded states use muted counter styling and should still
+  look intentional, not like a broken loading screen.
 
 ## Persistence
 

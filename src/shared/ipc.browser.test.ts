@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CompactViewRequestSchema } from "./ipc";
+import { CompactViewRequestSchema, createDefaultHudState } from "./ipc";
 
 describe("CompactViewRequestSchema", () => {
   it("accepts disabled requests without dimensions", () => {
@@ -56,5 +56,16 @@ describe("CompactViewRequestSchema", () => {
 
     // assert
     expect(result.success).toBe(false);
+  });
+});
+
+describe("createDefaultHudState", () => {
+  it("defaults always-on-top to enabled", () => {
+    // arrange
+    // act
+    const state = createDefaultHudState();
+
+    // assert
+    expect(state.alwaysOnTop).toBe(true);
   });
 });

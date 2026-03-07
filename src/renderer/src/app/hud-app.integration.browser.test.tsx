@@ -300,6 +300,9 @@ describe("HudApp integration", () => {
     expect(page.getByTestId("mode-toggle").element().textContent).toContain(
       "Elapsed",
     );
+    expect(page.getByLabelText("Set window normal").element()).toBeInstanceOf(
+      HTMLElement,
+    );
   });
 
   it("applies incoming state updates immediately", async () => {
@@ -583,9 +586,18 @@ describe("HudApp integration", () => {
       expect(page.getByLabelText("Disconnected").element()).toBeInstanceOf(
         HTMLElement,
       );
+      expect(page.getByTestId("status-badge").element().textContent).toContain(
+        "Disconnected",
+      );
+      expect(page.getByTestId("clip-pill").element().textContent).toBe("-");
+      expect(page.getByTestId("track-pill").element().textContent).toBe("-");
+      expect(page.getByTestId("scene-pill").element().textContent).toBe("-");
       expect(page.getByTestId("counter-text").element().textContent).toBe(
         "0:0:0",
       );
+      expect(
+        page.getByTestId("counter-text").element().getAttribute("class"),
+      ).toContain("text-zinc-500");
     });
 
     hudApi.emit(
