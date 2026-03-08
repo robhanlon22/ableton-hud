@@ -1,10 +1,10 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@renderer/lib/utilities";
 import { cva, type VariantProps } from "class-variance-authority";
-import { type ButtonHTMLAttributes, type Ref } from "react";
+import * as React from "react";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-xs font-medium tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ableton-accent disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-md text-xs font-medium tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ableton-accent disabled:pointer-events-none disabled:opacity-50",
   {
     defaultVariants: {
       size: "default",
@@ -33,29 +33,32 @@ const buttonVariants = cva(
  */
 export interface ButtonProperties
   extends
-    ButtonHTMLAttributes<HTMLButtonElement>,
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   /** Whether the button should render through `Slot` instead of `button`. */
   asChild?: boolean;
 }
 
 /**
+ * Props for the shared button primitive including the forwarded DOM ref.
+ */
+interface ButtonComponentProperties extends ButtonProperties {
+  /** Forwarded button ref used by Radix and downstream consumers. */
+  ref?: React.Ref<HTMLButtonElement>;
+}
+
+/**
  * Renders the shared button primitive with HUD-specific styling.
- * @param properties - Button props plus variant configuration.
+ * @param properties - Button props plus variant configuration and forwarded ref.
  * @returns The styled button element.
  */
-const Button = (
-  properties: Readonly<
-    ButtonProperties & {
-      /** Forwarded button ref used by consumers of the primitive. */
-      ref?: Ref<HTMLButtonElement>;
-    }
-  >,
-): React.JSX.Element => {
+const Button = function Button(
+  properties: Readonly<ButtonComponentProperties>,
+): React.JSX.Element {
   const {
     asChild = false,
     className,
-    ref,
+    ref: reference,
     size,
     variant,
     ...buttonProperties
@@ -64,7 +67,7 @@ const Button = (
   return (
     <Comp
       className={cn(buttonVariants({ className, size, variant }))}
-      ref={ref}
+      ref={reference}
       {...buttonProperties}
     />
   );

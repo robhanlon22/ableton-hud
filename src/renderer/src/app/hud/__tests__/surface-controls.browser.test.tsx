@@ -32,10 +32,11 @@ it("renders topmost toggle metadata when always-on-top is enabled", async () => 
 
   // act
   await render(<HudSurface {...properties} />);
-  const topmostButton = page.getByLabelText("Set window normal").element();
+  await page.getByTestId("topmost-toggle").hover();
 
   // assert
-  expect(topmostButton.getAttribute("title")).toBe("FLOAT");
+  await expect.element(page.getByText("Allow normal stacking")).toBeVisible();
+  await page.getByTestId("counter-text").hover();
 });
 
 it("renders track lock metadata and triggers toggle callback", async () => {
@@ -48,12 +49,13 @@ it("renders track lock metadata and triggers toggle callback", async () => {
 
   // act
   await render(<HudSurface {...properties} />);
-  const lockButton = page.getByLabelText("Unlock track lock").element();
-  await page.getByLabelText("Unlock track lock").click();
+  await page.getByTestId("track-lock-toggle").hover();
+  await expect.element(page.getByText("Follow selected track")).toBeVisible();
+  await page.getByTestId("track-lock-toggle").click();
 
   // assert
-  expect(lockButton.getAttribute("title")).toBe("LOCKED");
   expect(onToggleTrackLock).toHaveBeenCalledTimes(1);
+  await page.getByTestId("counter-text").hover();
 });
 
 it("renders remaining mode label", async () => {
@@ -64,9 +66,12 @@ it("renders remaining mode label", async () => {
 
   // act
   await render(<HudSurface {...properties} />);
+  await page.getByTestId("mode-toggle").hover();
 
   // assert
   await expect
     .element(page.getByTestId("mode-toggle"))
     .toHaveTextContent("Remaining");
+  await expect.element(page.getByText("Show elapsed time")).toBeVisible();
+  await page.getByTestId("counter-text").hover();
 });

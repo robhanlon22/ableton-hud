@@ -59,6 +59,21 @@ async function launchCurrentHudApp(
   });
 }
 
+/**
+ * Switches between the two tooltip labels used by binary HUD toggles.
+ * @param currentLabel - Current user-facing action label.
+ * @param firstLabel - First label in the toggle pair.
+ * @param secondLabel - Second label in the toggle pair.
+ * @returns The opposite label for the toggled state.
+ */
+function oppositeToggleLabel(
+  currentLabel: string,
+  firstLabel: string,
+  secondLabel: string,
+): string {
+  return currentLabel === firstLabel ? secondLabel : firstLabel;
+}
+
 test.beforeEach(async () => {
   fakeServer = await FakeAbletonLiveServer.start();
 });
@@ -104,7 +119,7 @@ test("toggles counter mode from elapsed to remaining", async () => {
   }
 });
 
-test("toggles always-on-top button title", async () => {
+test("toggles always-on-top control copy", async () => {
   // arrange
   // act
   const app = await launchCurrentHudApp();
@@ -112,20 +127,23 @@ test("toggles always-on-top button title", async () => {
   // assert
   try {
     await waitForHudBootstrap(app);
-    const toggleButton = app.page.getByRole("button", {
-      name: /Set window (normal|floating)/,
-    });
-    await expect(toggleButton).toHaveAttribute("title", "FLOAT");
+    const toggleButton = app.page.getByTestId("topmost-toggle");
+    const initialLabel = await toggleButton.getAttribute("aria-label");
+    expect(initialLabel).toBeTruthy();
+    const nextLabel = oppositeToggleLabel(
+      initialLabel ?? "Allow normal stacking",
+      "Allow normal stacking",
+      "Keep on top",
+    );
 
     await toggleButton.click();
-
-    await expect(toggleButton).toHaveAttribute("title", "NORMAL");
+    await expect(toggleButton).toHaveAttribute("aria-label", nextLabel);
   } finally {
     await closeCurrentHudApp(app);
   }
 });
 
-test("toggles track lock button title", async () => {
+test("toggles track lock control copy", async () => {
   // arrange
   // act
   const app = await launchCurrentHudApp();
@@ -134,10 +152,16 @@ test("toggles track lock button title", async () => {
   try {
     await waitForHudBootstrap(app);
     const lockButton = app.page.getByTestId("track-lock-toggle");
-    await expect(lockButton).toHaveAttribute("title", "UNLOCKED");
+    const initialLabel = await lockButton.getAttribute("aria-label");
+    expect(initialLabel).toBeTruthy();
+    const nextLabel = oppositeToggleLabel(
+      initialLabel ?? "Lock to current track",
+      "Lock to current track",
+      "Follow selected track",
+    );
 
     await lockButton.click();
-    await expect(lockButton).toHaveAttribute("title", "LOCKED");
+    await expect(lockButton).toHaveAttribute("aria-label", nextLabel);
   } finally {
     await closeCurrentHudApp(app);
   }
@@ -153,10 +177,12 @@ test("toggles compact mode and resizes window to counter panel", async () => {
     await waitForHudBootstrap(app);
     const initialSize = await waitForStableWindowContentSize(app);
     const compactToggle = app.page.getByTestId("compact-toggle");
-    await expect(compactToggle).toHaveAttribute("title", "COLLAPSE DETAILS");
-
+    await expect(compactToggle).toHaveAttribute(
+      "aria-label",
+      "Switch to compact view",
+    );
     await compactToggle.click();
-    await expect(compactToggle).toHaveAttribute("title", "EXPAND DETAILS");
+    await expect(compactToggle).toHaveAttribute("aria-label", "Show full HUD");
     await expect(app.page.getByTestId("mode-toggle")).toHaveCount(0);
     const compactSize = await waitForStableWindowContentSize(app);
     expect(compactSize).not.toEqual(initialSize);
@@ -164,7 +190,10 @@ test("toggles compact mode and resizes window to counter panel", async () => {
     expect(compactSize.height).toBeLessThanOrEqual(initialSize.height);
 
     await compactToggle.click();
-    await expect(compactToggle).toHaveAttribute("title", "COLLAPSE DETAILS");
+    await expect(compactToggle).toHaveAttribute(
+      "aria-label",
+      "Switch to compact view",
+    );
     await expect(app.page.getByTestId("mode-toggle")).toHaveText("Elapsed");
     expect(await waitForStableWindowContentSize(app, initialSize)).toEqual(
       initialSize,
@@ -187,9 +216,12 @@ test("restores full size after compact relaunch cycle", async () => {
     const fullSize = await waitForStableWindowContentSize(app);
     expect(fullSize).toEqual(FULL_DETAILS_WINDOW_SIZE);
     const compactToggle = app.page.getByTestId("compact-toggle");
-    await expect(compactToggle).toHaveAttribute("title", "COLLAPSE DETAILS");
+    await expect(compactToggle).toHaveAttribute(
+      "aria-label",
+      "Switch to compact view",
+    );
     await compactToggle.click();
-    await expect(compactToggle).toHaveAttribute("title", "EXPAND DETAILS");
+    await expect(compactToggle).toHaveAttribute("aria-label", "Show full HUD");
     await expect(app.page.getByTestId("mode-toggle")).toHaveCount(0);
     await expect
       .poll(async () => readPersistedPrefs(stableHome))
@@ -216,10 +248,12 @@ test("restores full size after compact relaunch cycle", async () => {
   try {
     await waitForHudBootstrap(relaunchedApp);
     const compactToggle = relaunchedApp.page.getByTestId("compact-toggle");
-    await expect(compactToggle).toHaveAttribute("title", "EXPAND DETAILS");
-
+    await expect(compactToggle).toHaveAttribute("aria-label", "Show full HUD");
     await compactToggle.click();
-    await expect(compactToggle).toHaveAttribute("title", "COLLAPSE DETAILS");
+    await expect(compactToggle).toHaveAttribute(
+      "aria-label",
+      "Switch to compact view",
+    );
     await expect(relaunchedApp.page.getByTestId("mode-toggle")).toBeVisible();
     expect(
       await waitForStableWindowContentSize(
@@ -369,13 +403,17 @@ test.describe("Fullscreen overlay policy", () => {
     // assert
     try {
       await waitForHudBootstrap(app);
-      const toggleButton = app.page.getByRole("button", {
-        name: /Set window (normal|floating)/,
-      });
-      await expect(toggleButton).toHaveAttribute("title", "FLOAT");
+      const toggleButton = app.page.getByTestId("topmost-toggle");
+      const initialLabel = await toggleButton.getAttribute("aria-label");
+      expect(initialLabel).toBeTruthy();
+      const clearedLabel = oppositeToggleLabel(
+        initialLabel ?? "Allow normal stacking",
+        "Allow normal stacking",
+        "Keep on top",
+      );
 
       await toggleButton.click();
-      await expect(toggleButton).toHaveAttribute("title", "NORMAL");
+      await expect(toggleButton).toHaveAttribute("aria-label", clearedLabel);
       await expect
         .poll(async () => readWindowOverlayState(app))
         .toEqual({
@@ -389,7 +427,10 @@ test.describe("Fullscreen overlay policy", () => {
         });
 
       await toggleButton.click();
-      await expect(toggleButton).toHaveAttribute("title", "FLOAT");
+      await expect(toggleButton).toHaveAttribute(
+        "aria-label",
+        initialLabel ?? clearedLabel,
+      );
       await expect
         .poll(async () => readWindowOverlayState(app))
         .toEqual({

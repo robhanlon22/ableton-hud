@@ -30,7 +30,7 @@ it("hydrates from hudApi and forwards toggle commands", async () => {
     );
   });
   await page.getByTestId("mode-toggle").click();
-  await page.getByLabelText("Set window floating").click();
+  await page.getByTestId("topmost-toggle").click();
   await page.getByTestId("track-lock-toggle").click();
 
   // assert
@@ -258,7 +258,7 @@ it("falls back to default hud state when initial load fails", async () => {
   expect(page.getByTestId("mode-toggle").element().textContent).toContain(
     "Elapsed",
   );
-  expect(page.getByLabelText("Set window normal").element()).toBeInstanceOf(
+  expect(page.getByTestId("topmost-toggle").element()).toBeInstanceOf(
     HTMLElement,
   );
 });

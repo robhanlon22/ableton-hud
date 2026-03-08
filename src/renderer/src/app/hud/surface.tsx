@@ -10,6 +10,7 @@ import {
   CardHeader,
 } from "@renderer/components/ui/card";
 import { Separator } from "@renderer/components/ui/separator";
+import { Tooltip } from "@renderer/components/ui/tooltip";
 import {
   Lock,
   LockOpen,
@@ -97,6 +98,16 @@ interface MetadataPillProperties {
   label: HudState["clipName"];
   /** Test id used to target the pill in browser tests. */
   testId: string;
+}
+
+/**
+ * Resolved copy and styling for the mode toggle control.
+ */
+interface ModeControlProperties {
+  /** Button classes for the current mode state. */
+  buttonClassName: string;
+  /** Tooltip copy describing the mode toggle action. */
+  tooltipContent: string;
 }
 
 /**
@@ -214,20 +225,28 @@ const CounterPanel = (
       data-testid="counter-panel"
       ref={compactPanelRef}
     >
-      <Button
-        aria-label={isCompactView ? "Expand details" : "Collapse details"}
-        className="absolute right-2 top-2 h-6 w-6 rounded-full border border-ableton-border bg-transparent p-0 text-ableton-muted transition-colors hover:border-zinc-500 hover:bg-transparent hover:text-ableton-text"
-        data-testid="compact-toggle"
-        onClick={onToggleCompactView}
-        title={isCompactView ? "EXPAND DETAILS" : "COLLAPSE DETAILS"}
-        variant="ghost"
+      <Tooltip
+        align="end"
+        className="absolute right-2 top-2 z-10"
+        content={isCompactView ? "Show full HUD" : "Switch to compact view"}
+        side="bottom"
       >
-        {isCompactView ? (
-          <Maximize2 className="h-3.5 w-3.5" />
-        ) : (
-          <Minimize2 className="h-3.5 w-3.5" />
-        )}
-      </Button>
+        <Button
+          aria-label={
+            isCompactView ? "Show full HUD" : "Switch to compact view"
+          }
+          className="h-6 w-6 rounded-full border border-ableton-border bg-transparent p-0 text-ableton-muted transition-colors hover:border-zinc-500 hover:bg-transparent hover:text-ableton-text"
+          data-testid="compact-toggle"
+          onClick={onToggleCompactView}
+          variant="ghost"
+        >
+          {isCompactView ? (
+            <Maximize2 className="h-3.5 w-3.5" />
+          ) : (
+            <Minimize2 className="h-3.5 w-3.5" />
+          )}
+        </Button>
+      </Tooltip>
       <div
         className={counterTextClassName(state, isCompactView)}
         data-testid="counter-text"
@@ -236,6 +255,29 @@ const CounterPanel = (
       </div>
     </div>
   );
+};
+
+/**
+ * Resolves the current mode toggle copy and styling.
+ * @param mode - The current counter display mode.
+ * @returns The mode button styling and tooltip copy.
+ */
+const modeControlProperties = (
+  mode: HudState["mode"],
+): ModeControlProperties => {
+  if (mode === "elapsed") {
+    return {
+      buttonClassName:
+        "h-8 w-full rounded-sm border border-ableton-accent bg-zinc-900 text-[10px] uppercase tracking-[0.08em] text-ableton-accent transition-colors hover:bg-zinc-800",
+      tooltipContent: "Show remaining time",
+    };
+  }
+
+  return {
+    buttonClassName:
+      "h-8 w-full rounded-sm border border-emerald-400/75 bg-emerald-400/18 text-[10px] uppercase tracking-[0.08em] text-emerald-200 transition-colors hover:bg-emerald-400/28",
+    tooltipContent: "Show elapsed time",
+  };
 };
 
 /**
@@ -248,60 +290,70 @@ const HudControls = (
 ): React.JSX.Element => {
   const { onToggleMode, onToggleTopmost, onToggleTrackLock, state } =
     properties;
+  const modeControl = modeControlProperties(state.mode);
 
   return (
     <div className="flex w-full items-center gap-2">
-      <Button
-        className={
-          state.mode === "elapsed"
-            ? "h-8 flex-1 rounded-sm border border-ableton-accent bg-zinc-900 text-[10px] uppercase tracking-[0.08em] text-ableton-accent transition-colors hover:bg-zinc-800"
-            : "h-8 flex-1 rounded-sm border border-emerald-400/75 bg-emerald-400/18 text-[10px] uppercase tracking-[0.08em] text-emerald-200 transition-colors hover:bg-emerald-400/28"
+      <Tooltip className="flex-1" content={modeControl.tooltipContent}>
+        <Button
+          className={modeControl.buttonClassName}
+          data-testid="mode-toggle"
+          onClick={onToggleMode}
+          variant="ghost"
+        >
+          {modeLabel(state.mode)}
+        </Button>
+      </Tooltip>
+      <Tooltip
+        content={
+          state.trackLocked ? "Follow selected track" : "Lock to current track"
         }
-        data-testid="mode-toggle"
-        onClick={onToggleMode}
-        variant="ghost"
       >
-        {modeLabel(state.mode)}
-      </Button>
-      <Button
-        aria-label={
-          state.trackLocked ? "Unlock track lock" : "Lock track selection"
-        }
-        className={
-          state.trackLocked
-            ? "h-7 w-7 rounded-full border border-amber-400/80 bg-amber-400/20 p-0 text-amber-300 transition-colors hover:bg-amber-400/30"
-            : "h-7 w-7 rounded-full border border-ableton-border bg-transparent p-0 text-ableton-muted transition-colors hover:border-zinc-500 hover:bg-transparent hover:text-ableton-text"
-        }
-        data-testid="track-lock-toggle"
-        onClick={onToggleTrackLock}
-        title={state.trackLocked ? "LOCKED" : "UNLOCKED"}
-        variant="ghost"
+        <Button
+          aria-label={
+            state.trackLocked
+              ? "Follow selected track"
+              : "Lock to current track"
+          }
+          className={
+            state.trackLocked
+              ? "h-7 w-7 rounded-full border border-amber-400/80 bg-amber-400/20 p-0 text-amber-300 transition-colors hover:bg-amber-400/30"
+              : "h-7 w-7 rounded-full border border-ableton-border bg-transparent p-0 text-ableton-muted transition-colors hover:border-zinc-500 hover:bg-transparent hover:text-ableton-text"
+          }
+          data-testid="track-lock-toggle"
+          onClick={onToggleTrackLock}
+          variant="ghost"
+        >
+          {state.trackLocked ? (
+            <Lock className="h-3.5 w-3.5" />
+          ) : (
+            <LockOpen className="h-3.5 w-3.5" />
+          )}
+        </Button>
+      </Tooltip>
+      <Tooltip
+        content={state.alwaysOnTop ? "Allow normal stacking" : "Keep on top"}
       >
-        {state.trackLocked ? (
-          <Lock className="h-3.5 w-3.5" />
-        ) : (
-          <LockOpen className="h-3.5 w-3.5" />
-        )}
-      </Button>
-      <Button
-        aria-label={
-          state.alwaysOnTop ? "Set window normal" : "Set window floating"
-        }
-        className={
-          state.alwaysOnTop
-            ? "h-7 w-7 rounded-full border border-cyan-400/80 bg-cyan-400/20 p-0 text-cyan-300 transition-colors hover:bg-cyan-400/30"
-            : "h-7 w-7 rounded-full border border-ableton-border bg-transparent p-0 text-ableton-muted transition-colors hover:border-zinc-500 hover:bg-transparent hover:text-ableton-text"
-        }
-        onClick={onToggleTopmost}
-        title={state.alwaysOnTop ? "FLOAT" : "NORMAL"}
-        variant="ghost"
-      >
-        {state.alwaysOnTop ? (
-          <Pin className="h-3.5 w-3.5" />
-        ) : (
-          <PinOff className="h-3.5 w-3.5" />
-        )}
-      </Button>
+        <Button
+          aria-label={
+            state.alwaysOnTop ? "Allow normal stacking" : "Keep on top"
+          }
+          className={
+            state.alwaysOnTop
+              ? "h-7 w-7 rounded-full border border-cyan-400/80 bg-cyan-400/20 p-0 text-cyan-300 transition-colors hover:bg-cyan-400/30"
+              : "h-7 w-7 rounded-full border border-ableton-border bg-transparent p-0 text-ableton-muted transition-colors hover:border-zinc-500 hover:bg-transparent hover:text-ableton-text"
+          }
+          data-testid="topmost-toggle"
+          onClick={onToggleTopmost}
+          variant="ghost"
+        >
+          {state.alwaysOnTop ? (
+            <Pin className="h-3.5 w-3.5" />
+          ) : (
+            <PinOff className="h-3.5 w-3.5" />
+          )}
+        </Button>
+      </Tooltip>
     </div>
   );
 };
@@ -356,7 +408,6 @@ const StatusBadge = (
             : "h-6 w-6 justify-center px-0 py-0"
         }
         data-testid="status-badge"
-        title={statusLabel(status)}
         variant={statusVariant(state)}
       >
         {statusIcon(status)}

@@ -213,7 +213,8 @@ test.describe("HUD screenshot smoke states", () => {
     // assert
     try {
       expect(compactSize).not.toEqual(initialSize);
-      await expect(compactToggle).toHaveAttribute("title", "EXPAND DETAILS");
+      await compactToggle.hover();
+      await expect(app.page.getByText("Show full HUD")).toBeVisible();
       await expect(app.page.getByTestId("mode-toggle")).toHaveCount(0);
     } finally {
       await closeCurrentHudApp(app);
