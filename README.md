@@ -14,25 +14,62 @@ A small desktop HUD for Ableton Live that shows the current clip position in
 > `Control-click -> Open`. On Windows you may see a SmartScreen warning before
 > launch.
 
-<p align="center">
-  <img
-    src="docs/screenshots/hud-connected-elapsed.png"
-    alt="Connected HUD in Elapsed mode"
-    width="48%"
-  />
-  <img
-    src="docs/screenshots/hud-connected-remaining.png"
-    alt="Connected HUD in Remaining mode"
-    width="48%"
-  />
-</p>
-<p align="center">
-  <img
-    src="docs/screenshots/hud-compact.png"
-    alt="Compact counter view"
-    width="38%"
-  />
-</p>
+<table align="center">
+  <tr>
+    <th>State</th>
+    <th>Screenshot</th>
+  </tr>
+  <tr>
+    <td>Playing</td>
+    <td>
+      <img
+        src="docs/screenshots/hud-connected-elapsed.png"
+        alt="Playing HUD in Elapsed mode"
+        width="420"
+      />
+    </td>
+  </tr>
+  <tr>
+    <td>Stopped</td>
+    <td>
+      <img
+        src="docs/screenshots/hud-stopped.png"
+        alt="Stopped HUD"
+        width="420"
+      />
+    </td>
+  </tr>
+  <tr>
+    <td>Disconnected</td>
+    <td>
+      <img
+        src="docs/screenshots/hud-disconnected.png"
+        alt="Disconnected HUD"
+        width="420"
+      />
+    </td>
+  </tr>
+  <tr>
+    <td>Remaining</td>
+    <td>
+      <img
+        src="docs/screenshots/hud-connected-remaining.png"
+        alt="Playing HUD in Remaining mode"
+        width="420"
+      />
+    </td>
+  </tr>
+  <tr>
+    <td>Compact</td>
+    <td>
+      <img
+        src="docs/screenshots/hud-compact.png"
+        alt="Compact counter-only HUD"
+        width="320"
+      />
+    </td>
+  </tr>
+</table>
 
 ## Table of contents
 
