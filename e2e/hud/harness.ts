@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- shared Electron E2E harness keeps related launch and screenshot helpers together. */
 import { expect, type TestInfo } from "@playwright/test";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -23,6 +24,7 @@ const WINDOW_SIZE_STABILITY_ATTEMPTS = 25;
 const WINDOW_SIZE_STABILITY_REQUIRED_MATCHES = 2;
 const WINDOW_SIZE_STABILITY_WAIT_MS = 100;
 const CI_ARTIFACT_SCREENSHOTS_ENABLED = Boolean(process.env.CI);
+const CI_ENVIRONMENT_NAME = process.env.CI_ENVIRONMENT_NAME;
 const MACOS_SCREENSHOT_BINARY = "/usr/sbin/screencapture";
 const WINDOWS_SCREENSHOT_SCRIPT = path.resolve(
   process.cwd(),
@@ -288,25 +290,20 @@ async function captureHudScreenshot(
   app: RunningHudApp,
   screenshotPath: string,
 ): Promise<void> {
-  try {
-    const capturedWindowsWindow = await captureWindowsWindowScreenshot(
-      app,
-      screenshotPath,
-    );
-    if (capturedWindowsWindow) {
-      return;
-    }
+  const capturedWindowsWindow = await captureWindowsWindowScreenshot(
+    app,
+    screenshotPath,
+  );
+  if (capturedWindowsWindow) {
+    return;
+  }
 
-    const capturedWindow = await captureMacOsWindowScreenshot(
-      app,
-      screenshotPath,
-    );
-    if (capturedWindow) {
-      return;
-    }
-  } catch {
-    // Fall back to the renderer-only screenshot path when the platform cannot
-    // provide a full native-window capture.
+  const capturedMacOsWindow = await captureMacOsWindowScreenshot(
+    app,
+    screenshotPath,
+  );
+  if (capturedMacOsWindow) {
+    return;
   }
 
   await app.page.screenshot({
@@ -326,7 +323,7 @@ async function captureMacOsWindowScreenshot(
   app: RunningHudApp,
   screenshotPath: string,
 ): Promise<boolean> {
-  if (process.platform !== "darwin") {
+  if (!shouldAttemptMacOsWindowCaptureOnCi()) {
     return false;
   }
 
@@ -335,22 +332,36 @@ async function captureMacOsWindowScreenshot(
     typeof mediaSourceId !== "string" ||
     !mediaSourceId.startsWith("window:")
   ) {
+    logNativeWindowCaptureFallback(
+      "macOS",
+      "missing Electron window media source id",
+    );
     return false;
   }
 
   const [, windowId] = mediaSourceId.split(":");
   if (typeof windowId !== "string" || windowId.length === 0) {
+    logNativeWindowCaptureFallback("macOS", "missing native window id");
     return false;
   }
 
-  await execFileAsync(MACOS_SCREENSHOT_BINARY, [
-    "-x",
-    "-o",
-    "-l",
-    windowId,
-    screenshotPath,
-  ]);
-  return true;
+  try {
+    await execFileAsync(MACOS_SCREENSHOT_BINARY, [
+      "-x",
+      "-o",
+      "-l",
+      windowId,
+      screenshotPath,
+    ]);
+    return true;
+  } catch (error) {
+    logNativeWindowCaptureFallback(
+      "macOS",
+      "native screencapture window capture failed",
+      error,
+    );
+    return false;
+  }
 }
 
 /**
@@ -364,7 +375,7 @@ async function captureWindowsWindowScreenshot(
   app: RunningHudApp,
   screenshotPath: string,
 ): Promise<boolean> {
-  if (process.platform !== "win32") {
+  if (!shouldAttemptWindowsWindowCaptureOnCi()) {
     return false;
   }
 
@@ -373,28 +384,73 @@ async function captureWindowsWindowScreenshot(
     typeof mediaSourceId !== "string" ||
     !mediaSourceId.startsWith("window:")
   ) {
+    logNativeWindowCaptureFallback(
+      "Windows",
+      "missing Electron window media source id",
+    );
     return false;
   }
 
   const [, windowHandle] = mediaSourceId.split(":");
   if (typeof windowHandle !== "string" || windowHandle.length === 0) {
+    logNativeWindowCaptureFallback("Windows", "missing native window handle");
     return false;
   }
 
-  await execFileAsync("pwsh", [
-    "-NoLogo",
-    "-NoProfile",
-    "-NonInteractive",
-    "-ExecutionPolicy",
-    "Bypass",
-    "-File",
-    WINDOWS_SCREENSHOT_SCRIPT,
-    "-WindowHandle",
-    windowHandle,
-    "-OutputPath",
-    screenshotPath,
-  ]);
-  return true;
+  try {
+    await execFileAsync("pwsh", [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      WINDOWS_SCREENSHOT_SCRIPT,
+      "-WindowHandle",
+      windowHandle,
+      "-OutputPath",
+      screenshotPath,
+    ]);
+    return true;
+  } catch (error) {
+    logNativeWindowCaptureFallback(
+      "Windows",
+      "native PrintWindow capture failed",
+      error,
+    );
+    return false;
+  }
+}
+
+/**
+ * Formats a process-level capture failure for CI logs.
+ * @param error - Unknown error thrown by the capture helper.
+ * @returns A short error summary suitable for a one-line warning.
+ */
+function formatCaptureError(error: unknown): string | undefined {
+  if (typeof error === "object" && error !== null && "stderr" in error) {
+    const stderr = error.stderr;
+    if (typeof stderr === "string") {
+      const trimmedStderr = stderr.trim();
+      if (trimmedStderr.length > 0) {
+        return trimmedStderr;
+      }
+    } else if (Buffer.isBuffer(stderr)) {
+      const trimmedStderr = stderr.toString("utf8").trim();
+      if (trimmedStderr.length > 0) {
+        return trimmedStderr;
+      }
+    }
+  }
+
+  if (error instanceof Error) {
+    const stderr = error.message.trim();
+    if (stderr.length > 0) {
+      return stderr;
+    }
+  }
+
+  return undefined;
 }
 
 /**
@@ -417,6 +473,25 @@ function isAsciiArtifactCharacter(character: string): boolean {
 }
 
 /**
+ * Emits a visible warning when a native screenshot helper falls back to the
+ * renderer-only capture path.
+ * @param platformLabel - Human-readable platform label for the failing helper.
+ * @param reason - Human-readable explanation for the fallback.
+ * @param error - Optional process error emitted by the helper.
+ */
+function logNativeWindowCaptureFallback(
+  platformLabel: string,
+  reason: string,
+  error?: unknown,
+): void {
+  const details = formatCaptureError(error);
+  const detailSuffix = details === undefined ? "" : ` (${details})`;
+  process.stderr.write(
+    `[hud-screenshot] ${platformLabel} native window capture fallback: ${reason}${detailSuffix}\n`,
+  );
+}
+
+/**
  * Reads the media-source identifier for the current main HUD window.
  * @param app - Running app handles produced by {@link launchHudApp}.
  * @returns Desktop-capture media source id for the main window, if available.
@@ -430,6 +505,32 @@ async function readMainWindowMediaSourceId(
       ? undefined
       : mainWindow?.getMediaSourceId();
   });
+}
+
+/**
+ * Returns whether the macOS native-window capture path should run for this
+ * process.
+ * @returns Whether the current run is the macOS CI screenshot environment.
+ */
+function shouldAttemptMacOsWindowCaptureOnCi(): boolean {
+  return (
+    CI_ARTIFACT_SCREENSHOTS_ENABLED &&
+    CI_ENVIRONMENT_NAME === "macos" &&
+    process.platform === "darwin"
+  );
+}
+
+/**
+ * Returns whether the Windows native-window capture path should run for this
+ * process.
+ * @returns Whether the current run is the Windows CI screenshot environment.
+ */
+function shouldAttemptWindowsWindowCaptureOnCi(): boolean {
+  return (
+    CI_ARTIFACT_SCREENSHOTS_ENABLED &&
+    CI_ENVIRONMENT_NAME === "windows" &&
+    process.platform === "win32"
+  );
 }
 
 /**
