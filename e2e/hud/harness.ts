@@ -24,6 +24,10 @@ const WINDOW_SIZE_STABILITY_REQUIRED_MATCHES = 2;
 const WINDOW_SIZE_STABILITY_WAIT_MS = 100;
 const CI_ARTIFACT_SCREENSHOTS_ENABLED = Boolean(process.env.CI);
 const MACOS_SCREENSHOT_BINARY = "/usr/sbin/screencapture";
+const WINDOWS_SCREENSHOT_SCRIPT = path.resolve(
+  process.cwd(),
+  "scripts/capture-windows-window.ps1",
+);
 
 const ignoreLaunchCleanupError = String;
 const ignoreScreenshotError = String;
@@ -285,6 +289,14 @@ async function captureHudScreenshot(
   screenshotPath: string,
 ): Promise<void> {
   try {
+    const capturedWindowsWindow = await captureWindowsWindowScreenshot(
+      app,
+      screenshotPath,
+    );
+    if (capturedWindowsWindow) {
+      return;
+    }
+
     const capturedWindow = await captureMacOsWindowScreenshot(
       app,
       screenshotPath,
@@ -318,12 +330,7 @@ async function captureMacOsWindowScreenshot(
     return false;
   }
 
-  const mediaSourceId = await app.electronApp.evaluate(({ BrowserWindow }) => {
-    const mainWindow = BrowserWindow.getAllWindows().at(0);
-    return mainWindow?.isDestroyed()
-      ? undefined
-      : mainWindow?.getMediaSourceId();
-  });
+  const mediaSourceId = await readMainWindowMediaSourceId(app);
   if (
     typeof mediaSourceId !== "string" ||
     !mediaSourceId.startsWith("window:")
@@ -347,6 +354,50 @@ async function captureMacOsWindowScreenshot(
 }
 
 /**
+ * Captures the current Windows HUD window via `PrintWindow` so native frame
+ * chrome is included in the screenshot artifact.
+ * @param app - Running app handles produced by {@link launchHudApp}.
+ * @param screenshotPath - Destination path for the screenshot artifact.
+ * @returns Whether a native-window screenshot was captured.
+ */
+async function captureWindowsWindowScreenshot(
+  app: RunningHudApp,
+  screenshotPath: string,
+): Promise<boolean> {
+  if (process.platform !== "win32") {
+    return false;
+  }
+
+  const mediaSourceId = await readMainWindowMediaSourceId(app);
+  if (
+    typeof mediaSourceId !== "string" ||
+    !mediaSourceId.startsWith("window:")
+  ) {
+    return false;
+  }
+
+  const [, windowHandle] = mediaSourceId.split(":");
+  if (typeof windowHandle !== "string" || windowHandle.length === 0) {
+    return false;
+  }
+
+  await execFileAsync("pwsh", [
+    "-NoLogo",
+    "-NoProfile",
+    "-NonInteractive",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    WINDOWS_SCREENSHOT_SCRIPT,
+    "-WindowHandle",
+    windowHandle,
+    "-OutputPath",
+    screenshotPath,
+  ]);
+  return true;
+}
+
+/**
  * Checks whether a character is safe to use directly inside an artifact filename.
  * @param character - Single lowercase character candidate.
  * @returns Whether the character can be emitted without replacement.
@@ -363,6 +414,22 @@ function isAsciiArtifactCharacter(character: string): boolean {
     (codePoint >= ASCII_LOWERCASE_A_CODE_POINT &&
       codePoint <= ASCII_LOWERCASE_Z_CODE_POINT)
   );
+}
+
+/**
+ * Reads the media-source identifier for the current main HUD window.
+ * @param app - Running app handles produced by {@link launchHudApp}.
+ * @returns Desktop-capture media source id for the main window, if available.
+ */
+async function readMainWindowMediaSourceId(
+  app: RunningHudApp,
+): Promise<string | undefined> {
+  return app.electronApp.evaluate(({ BrowserWindow }) => {
+    const mainWindow = BrowserWindow.getAllWindows().at(0);
+    return mainWindow?.isDestroyed()
+      ? undefined
+      : mainWindow?.getMediaSourceId();
+  });
 }
 
 /**
