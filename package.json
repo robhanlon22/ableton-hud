@@ -18,7 +18,8 @@
     "test:e2e": "pnpm run build && playwright test -c playwright.electron.config.ts",
     "test:e2e:headed": "pnpm run build && playwright test -c playwright.electron.config.ts --headed",
     "typecheck": "tsc --noEmit",
-    "dist:mac": "pnpm run build && electron-builder --mac dir --universal"
+    "dist:mac": "pnpm run build && electron-builder --mac dir --universal",
+    "dist:win": "pnpm run build && electron-builder --win nsis --x64 --publish never"
   },
   "build": {
     "appId": "com.sketch-artist.ableton-hud",
@@ -29,6 +30,16 @@
       ],
       "identity": null,
       "category": "public.app-category.music"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
     "files": [
       "out/main/**/*",

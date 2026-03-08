@@ -28,8 +28,8 @@ A desktop HUD for Ableton Live that shows clip timing (`Bar:Beat:16th`) in a com
 
 - `Ableton-HUD-vX.Y.Z-mac-universal.zip`
 - `Ableton-HUD-vX.Y.Z-mac-universal.zip.sha256`
-- `Ableton-HUD-vX.Y.Z-windows-x64.zip`
-- `Ableton-HUD-vX.Y.Z-windows-x64.zip.sha256`
+- `Ableton-HUD-vX.Y.Z-windows-x64-installer.exe`
+- `Ableton-HUD-vX.Y.Z-windows-x64-installer.exe.sha256`
 
 2. Verify the checksum for the asset you downloaded:
 
@@ -40,14 +40,14 @@ shasum -a 256 -c Ableton-HUD-vX.Y.Z-mac-universal.zip.sha256
 PowerShell example:
 
 ```powershell
-Get-FileHash .\Ableton-HUD-vX.Y.Z-windows-x64.zip -Algorithm SHA256
-Get-Content .\Ableton-HUD-vX.Y.Z-windows-x64.zip.sha256
+Get-FileHash .\Ableton-HUD-vX.Y.Z-windows-x64-installer.exe -Algorithm SHA256
+Get-Content .\Ableton-HUD-vX.Y.Z-windows-x64-installer.exe.sha256
 ```
 
-3. Unzip and launch:
+3. Open the release artifact for your platform:
 
-- macOS: `Ableton HUD.app`
-- Windows: `Ableton HUD.exe`
+- macOS: unzip the archive, then launch `Ableton HUD.app`
+- Windows: run `Ableton-HUD-vX.Y.Z-windows-x64-installer.exe`, then launch `Ableton HUD`
 
 4. In Ableton Live, install/run the `ableton-live` Max device so the HUD can connect.
 
@@ -200,8 +200,8 @@ CI workflow behavior:
   that HTML report to the repo GitHub Pages site
 - `Build` runs release validation builds on macOS and Windows for pull
   requests, `main`, and `v*` tags
-- On `v*` tags, `Build` stages the published macOS and Windows zips plus
-  checksums as same-run workflow artifacts
+- On `v*` tags, `Build` stages the published macOS zip and Windows installer,
+  plus checksums, as same-run workflow artifacts
 - Those tagged release archives are assembled by
   [package-release-macos.sh](/Users/rob/Developer/aosc/scripts/package-release-macos.sh)
   and
@@ -213,8 +213,8 @@ CI workflow behavior:
 - Publishes:
   - `Ableton-HUD-vX.Y.Z-mac-universal.zip`
   - `Ableton-HUD-vX.Y.Z-mac-universal.zip.sha256`
-  - `Ableton-HUD-vX.Y.Z-windows-x64.zip`
-  - `Ableton-HUD-vX.Y.Z-windows-x64.zip.sha256`
+  - `Ableton-HUD-vX.Y.Z-windows-x64-installer.exe`
+  - `Ableton-HUD-vX.Y.Z-windows-x64-installer.exe.sha256`
 - Enforces immutable releases (existing tag release is not modified)
 
 ## License

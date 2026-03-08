@@ -73,8 +73,8 @@ Use this file as the source of truth for validation routing and reporting.
 - `Build`
   - runs release validation builds on `windows-latest` and `macos-latest`
   - runs on pull requests, `main`, and `v*` tags
-  - on `v*` tags, stages the macOS and Windows release zips plus checksums as
-    same-run workflow artifacts
+  - on `v*` tags, stages the macOS release zip and Windows installer, plus
+    checksums, as same-run workflow artifacts
   - tagged release archives are assembled by
     [package-release-macos.sh](/Users/rob/Developer/aosc/scripts/package-release-macos.sh)
     and

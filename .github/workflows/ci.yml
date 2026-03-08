@@ -179,7 +179,7 @@ jobs:
 
       - name: Build release validation target on Windows
         if: runner.os == 'Windows'
-        run: pnpm run build && pnpm exec electron-builder --win dir --publish never
+        run: pnpm run dist:win
 
       - name: Stage tagged Windows release assets
         if: runner.os == 'Windows' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -192,8 +192,8 @@ jobs:
         with:
           name: release-assets-windows
           path: |
-            dist/Ableton-HUD-${{ github.ref_name }}-windows-x64.zip
-            dist/Ableton-HUD-${{ github.ref_name }}-windows-x64.zip.sha256
+            dist/Ableton-HUD-${{ github.ref_name }}-windows-x64-installer.exe
+            dist/Ableton-HUD-${{ github.ref_name }}-windows-x64-installer.exe.sha256
           if-no-files-found: error
 
       - name: Build release validation target on macOS
@@ -313,8 +313,8 @@ jobs:
           release_files=(
             "release-assets/macos/Ableton-HUD-${TAG}-mac-universal.zip"
             "release-assets/macos/Ableton-HUD-${TAG}-mac-universal.zip.sha256"
-            "release-assets/windows/Ableton-HUD-${TAG}-windows-x64.zip"
-            "release-assets/windows/Ableton-HUD-${TAG}-windows-x64.zip.sha256"
+            "release-assets/windows/Ableton-HUD-${TAG}-windows-x64-installer.exe"
+            "release-assets/windows/Ableton-HUD-${TAG}-windows-x64-installer.exe.sha256"
           )
 
           if gh release view "${TAG}" >/dev/null 2>&1; then

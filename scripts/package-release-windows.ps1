@@ -5,28 +5,27 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$appPath = "dist/win-unpacked"
-$stagingDir = "dist/Ableton HUD-windows-x64"
-$zipPath = "dist/Ableton-HUD-$Tag-windows-x64.zip"
-$shaPath = "$zipPath.sha256"
+$artifactPath = "dist/Ableton-HUD-$Tag-windows-x64-installer.exe"
+$shaPath = "$artifactPath.sha256"
 
-if (-not (Test-Path $appPath -PathType Container)) {
-  Write-Error "Missing app bundle at $appPath"
+foreach ($path in @($artifactPath, $shaPath)) {
+  if (Test-Path $path) {
+    Remove-Item -Force $path
+  }
 }
 
-if (Test-Path $stagingDir) {
-  Remove-Item -Recurse -Force $stagingDir
+$installerCandidates = @(Get-ChildItem -Path "dist" -Filter "*.exe" -File)
+if ($installerCandidates.Count -eq 0) {
+  Write-Error "Missing Windows installer in dist"
 }
 
-if (Test-Path $zipPath) {
-  Remove-Item -Force $zipPath
+if ($installerCandidates.Count -ne 1) {
+  $installerNames = $installerCandidates | ForEach-Object { $_.Name } | Sort-Object
+  Write-Error ("Expected exactly one Windows installer in dist, found: " + ($installerNames -join ", "))
 }
 
-if (Test-Path $shaPath) {
-  Remove-Item -Force $shaPath
-}
+$installerPath = $installerCandidates[0].FullName
 
-Copy-Item $appPath $stagingDir -Recurse
-Compress-Archive -Path $stagingDir -DestinationPath $zipPath -CompressionLevel Optimal
-$hash = (Get-FileHash -Algorithm SHA256 $zipPath).Hash.ToLowerInvariant()
-"{0}  {1}" -f $hash, (Split-Path -Leaf $zipPath) | Out-File -FilePath $shaPath -Encoding ascii -NoNewline
+Copy-Item $installerPath $artifactPath
+$hash = (Get-FileHash -Algorithm SHA256 $artifactPath).Hash.ToLowerInvariant()
+"{0}  {1}" -f $hash, (Split-Path -Leaf $artifactPath) | Out-File -FilePath $shaPath -Encoding ascii -NoNewline
