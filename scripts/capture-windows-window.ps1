@@ -42,7 +42,7 @@ public static class WindowCapture {
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
 
-    public static Rectangle GetBounds(IntPtr hwnd) {
+    public static RECT GetBounds(IntPtr hwnd) {
         RECT rect;
         int hr = DwmGetWindowAttribute(
             hwnd,
@@ -59,16 +59,18 @@ public static class WindowCapture {
             }
         }
 
-        return Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom);
+        return rect;
     }
 
     public static void SaveWindowPng(IntPtr hwnd, string outputPath) {
-        Rectangle bounds = GetBounds(hwnd);
-        if (bounds.Width <= 0 || bounds.Height <= 0) {
+        RECT bounds = GetBounds(hwnd);
+        int width = bounds.Right - bounds.Left;
+        int height = bounds.Bottom - bounds.Top;
+        if (width <= 0 || height <= 0) {
             throw new InvalidOperationException("Window bounds are empty.");
         }
 
-        using (Bitmap bitmap = new Bitmap(bounds.Width, bounds.Height)) {
+        using (Bitmap bitmap = new Bitmap(width, height)) {
             using (Graphics graphics = Graphics.FromImage(bitmap)) {
                 IntPtr hdc = graphics.GetHdc();
                 try {
