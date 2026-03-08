@@ -8,7 +8,7 @@ export default defineConfig({
   },
   fullyParallel: false,
   outputDir: "test-results/playwright",
-  ...(ciEnvironmentName ? { tag: `@${ciEnvironmentName}` } : {}),
+  ...(ciEnvironmentName ? { projects: [{ name: ciEnvironmentName }] } : {}),
   reporter: process.env.CI
     ? [
         ["github"],
