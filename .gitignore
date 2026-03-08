@@ -2,6 +2,7 @@ node_modules/
 out/
 dist/
 coverage/
+blob-report/
 playwright-report/
 test-results/
 *.log

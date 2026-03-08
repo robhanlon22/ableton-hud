@@ -1,5 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
+const ciReporterTag = process.env.CI_ENVIRONMENT_NAME;
+
 export default defineConfig({
   expect: {
     timeout: 5000,
@@ -11,6 +13,13 @@ export default defineConfig({
         ["github"],
         ["list"],
         ["html", { open: "never", outputFolder: "playwright-report" }],
+        [
+          "blob",
+          {
+            outputDir: "blob-report",
+            ...(ciReporterTag ? { tag: ciReporterTag } : {}),
+          },
+        ],
       ]
     : [["list"]],
   retries: process.env.CI ? 1 : 0,

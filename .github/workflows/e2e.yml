@@ -16,9 +16,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - windows-latest
-          - macos-latest
+        include:
+          - os: windows-latest
+            report_tag: windows
+          - os: macos-latest
+            report_tag: macos
 
     steps:
       - name: Checkout
@@ -60,28 +62,28 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright Chromium on Windows
-        if: runner.os == 'Windows'
+      - name: Install Playwright Chromium
         run: pnpm exec playwright install chromium
 
-      - name: Install Playwright Chromium on macOS
-        if: runner.os == 'macOS'
-        run: pnpm exec playwright install chromium
-
-      - name: Run Playwright Electron E2E on Windows
-        if: runner.os == 'Windows'
-        run: pnpm run test:e2e
-
-      - name: Run Playwright Electron E2E on macOS
-        if: runner.os == 'macOS'
+      - name: Run Playwright Electron E2E
+        env:
+          CI_ENVIRONMENT_NAME: ${{ matrix.report_tag }}
         run: pnpm run test:e2e
 
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts-${{ runner.os }}
+          name: playwright-artifacts-${{ matrix.report_tag }}
           path: |
             test-results/playwright
             playwright-report
+          if-no-files-found: ignore
+
+      - name: Upload Playwright blob report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-blob-report-${{ matrix.report_tag }}
+          path: blob-report
           if-no-files-found: ignore

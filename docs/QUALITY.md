@@ -66,6 +66,12 @@ Use this file as the source of truth for validation routing and reporting.
     HTML report, as workflow artifacts on every run
   - those artifacts include stable smoke renders for the known HUD states:
     playing, stopped, disconnected, remaining, and compact
+  - uploads Windows/macOS Playwright blob reports on successful runs so a
+    follow-up Pages workflow can merge them
+  - `playwright-report.yml`
+    - triggers after successful `E2E` workflow runs on `main`
+    - merges the Windows/macOS blob reports into a single Playwright HTML
+      report and deploys it to the repo GitHub Pages site
 - `release.yml`
   - waits for successful `Lint`, `Test`, and `E2E` workflow runs on the current
     commit before running release-specific validation
