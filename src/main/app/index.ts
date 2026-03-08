@@ -10,7 +10,7 @@ import {
   HudModeSchema,
   HudStateSchema,
 } from "@shared/ipc";
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, nativeTheme } from "electron";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -78,7 +78,8 @@ const COMPACT_CONTENT_HEIGHT = 138;
 
 configureAppPaths();
 const prefStore = new PrefStore();
-const rendererDebugPort = process.env.AOSC_RENDERER_DEBUG_PORT;
+const rendererDebugPort = process.env.ABLETON_HUD_RENDERER_DEBUG_PORT;
+const endToEndThemeSource = process.env.ABLETON_HUD_E2E_THEME;
 
 if (rendererDebugPort) {
   const parsedPort = Number.parseInt(rendererDebugPort, 10);
@@ -91,6 +92,8 @@ if (rendererDebugPort) {
   }
 }
 
+applyEndToEndThemeOverride();
+
 /**
  * Queues the Electron app startup on the next microtask.
  */
@@ -98,6 +101,19 @@ export function queueApplicationStart(): void {
   queueMicrotask(() => {
     void startApplication();
   });
+}
+
+/**
+ * Applies an explicit theme override for end-to-end screenshot runs.
+ */
+function applyEndToEndThemeOverride(): void {
+  if (
+    endToEndThemeSource === "dark" ||
+    endToEndThemeSource === "light" ||
+    endToEndThemeSource === "system"
+  ) {
+    nativeTheme.themeSource = endToEndThemeSource;
+  }
 }
 
 /**
@@ -140,7 +156,7 @@ function buildDefaultState(): HudState {
  * Redirects Electron profile storage during end-to-end runs.
  */
 function configureAppPaths(): void {
-  const endToEndUserDataPath = process.env.AOSC_E2E_USER_DATA;
+  const endToEndUserDataPath = process.env.ABLETON_HUD_E2E_USER_DATA;
   if (!endToEndUserDataPath) {
     return;
   }

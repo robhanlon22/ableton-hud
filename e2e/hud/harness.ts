@@ -147,9 +147,9 @@ const createLaunchEnvironment = (
   livePort: number,
 ): Record<string, string> => {
   const launchEnvironment: Record<string, string> = {
-    AOSC_E2E_USER_DATA: temporaryHome,
-    AOSC_LIVE_HOST: "127.0.0.1",
-    AOSC_LIVE_PORT: String(livePort),
+    ABLETON_HUD_E2E_USER_DATA: temporaryHome,
+    ABLETON_HUD_LIVE_HOST: "127.0.0.1",
+    ABLETON_HUD_LIVE_PORT: String(livePort),
   };
 
   for (const [key, value] of Object.entries(process.env)) {

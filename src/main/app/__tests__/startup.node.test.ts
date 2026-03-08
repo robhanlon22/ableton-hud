@@ -51,7 +51,7 @@ afterEach(async () => {
 
 it("boots app side effects and registers core IPC handlers", async () => {
   // arrange
-  process.env.AOSC_RENDERER_DEBUG_PORT = DEBUG_PORT;
+  process.env.ABLETON_HUD_RENDERER_DEBUG_PORT = DEBUG_PORT;
   process.env.ELECTRON_RENDERER_URL = RENDERER_URL;
   runtime.prefLoadMock.mockResolvedValue({
     alwaysOnTop: false,
@@ -95,7 +95,7 @@ it("redirects Electron profile storage for e2e launches", async () => {
     "test-results",
     "aosc-e2e-user-data",
   );
-  process.env.AOSC_E2E_USER_DATA = endToEndUserDataPath;
+  process.env.ABLETON_HUD_E2E_USER_DATA = endToEndUserDataPath;
 
   // act
   await bootIndexMainModule(runtime);
@@ -109,6 +109,17 @@ it("redirects Electron profile storage for e2e launches", async () => {
     "sessionData",
     path.join(endToEndUserDataPath, SESSION_DATA_DIRECTORY_NAME),
   );
+});
+
+it("applies an explicit e2e theme override", async () => {
+  // arrange
+  process.env.ABLETON_HUD_E2E_THEME = "dark";
+
+  // act
+  await bootIndexMainModule(runtime);
+
+  // assert
+  expect(runtime.nativeTheme.themeSource).toBe("dark");
 });
 
 it("persists compact toggles and topmost changes", async () => {

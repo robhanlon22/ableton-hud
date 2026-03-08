@@ -14,8 +14,8 @@ next_free_port() {
   printf '%s' "$port"
 }
 
-main_start_port="${AOSC_MAIN_DEBUG_PORT:-9230}"
-renderer_start_port="${AOSC_RENDERER_DEBUG_PORT:-9222}"
+main_start_port="${ABLETON_HUD_MAIN_DEBUG_PORT:-9230}"
+renderer_start_port="${ABLETON_HUD_RENDERER_DEBUG_PORT:-9222}"
 
 main_port="$(next_free_port "$main_start_port")"
 renderer_port="$(next_free_port "$renderer_start_port")"

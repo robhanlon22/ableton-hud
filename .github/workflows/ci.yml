@@ -94,10 +94,12 @@ jobs:
         include:
           - os: windows-latest
             report_tag: windows
+            e2e_theme: dark
             electron_cache_path: ~/AppData/Local/electron/Cache
             playwright_cache_path: ~/AppData/Local/ms-playwright
           - os: macos-latest
             report_tag: macos
+            e2e_theme: dark
             electron_cache_path: ~/Library/Caches/electron
             playwright_cache_path: ~/Library/Caches/ms-playwright
 
@@ -129,6 +131,7 @@ jobs:
 
       - name: Run Playwright Electron E2E
         env:
+          ABLETON_HUD_E2E_THEME: ${{ matrix.e2e_theme }}
           CI_ENVIRONMENT_NAME: ${{ matrix.report_tag }}
         run: pnpm run test:e2e
 

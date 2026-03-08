@@ -78,9 +78,11 @@ export class AbletonLiveBridge {
     deps: BridgeDeps = {},
   ) {
     const host =
-      deps.hostOverride ?? process.env.AOSC_LIVE_HOST ?? DEFAULT_LIVE_HOST;
+      deps.hostOverride ??
+      process.env.ABLETON_HUD_LIVE_HOST ??
+      DEFAULT_LIVE_HOST;
     const port = resolveLivePort(
-      deps.portOverride ?? process.env.AOSC_LIVE_PORT,
+      deps.portOverride ?? process.env.ABLETON_HUD_LIVE_PORT,
     );
     const websocketCtor = deps.websocketCtor ?? WebSocket;
     if (!Object.hasOwn(globalThis, "WebSocket")) {

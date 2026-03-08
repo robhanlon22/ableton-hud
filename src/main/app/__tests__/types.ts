@@ -150,6 +150,8 @@ export interface IndexMainRuntime {
   ipcHandlers: Map<string, IpcHandler>;
   /** Mock for `ipcMain.removeHandler`. */
   ipcRemoveHandlerMock: ReturnType<typeof vi.fn>;
+  /** Mocked Electron native theme surface. */
+  nativeTheme: NativeThemeLike;
   /** Mock for loading persisted preferences. */
   prefLoadMock: ReturnType<typeof vi.fn<() => Promise<PrefsValue>>>;
   /** Mock for saving persisted preferences. */
@@ -171,6 +173,14 @@ export type IpcHandler = (...arguments_: unknown[]) => unknown;
  * Handles an emitted event in the mocked Electron runtime.
  */
 export type Listener = (...arguments_: unknown[]) => void;
+
+/**
+ * Captures the subset of Electron `nativeTheme` used by main-process tests.
+ */
+export interface NativeThemeLike {
+  /** Current explicit app theme source. */
+  themeSource: "dark" | "light" | "system";
+}
 
 /**
  * Captures the persisted preference fixture used by main-process tests.

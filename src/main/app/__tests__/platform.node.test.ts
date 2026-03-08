@@ -93,7 +93,7 @@ it("handles darwin topmost toggles and leaves the app running when windows close
     mode: "elapsed",
     trackLocked: false,
   });
-  process.env.AOSC_RENDERER_DEBUG_PORT = INVALID_DEBUG_PORT;
+  process.env.ABLETON_HUD_RENDERER_DEBUG_PORT = INVALID_DEBUG_PORT;
   setProcessPlatform("darwin");
   await bootIndexMainModule(runtime);
   const windowInstance = resolveWindowInstance(runtime);

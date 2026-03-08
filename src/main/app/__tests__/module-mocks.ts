@@ -32,6 +32,7 @@ export function createElectronModuleMock(runtime: IndexMainRuntime) {
       handle: runtime.ipcHandleMock,
       removeHandler: runtime.ipcRemoveHandlerMock,
     },
+    nativeTheme: runtime.nativeTheme,
   };
 }
 

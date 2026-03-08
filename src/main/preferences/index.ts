@@ -54,7 +54,7 @@ export class PrefStore {
    * Creates a preference store scoped to the current app or E2E profile directory.
    */
   constructor() {
-    const endToEndUserDataPath = process.env.AOSC_E2E_USER_DATA;
+    const endToEndUserDataPath = process.env.ABLETON_HUD_E2E_USER_DATA;
     const basePath = endToEndUserDataPath ?? app.getPath("userData");
     this.path = path.join(basePath, "hud-preferences.json");
   }

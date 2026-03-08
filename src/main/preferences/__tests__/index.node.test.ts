@@ -32,7 +32,7 @@ vi.mock("node:fs/promises", () => ({
 
 describe("PrefStore load", () => {
   beforeEach(() => {
-    delete process.env.AOSC_E2E_USER_DATA;
+    delete process.env.ABLETON_HUD_E2E_USER_DATA;
     mkdirMock.mockReset();
     readFileMock.mockReset();
     writeFileMock.mockReset();
@@ -111,7 +111,7 @@ describe("PrefStore load", () => {
 
 describe("PrefStore save", () => {
   beforeEach(() => {
-    process.env.AOSC_E2E_USER_DATA = TEST_E2E_HOME;
+    process.env.ABLETON_HUD_E2E_USER_DATA = TEST_E2E_HOME;
     mkdirMock.mockReset();
     readFileMock.mockReset();
     writeFileMock.mockReset();

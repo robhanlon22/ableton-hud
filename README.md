@@ -184,8 +184,8 @@ By default the HUD expects the bridge at:
 
 You can override host and port with:
 
-- `AOSC_LIVE_HOST`
-- `AOSC_LIVE_PORT`
+- `ABLETON_HUD_LIVE_HOST`
+- `ABLETON_HUD_LIVE_PORT`
 
 ### 3. Verify the connection
 
@@ -209,12 +209,12 @@ If the HUD launches but shows a disconnected state, jump to
 
 ## Troubleshooting
 
-| Symptom                           | What to check                                                                                                               |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Counter stays `0:0:0`             | Make sure Ableton Live is playing and `LiveAPI.amxd` is loaded in the current Live set.                                     |
-| Status shows disconnected         | Confirm the bridge device is running at `127.0.0.1:9001` or update `AOSC_LIVE_HOST` / `AOSC_LIVE_PORT` to match your setup. |
-| The app launches but stays tiny   | Preferences are persisted. Click `EXPAND DETAILS` once and the next launch should keep the larger layout.                   |
-| The bridge still will not connect | Reopen the Live set, reload `LiveAPI.amxd`, and confirm no other process is occupying the same bridge port.                 |
+| Symptom                           | What to check                                                                                                                             |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Counter stays `0:0:0`             | Make sure Ableton Live is playing and `LiveAPI.amxd` is loaded in the current Live set.                                                   |
+| Status shows disconnected         | Confirm the bridge device is running at `127.0.0.1:9001` or update `ABLETON_HUD_LIVE_HOST` / `ABLETON_HUD_LIVE_PORT` to match your setup. |
+| The app launches but stays tiny   | Preferences are persisted. Click `EXPAND DETAILS` once and the next launch should keep the larger layout.                                 |
+| The bridge still will not connect | Reopen the Live set, reload `LiveAPI.amxd`, and confirm no other process is occupying the same bridge port.                               |
 
 ## Develop locally
 

@@ -9,6 +9,7 @@ import type {
   IndexMainRuntime,
   IpcHandler,
   Listener,
+  NativeThemeLike,
   PrefsValue,
   RuntimeCollections,
   StoredWindowBounds,
@@ -48,6 +49,8 @@ interface RuntimeResetDependencies {
   ipcHandlers: Map<string, IpcHandler>;
   /** Mock for `ipcMain.removeHandler`. */
   ipcRemoveHandlerMock: ReturnType<typeof vi.fn>;
+  /** Mocked Electron native theme surface. */
+  nativeTheme: NativeThemeLike;
   /** Mock for loading persisted preferences. */
   prefLoadMock: ReturnType<typeof vi.fn<() => Promise<PrefsValue>>>;
   /** Mock for saving persisted preferences. */
@@ -525,6 +528,7 @@ const createRuntimeReset = (
     ipcHandleMock,
     ipcHandlers,
     ipcRemoveHandlerMock,
+    nativeTheme,
     prefLoadMock,
     prefSaveMock,
     resetWhenReady,
@@ -554,6 +558,7 @@ const createRuntimeReset = (
     ipcRemoveHandlerMock.mockImplementation(
       createIpcRemoveHandler(ipcHandlers),
     );
+    nativeTheme.themeSource = "system";
     prefLoadMock.mockReset();
     prefSaveMock.mockReset();
     prefLoadMock.mockResolvedValue(createDefaultPrefsValue());
@@ -588,6 +593,9 @@ export function createIndexMainRuntime(): IndexMainRuntime {
   const existsSyncMock = vi.fn(createExistsSyncHandler);
   const ipcHandleMock = vi.fn(createIpcHandleHandler(ipcHandlers));
   const ipcRemoveHandlerMock = vi.fn(createIpcRemoveHandler(ipcHandlers));
+  const nativeTheme: NativeThemeLike = {
+    themeSource: "system",
+  };
   const prefLoadMock = vi.fn(createPrefLoadHandler);
   const prefSaveMock = vi.fn<() => Promise<void>>(createResolvedVoidPromise);
 
@@ -617,6 +625,7 @@ export function createIndexMainRuntime(): IndexMainRuntime {
     ipcHandleMock,
     ipcHandlers,
     ipcRemoveHandlerMock,
+    nativeTheme,
     prefLoadMock,
     prefSaveMock,
     resetWhenReady,
@@ -639,6 +648,7 @@ export function createIndexMainRuntime(): IndexMainRuntime {
     ipcHandleMock,
     ipcHandlers,
     ipcRemoveHandlerMock,
+    nativeTheme,
     prefLoadMock,
     prefSaveMock,
     reset,

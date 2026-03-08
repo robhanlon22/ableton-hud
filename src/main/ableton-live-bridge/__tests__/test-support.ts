@@ -205,8 +205,10 @@ export async function createSession(
     ...runtime.bridgeModule.defaultPayloadNormalizers,
   };
   const host =
-    process.env.AOSC_LIVE_HOST ?? runtime.typesModule.DEFAULT_LIVE_HOST;
-  const port = runtime.bridgeModule.resolveLivePort(process.env.AOSC_LIVE_PORT);
+    process.env.ABLETON_HUD_LIVE_HOST ?? runtime.typesModule.DEFAULT_LIVE_HOST;
+  const port = runtime.bridgeModule.resolveLivePort(
+    process.env.ABLETON_HUD_LIVE_PORT,
+  );
   const live = runtime.bridgeModule.defaultLiveFactory.create({ host, port });
   const access = new runtime.accessModule.LiveBridgeAccess(
     live.song,
@@ -253,8 +255,8 @@ export function resetBridgeTestEnvironment(): void {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
-  delete process.env.AOSC_LIVE_HOST;
-  delete process.env.AOSC_LIVE_PORT;
+  delete process.env.ABLETON_HUD_LIVE_HOST;
+  delete process.env.ABLETON_HUD_LIVE_PORT;
   activeHarness = undefined;
 }
 
@@ -367,15 +369,15 @@ function resolvedUndefined(): Promise<undefined> {
  */
 function setBridgeEnvironment(overrides: BridgeOverrides | undefined): void {
   if (overrides?.host === undefined) {
-    delete process.env.AOSC_LIVE_HOST;
+    delete process.env.ABLETON_HUD_LIVE_HOST;
   } else {
-    process.env.AOSC_LIVE_HOST = overrides.host;
+    process.env.ABLETON_HUD_LIVE_HOST = overrides.host;
   }
 
   if (overrides?.port === undefined) {
-    delete process.env.AOSC_LIVE_PORT;
+    delete process.env.ABLETON_HUD_LIVE_PORT;
   } else {
-    process.env.AOSC_LIVE_PORT = overrides.port;
+    process.env.ABLETON_HUD_LIVE_PORT = overrides.port;
   }
 
   if (overrides?.websocketUndefined) {
