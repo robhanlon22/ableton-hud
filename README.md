@@ -1,8 +1,8 @@
 # Ableton HUD
 
-A macOS desktop HUD for Ableton Live that shows clip timing (`Bar:Beat:16th`) in a compact always-on-top window.
+A desktop HUD for Ableton Live that shows clip timing (`Bar:Beat:16th`) in a compact always-on-top window.
 
-> macOS-only right now. Release builds are unsigned, so first launch may require Finder `Control-click -> Open`.
+> Release builds are currently unsigned. macOS may require Finder `Control-click -> Open`, and Windows may show a SmartScreen warning before launch.
 
 ## What You Get
 
@@ -24,18 +24,31 @@ A macOS desktop HUD for Ableton Live that shows clip timing (`Bar:Beat:16th`) in
 
 ## Quick Start (Release Consumer)
 
-1. Download the latest macOS universal release assets from GitHub Releases:
+1. Download the latest release assets for your platform from GitHub Releases:
 
 - `Ableton-HUD-vX.Y.Z-mac-universal.zip`
 - `Ableton-HUD-vX.Y.Z-mac-universal.zip.sha256`
+- `Ableton-HUD-vX.Y.Z-windows-x64.zip`
+- `Ableton-HUD-vX.Y.Z-windows-x64.zip.sha256`
 
-2. Verify checksum:
+2. Verify the checksum for the asset you downloaded:
 
 ```bash
 shasum -a 256 -c Ableton-HUD-vX.Y.Z-mac-universal.zip.sha256
 ```
 
-3. Unzip and launch `Ableton HUD.app`.
+PowerShell example:
+
+```powershell
+Get-FileHash .\Ableton-HUD-vX.Y.Z-windows-x64.zip -Algorithm SHA256
+Get-Content .\Ableton-HUD-vX.Y.Z-windows-x64.zip.sha256
+```
+
+3. Unzip and launch:
+
+- macOS: `Ableton HUD.app`
+- Windows: `Ableton HUD.exe`
+
 4. In Ableton Live, install/run the `ableton-live` Max device so the HUD can connect.
 
 Expected behavior:
@@ -159,7 +172,7 @@ This repo now keeps agent-facing source of truth in versioned files:
 - `docs/exec-plans/`
 
 The docs lint runs as a pre-commit hook locally and through the existing CI
-lint job's `pre-commit run --all-files`.
+`Lint` job's `pre-commit run --all-files`.
 
 ## Releases
 
@@ -170,33 +183,32 @@ git tag -a v0.1.0 -m "v0.1.0"
 git push origin v0.1.0
 ```
 
-Release workflow behavior:
+CI workflow behavior:
 
-- `lint.yml` runs `pre-commit run --all-files` on macOS and Windows for pull
-  requests, `main`, and `v*` tags
-- `test.yml` runs `pnpm test` on macOS and Windows for pull requests, `main`,
-  and `v*` tags
-- `e2e.yml` runs `pnpm run test:e2e` on macOS and Windows for pull requests,
-  `main`, and `v*` tags
-- `e2e.yml` uploads HUD screenshots plus the Playwright HTML report as
-  workflow artifacts on every run
+- `ci.yml` runs on pull requests, `main`, and `v*` tags
+- `Lint` runs `pre-commit run --all-files` on macOS and Windows
+- `Test` runs `pnpm test` on macOS and Windows
+- `E2E` runs `pnpm run test:e2e` on macOS and Windows
+- `E2E` uploads HUD screenshots plus the Playwright HTML report as workflow
+  artifacts on every run
 - Those E2E artifacts include stable smoke renders for the known HUD states:
   playing, stopped, disconnected, remaining, and compact
-- On successful `main` pushes, `e2e.yml` uploads Windows/macOS Playwright blob
-  reports, merges them into a single HTML report, and deploys that report to
-  the repo GitHub Pages site
-- `build.yml` runs release validation builds on macOS and Windows for pull
-  requests and `main`
-- `release.yml` runs only on `v*` tags
-- `release.yml` waits for successful `Lint`, `Test`, and `E2E` workflow runs
-  on the same commit before it builds the published macOS assets and creates
-  the immutable GitHub Release in one path
-- Public tag releases still publish macOS universal assets only for now, after
-  the tag-gated validation workflows pass
-- Builds universal macOS app for the published release
+- On successful `main` pushes, the downstream `Build Playwright Report` and
+  `Deploy GitHub Pages` jobs merge the Windows/macOS blob reports and publish
+  that HTML report to the repo GitHub Pages site
+- `Build` runs release validation builds on macOS and Windows for pull
+  requests, `main`, and `v*` tags
+- On `v*` tags, `Build` stages the published macOS and Windows zips plus
+  checksums as same-run workflow artifacts
+- `Release` runs only on `v*` tags
+- `Release` waits on successful `Lint`, `Test`, `E2E`, and `Build` jobs, then
+  publishes the staged macOS and Windows artifacts as the immutable GitHub
+  Release
 - Publishes:
   - `Ableton-HUD-vX.Y.Z-mac-universal.zip`
   - `Ableton-HUD-vX.Y.Z-mac-universal.zip.sha256`
+  - `Ableton-HUD-vX.Y.Z-windows-x64.zip`
+  - `Ableton-HUD-vX.Y.Z-windows-x64.zip.sha256`
 - Enforces immutable releases (existing tag release is not modified)
 
 ## License

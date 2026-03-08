@@ -53,35 +53,37 @@ Use this file as the source of truth for validation routing and reporting.
 
 ### CI jobs
 
-- `lint.yml`
+- `ci.yml`
+  - runs on pull requests, `main`, and `v*` tags
+- `Lint`
   - runs `pre-commit run --all-files` with `SKIP=test-suite`
   - runs on `windows-latest` and `macos-latest`
-  - runs on pull requests, `main`, and `v*` tags
-- `test.yml`
+- `Test`
   - runs `pnpm test` on `windows-latest` and `macos-latest`
-  - runs on pull requests, `main`, and `v*` tags
-- `e2e.yml`
+- `E2E`
   - runs `pnpm run test:e2e` on `windows-latest` and `macos-latest`
-  - runs on pull requests, `main`, and `v*` tags
   - captures HUD screenshots on CI and uploads them, along with the Playwright
     HTML report, as workflow artifacts on every run
   - those artifacts include stable smoke renders for the known HUD states:
     playing, stopped, disconnected, remaining, and compact
   - uploads Windows/macOS Playwright blob reports on successful runs
-  - on successful `push` to `main`, merges those blob reports into a single
-    Playwright HTML report and deploys it to the repo GitHub Pages site
   - keeps Windows/macOS runs visibly disambiguated in the merged report
-- `build.yml`
+- `Build`
   - runs release validation builds on `windows-latest` and `macos-latest`
-  - runs on pull requests and `main`
-- `release.yml`
-  - waits for successful `Lint`, `Test`, and `E2E` workflow runs on the
-    current commit before building the published macOS release assets
+  - runs on pull requests, `main`, and `v*` tags
+  - on `v*` tags, stages the macOS and Windows release zips plus checksums as
+    same-run workflow artifacts
+- `Build Playwright Report`
+  - runs only on successful `push` to `main`
+  - merges the Windows/macOS Playwright blob reports into one HTML report
+- `Deploy GitHub Pages`
+  - runs only on successful `push` to `main`
+  - publishes the merged Playwright report to the repo GitHub Pages site
+- `Release`
   - runs only on `v*` tags
-  - creates the immutable GitHub Release in the same workflow path that builds
-    the published macOS assets
-  - tag publishes remain macOS-universal only until Linux/Windows release
-    artifacts are productized
+  - waits for successful `Lint`, `Test`, `E2E`, and `Build` jobs
+  - downloads the staged macOS and Windows release artifacts from `Build`
+  - creates the immutable GitHub Release from those same-run artifacts
 
 ## Evidence Expectations
 
