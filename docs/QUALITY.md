@@ -48,13 +48,18 @@ Use this file as the source of truth for validation routing and reporting.
 
 - `lint.yml`
   - runs `pre-commit run --all-files` with `SKIP=test-suite`
+  - runs on pull requests, `main`, and `v*` tags
 - `test.yml`
   - runs `pnpm test` on `windows-latest` and `macos-latest`
+  - runs on pull requests, `main`, and `v*` tags
 - `e2e.yml`
   - runs `pnpm run test:e2e` on `windows-latest` and `macos-latest`
+  - runs on pull requests, `main`, and `v*` tags
 - `release.yml`
-  - validates test, typecheck, Electron E2E, and release builds on
-    `windows-latest` and `macos-latest`
+  - waits for successful `Lint`, `Test`, and `E2E` workflow runs on the current
+    commit before running release-specific validation
+  - runs `pnpm typecheck` plus release packaging on `windows-latest` and
+    `macos-latest`
   - runs on pull requests, `main`, tags, and manual dispatches
   - on tag runs, the matrix stages the published macOS release assets as
     workflow artifacts, then a non-matrix publish job creates the GitHub

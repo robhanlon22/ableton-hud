@@ -156,11 +156,15 @@ git push origin v0.1.0
 
 Release workflow behavior:
 
-- `test.yml` runs `pnpm test` on macOS and Windows
-- `e2e.yml` runs `pnpm run test:e2e` on macOS and Windows
-- `release.yml` validates test, typecheck, Electron E2E, and release builds on
-  macOS and Windows for pull requests, `main`, tags, and manual runs
-- On tags, the release validation matrix stages the published macOS assets as
+- `lint.yml` runs on pull requests, `main`, and `v*` tags
+- `test.yml` runs `pnpm test` on macOS and Windows for pull requests, `main`,
+  and `v*` tags
+- `e2e.yml` runs `pnpm run test:e2e` on macOS and Windows for pull requests,
+  `main`, and `v*` tags
+- `release.yml` runs on pull requests, `main`, tags, and manual runs
+- `release.yml` waits for successful `Lint`, `Test`, and `E2E` workflow runs on
+  the same commit before it runs release-specific `typecheck` and packaging jobs
+- On tags, the release build matrix stages the published macOS assets as
   workflow artifacts first, and a single follow-up publish job creates the
   immutable GitHub Release once with every staged asset
 - Public tag releases still publish macOS universal assets only for now, after
