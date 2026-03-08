@@ -205,12 +205,14 @@ test.describe("HUD screenshot smoke states", () => {
     // act
     await waitForHudBootstrap(app);
     await renderPlayingHudState(app);
+    const initialSize = await waitForStableWindowContentSize(app);
     const compactToggle = app.page.getByTestId("compact-toggle");
     await compactToggle.click();
-    await waitForStableWindowContentSize(app);
+    const compactSize = await waitForStableWindowContentSize(app);
 
     // assert
     try {
+      expect(compactSize).not.toEqual(initialSize);
       await expect(compactToggle).toHaveAttribute("title", "EXPAND DETAILS");
       await expect(app.page.getByTestId("mode-toggle")).toHaveCount(0);
     } finally {

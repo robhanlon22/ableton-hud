@@ -158,13 +158,16 @@ test("toggles compact mode and resizes window to counter panel", async () => {
     await expect(compactToggle).toHaveAttribute("title", "EXPAND DETAILS");
     await expect(app.page.getByTestId("mode-toggle")).toHaveCount(0);
     const compactSize = await waitForStableWindowContentSize(app);
+    expect(compactSize).not.toEqual(initialSize);
     expect(compactSize.width).toBeLessThanOrEqual(initialSize.width);
     expect(compactSize.height).toBeLessThanOrEqual(initialSize.height);
 
     await compactToggle.click();
     await expect(compactToggle).toHaveAttribute("title", "COLLAPSE DETAILS");
     await expect(app.page.getByTestId("mode-toggle")).toHaveText("Elapsed");
-    expect(await waitForStableWindowContentSize(app)).toEqual(initialSize);
+    expect(await waitForStableWindowContentSize(app, initialSize)).toEqual(
+      initialSize,
+    );
   } finally {
     await closeCurrentHudApp(app);
   }
