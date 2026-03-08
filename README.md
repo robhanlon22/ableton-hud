@@ -133,11 +133,11 @@ along with the Playwright HTML report, as workflow artifacts on every run so
 Windows and macOS executions can be inspected visually. Those artifacts now
 include stable smoke renders for the known HUD states: playing, stopped,
 disconnected, remaining, and compact. On successful `main` pushes, the E2E
-workflow uploads mergeable Windows/macOS blob reports, and the separate
-Playwright report workflow publishes the latest merged HTML report to the repo
-GitHub Pages site. GitHub Pages must use `GitHub Actions` as the publishing
-source for that deployment path. The merged report now labels runs by platform
-so Windows and macOS results do not collapse into a single anonymous list. It
+workflow uploads mergeable Windows/macOS blob reports, merges them into a
+single Playwright HTML report, and publishes that report to the repo GitHub
+Pages site. GitHub Pages must use `GitHub Actions` as the publishing source
+for that deployment path. The merged report now labels runs by platform so
+Windows and macOS results do not collapse into a single anonymous list. It
 also rejects `Reflect`; use explicit property access, assignment, or a typed
 adapter instead.
 
@@ -182,8 +182,8 @@ Release workflow behavior:
 - Those E2E artifacts include stable smoke renders for the known HUD states:
   playing, stopped, disconnected, remaining, and compact
 - On successful `main` pushes, `e2e.yml` uploads Windows/macOS Playwright blob
-  reports, and `playwright-report.yml` merges them and deploys the latest HTML
-  report to the repo GitHub Pages site
+  reports, merges them into a single HTML report, and deploys that report to
+  the repo GitHub Pages site
 - `release.yml` runs on pull requests, `main`, tags, and manual runs
 - `release.yml` waits for successful `Lint`, `Test`, and `E2E` workflow runs on
   the same commit before it runs release-specific `typecheck` and packaging jobs
