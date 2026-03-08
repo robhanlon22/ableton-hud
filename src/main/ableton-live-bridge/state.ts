@@ -4,6 +4,7 @@ import type {
   HudMode,
   HudState,
   LastBarSource,
+  TimingGrid,
 } from "@shared/types";
 
 import {
@@ -166,7 +167,7 @@ export function buildHudState(snapshot: BridgeStateSnapshot): HudState {
     timingGrid.beatsPerBar,
   );
   const isDownbeat = beatInBar === 1;
-  const counterState = resolveCounterState(snapshot, timingGrid.beatsPerBar);
+  const counterState = resolveCounterState(snapshot, timingGrid);
 
   return {
     alwaysOnTop: false,
@@ -208,12 +209,12 @@ function createDefaultCounterParts(): CounterParts {
 /**
  * Computes counter display state for the currently active clip.
  * @param snapshot - The current bridge runtime snapshot.
- * @param beatsPerBar - The effective beats-per-bar value.
+ * @param timingGrid - The effective timing grid for the current signature.
  * @returns The derived counter state.
  */
 function resolveCounterState(
   snapshot: BridgeStateSnapshot,
-  beatsPerBar: number,
+  timingGrid: TimingGrid,
 ): CounterState {
   const defaultState: CounterState = {
     counterParts: createDefaultCounterParts(),
@@ -228,10 +229,6 @@ function resolveCounterState(
     return defaultState;
   }
 
-  const timingGrid = createTimingGrid(
-    snapshot.signatureNumerator,
-    snapshot.signatureDenominator,
-  );
   const currentPosition = snapshot.currentPosition;
   const launchPosition = snapshot.launchPosition ?? currentPosition;
 
@@ -242,7 +239,7 @@ function resolveCounterState(
     };
     return resolveLoopCounterState(
       snapshotWithPosition,
-      timingGrid.beatsPerBar,
+      timingGrid,
       launchPosition,
     );
   }
@@ -261,7 +258,7 @@ function resolveCounterState(
 
   return {
     counterParts,
-    isLastBar: computeIsLastBar(remainingToClipEnd, beatsPerBar),
+    isLastBar: computeIsLastBar(remainingToClipEnd, timingGrid.beatsPerBar),
     lastBarSource: "clip_end",
   };
 }
@@ -291,7 +288,7 @@ function resolveElapsedLoopBeats(
 /**
  * Computes loop-aware counter state.
  * @param snapshot - The current bridge runtime snapshot.
- * @param beatsPerBar - The effective beats-per-bar value.
+ * @param timingGrid - The effective timing grid for the current signature.
  * @param launchPosition - The clip launch position.
  * @returns The loop-aware counter state.
  */
@@ -302,13 +299,9 @@ function resolveLoopCounterState(
      */
     currentPosition: number;
   },
-  beatsPerBar: number,
+  timingGrid: TimingGrid,
   launchPosition: number,
 ): CounterState {
-  const timingGrid = createTimingGrid(
-    snapshot.signatureNumerator,
-    snapshot.signatureDenominator,
-  );
   const currentPosition = snapshot.currentPosition;
   const hasLoopIntro = launchPosition < snapshot.clipMeta.loopStart - EPSILON;
   const inLoopSection =
@@ -334,7 +327,7 @@ function resolveLoopCounterState(
       snapshot.mode === "elapsed"
         ? toElapsedCounterParts(elapsedBeats, timingGrid)
         : toRemainingCounterParts(remainingToLoopEnd, timingGrid),
-    isLastBar: computeIsLastBar(remainingToLoopEnd, beatsPerBar),
+    isLastBar: computeIsLastBar(remainingToLoopEnd, timingGrid.beatsPerBar),
     lastBarSource: "loop_end",
   };
 }

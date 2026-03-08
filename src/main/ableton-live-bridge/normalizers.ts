@@ -3,6 +3,7 @@ import { AbletonLive } from "ableton-live";
 import type {
   LiveClient,
   LiveFactory,
+  LiveFactoryOptions,
   NormalizedSelectedTrackPayload,
   NormalizedTrackReference,
   ObserverCleanup,
@@ -17,20 +18,6 @@ import {
 } from "./types";
 
 const TRACK_PATH_PATTERN = /tracks\s+(\d+)/u;
-
-/**
- * Connection options forwarded to the Ableton Live client factory.
- */
-interface DefaultLiveFactoryOptions {
-  /**
-   * Hostname or IP address of the Live bridge server.
-   */
-  host: string;
-  /**
-   * TCP port exposed by the Live bridge server.
-   */
-  port: number;
-}
 
 /**
  * Parses a zero-based track index from a Live track path string.
@@ -148,6 +135,30 @@ export function toStringValue(value: unknown): string {
 }
 
 /**
+ * Creates the default Live client from factory options.
+ * @param options - Host and port configuration for the Live bridge.
+ * @returns The constructed Live client.
+ */
+function createDefaultLiveClient(options: LiveFactoryOptions): LiveClient {
+  return createLiveClient(options.host, options.port);
+}
+
+/**
+ * Creates a typed Ableton Live client wrapper.
+ * @param host - Connection host for the Live websocket bridge.
+ * @param port - Connection port for the Live websocket bridge.
+ * @returns The constructed Live client.
+ */
+function createLiveClient(host: string, port: number): LiveClient {
+  const liveClient = new AbletonLive({ host, port });
+  if (liveClient.song !== undefined && liveClient.songView !== undefined) {
+    return liveClient;
+  }
+
+  throw new TypeError("Ableton Live client did not expose song surfaces.");
+}
+
+/**
  * Checks whether an unknown cleanup value matches the observer-cleanup contract.
  * @param cleanup - The candidate cleanup value.
  * @returns Whether the value is a callable observer cleanup.
@@ -240,14 +251,23 @@ function toRecord(value: unknown): Record<string, unknown> {
     return {};
   }
 
-  const recordSource = value;
   const record: Record<string, unknown> = {};
-  for (const [key, entryValue] of Object.entries(recordSource)) {
+  for (const [key, entryValue] of Object.entries(value)) {
     record[key] = entryValue;
   }
   return record;
 }
 
+/**
+ * Default Live client factory used by the bridge runtime.
+ */
+export const defaultLiveFactory: LiveFactory = {
+  create: createDefaultLiveClient,
+};
+
+/**
+ * Default payload-normalization helpers used by the bridge runtime.
+ */
 export const defaultPayloadNormalizers: PayloadNormalizers = {
   normalizeCleanup,
   normalizeSelectedTrackPayload,
@@ -258,34 +278,4 @@ export const defaultPayloadNormalizers: PayloadNormalizers = {
   toNumber,
   toSceneColorValue,
   toStringValue,
-};
-
-/**
- * Creates a Live client from factory options.
- * @param options - Host and port configuration for the Live bridge.
- * @returns The constructed Live client.
- */
-function createDefaultLiveClient(
-  options: DefaultLiveFactoryOptions,
-): LiveClient {
-  return createLiveClient(options.host, options.port);
-}
-
-/**
- * Creates a typed Ableton Live client wrapper.
- * @param host - Connection host for the Live websocket bridge.
- * @param port - Connection port for the Live websocket bridge.
- * @returns The constructed Live client.
- */
-function createLiveClient(host: string, port: number): LiveClient {
-  const liveClient = new AbletonLive({ host, port });
-  if (liveClient.song !== undefined && liveClient.songView !== undefined) {
-    return liveClient;
-  }
-
-  throw new TypeError("Ableton Live client did not expose song surfaces.");
-}
-
-export const defaultLiveFactory: LiveFactory = {
-  create: createDefaultLiveClient,
 };

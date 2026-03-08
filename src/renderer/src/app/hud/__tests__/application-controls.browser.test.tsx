@@ -9,6 +9,9 @@ import { page } from "vitest/browser";
 
 import { HudApp } from "..";
 
+const MEASURED_COMPACT_PANEL_HEIGHT = 20;
+const MEASURED_COMPACT_PANEL_WIDTH = 200;
+
 it("hydrates from hudApi and forwards toggle commands", async () => {
   // arrange
   const hudApi = installResolvedHudApiMock(
@@ -139,6 +142,101 @@ it("uses minimal compact dimensions when panel ref reports zero size", async () 
       enabled: true,
       height: 4,
       width: 320,
+    });
+  });
+  getBoundingClientRectSpy.mockRestore();
+});
+
+it("does not resend compact resize for same-width compact counter updates", async () => {
+  // arrange
+  const hudApi = installResolvedHudApiMock(
+    makeHudState({ counterText: "6:6:6", mode: "elapsed" }),
+  );
+  const getBoundingClientRectSpy = vi
+    .spyOn(HTMLDivElement.prototype, "getBoundingClientRect")
+    .mockImplementation(
+      () =>
+        new DOMRect(
+          0,
+          0,
+          MEASURED_COMPACT_PANEL_WIDTH,
+          MEASURED_COMPACT_PANEL_HEIGHT,
+        ),
+    );
+
+  // act
+  await render(<HudApp />);
+  await vi.waitFor(() => {
+    expect(page.getByTestId("counter-text").element().textContent).toBe(
+      "6:6:6",
+    );
+  });
+  await page.getByTestId("compact-toggle").click();
+  await vi.waitFor(() => {
+    expect(hudApi.setCompactView).toHaveBeenCalledWith({
+      enabled: true,
+      height: 24,
+      width: 320,
+    });
+  });
+  hudApi.setCompactView.mockClear();
+  hudApi.emit(makeHudState({ compactView: true, counterText: "7:7:7" }));
+  await new Promise<void>((resolve) => {
+    globalThis.requestAnimationFrame(() => {
+      globalThis.requestAnimationFrame(() => {
+        resolve();
+      });
+    });
+  });
+
+  // assert
+  expect(page.getByTestId("counter-text").element().textContent).toBe("7:7:7");
+  expect(hudApi.setCompactView).not.toHaveBeenCalled();
+  getBoundingClientRectSpy.mockRestore();
+});
+
+it("resends compact resize when compact counter text changes the computed width", async () => {
+  // arrange
+  const hudApi = installResolvedHudApiMock(
+    makeHudState({ counterText: "6:6:6", mode: "elapsed" }),
+  );
+  const getBoundingClientRectSpy = vi
+    .spyOn(HTMLDivElement.prototype, "getBoundingClientRect")
+    .mockImplementation(
+      () =>
+        new DOMRect(
+          0,
+          0,
+          MEASURED_COMPACT_PANEL_WIDTH,
+          MEASURED_COMPACT_PANEL_HEIGHT,
+        ),
+    );
+
+  // act
+  await render(<HudApp />);
+  await vi.waitFor(() => {
+    expect(page.getByTestId("counter-text").element().textContent).toBe(
+      "6:6:6",
+    );
+  });
+  await page.getByTestId("compact-toggle").click();
+  await vi.waitFor(() => {
+    expect(hudApi.setCompactView).toHaveBeenCalledWith({
+      enabled: true,
+      height: 24,
+      width: 320,
+    });
+  });
+  hudApi.setCompactView.mockClear();
+  hudApi.emit(makeHudState({ compactView: true, counterText: "12:3:4" }));
+
+  // assert
+  await vi.waitFor(() => {
+    expect(hudApi.setCompactView).toHaveBeenCalledTimes(1);
+    expect(hudApi.setCompactView).toHaveBeenCalledWith({
+      enabled: true,
+      height: 24,
+      width: 364,
     });
   });
   getBoundingClientRectSpy.mockRestore();

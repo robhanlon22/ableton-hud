@@ -1,6 +1,7 @@
 import type { HudMode, HudState } from "@shared/types";
 
 import { AbletonLiveBridge } from "@main/ableton-live-bridge";
+import { areHudStatesEqual } from "@main/app/hud-state-equality";
 import { PrefStore } from "@main/preferences";
 import {
   CompactViewRequestSchema,
@@ -482,6 +483,13 @@ function resolvePreloadPath(): string {
 function sendStateToWindow(state: HudState): void {
   const parsedState = HudStateSchema.safeParse(withWindowState(state));
   if (!parsedState.success) {
+    return;
+  }
+
+  if (
+    latestHudState !== undefined &&
+    areHudStatesEqual(latestHudState, parsedState.data)
+  ) {
     return;
   }
 

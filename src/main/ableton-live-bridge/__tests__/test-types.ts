@@ -151,7 +151,7 @@ export interface BridgeRuntime {
   /** Handles selected-track updates. */
   handleSelectedTrack: (trackIndex: number) => void;
   /** Handles song-time updates. */
-  handleSongTime: (songTime: number) => void;
+  handleSongTime: (songTime: number) => boolean;
   /** Checks whether a loop wrap is natural. */
   isNaturalLoopWrap: (
     previousPosition: number,
@@ -212,8 +212,6 @@ export interface BridgeRuntime {
   ) => Promise<void>;
   /** Subscribes to a resolved scene. */
   subscribeScene: (sceneIndex: number, token: number) => Promise<void>;
-  /** Subscription helpers for track, clip, and scene state. */
-  subscriptions: BridgeSubscriptionRuntime;
   /** Toggles the track-lock state. */
   toggleTrackLock: () => boolean;
   /** Current track color snapshot. */
@@ -226,25 +224,6 @@ export interface BridgeRuntime {
   trackObserverCleanups: Cleanup[];
   /** Whether a clip transition is in progress. */
   transitionInProgress: boolean;
-}
-
-/**
- * Describes the subscription helpers exposed by the bridge runtime.
- */
-export interface BridgeSubscriptionRuntime {
-  /** Observes the currently selected track. */
-  observeTrack: (track: LiveTrack, trackIndex: number) => Promise<void>;
-  /** Subscribes to the active clip on the selected track. */
-  subscribeClip: (
-    trackIndex: number,
-    slotIndex: number,
-    clip: LiveClip,
-    token: number,
-  ) => Promise<void>;
-  /** Subscribes to the active scene. */
-  subscribeScene: (sceneIndex: number, token: number) => Promise<void>;
-  /** Synchronizes the selected-track state snapshot. */
-  syncTrackState: (track: LiveTrack) => Promise<void>;
 }
 
 /**

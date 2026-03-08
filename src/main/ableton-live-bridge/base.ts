@@ -301,23 +301,29 @@ export abstract class AbletonLiveBridgeBase {
   /**
    * Updates beat counters from the current Live song time.
    * @param songTime - The current song time in beats.
+   * @returns Whether the beat-derived HUD state changed.
    */
-  protected handleSongTime(songTime: number): void {
+  protected handleSongTime(songTime: number): boolean {
     const wholeBeat = Math.max(0, Math.floor(songTime + EPSILON));
 
     if (this.lastWholeBeat === undefined) {
       this.lastWholeBeat = wholeBeat;
+      if (wholeBeat === this.beatCounter) {
+        return false;
+      }
+
       this.beatCounter = wholeBeat;
-      this.emit();
-      return;
+      return true;
     }
 
-    if (wholeBeat !== this.lastWholeBeat) {
-      this.lastWholeBeat = wholeBeat;
-      this.beatCounter = wholeBeat;
-      this.beatFlashToken += 1;
-      this.emit();
+    if (wholeBeat === this.lastWholeBeat) {
+      return false;
     }
+
+    this.lastWholeBeat = wholeBeat;
+    this.beatCounter = wholeBeat;
+    this.beatFlashToken += 1;
+    return true;
   }
 
   /**

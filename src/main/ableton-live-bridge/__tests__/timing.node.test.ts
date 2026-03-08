@@ -29,6 +29,7 @@ const SECOND_LOOP_POSITION = 1.2;
 const SMALL_CLIP_END = 2;
 const THIRD_SONG_TIME = 1.05;
 const TRACKING_SONG_TIME = 12.2;
+const UNCHANGED_BEAT_SONG_TIME = 1.2;
 const UPDATED_DENOMINATOR = 16;
 const UPDATED_NUMERATOR = 9;
 
@@ -38,12 +39,12 @@ beforeEach(() => {
 
 it("tracks song time and clip position through natural and non-natural wraps", async () => {
   // arrange
-  const { bridge, onState } = await createBridge();
+  const { bridge } = await createBridge();
 
   // act
-  bridge.handleSongTime(FIRST_SONG_TIME);
-  bridge.handleSongTime(NEXT_SONG_TIME);
-  bridge.handleSongTime(THIRD_SONG_TIME);
+  const firstSongTimeChanged = bridge.handleSongTime(FIRST_SONG_TIME);
+  const nextSongTimeChanged = bridge.handleSongTime(NEXT_SONG_TIME);
+  const thirdSongTimeChanged = bridge.handleSongTime(THIRD_SONG_TIME);
   bridge.clipMeta = {
     length: INITIAL_CLIP_LENGTH,
     loopEnd: LOOP_END,
@@ -61,11 +62,65 @@ it("tracks song time and clip position through natural and non-natural wraps", a
   };
 
   // assert
+  expect(firstSongTimeChanged).toBe(false);
+  expect(nextSongTimeChanged).toBe(false);
+  expect(thirdSongTimeChanged).toBe(true);
   expect(bridge.beatCounter).toBe(1);
   expect(bridge.beatFlashToken).toBe(1);
-  expect(onState).toHaveBeenCalledTimes(SMALL_CLIP_END);
   expect(bridge.loopWrapCount).toBe(0);
   expect(bridge.isNaturalLoopWrap(ACTIVE_TRACK_INDEX, 1)).toBe(false);
+});
+
+it("emits song-time updates only when the beat-derived HUD state changes", async () => {
+  // arrange
+  const { bridge, onState } = await createBridge();
+  const songListeners = new Map<SongProperty, Observer>();
+  bridge.access.safeSongObserve = vi.fn(
+    (property: SongProperty, listener: Observer) => {
+      songListeners.set(property, listener);
+      return resolved(createCleanupMock());
+    },
+  );
+  bridge.access.safeSongViewObserve = vi.fn(() =>
+    resolved(createCleanupMock()),
+  );
+  bridge.access.safeSongGet = vi.fn((property: SongProperty) => {
+    if (property === "signature_numerator") {
+      return resolved(BOOTSTRAP_NUMERATOR);
+    }
+
+    if (property === "signature_denominator") {
+      return resolved(BOOTSTRAP_DENOMINATOR);
+    }
+
+    if (property === "is_playing") {
+      return resolved(true);
+    }
+
+    return resolved(FIRST_SONG_TIME);
+  });
+  bridge.access.safeSongViewGet = vi.fn(() => resolved(INITIAL_SELECTED_TRACK));
+  vi.spyOn(bridge, "handleSelectedTrack").mockImplementation(
+    /**
+     *
+     */
+    function noop() {
+      return;
+    },
+  );
+  bridge.started = true;
+
+  // act
+  await bridge.bootstrap();
+  onState.mockClear();
+  songListeners.get("current_song_time")?.(NEXT_SONG_TIME);
+  songListeners.get("current_song_time")?.(THIRD_SONG_TIME);
+  songListeners.get("current_song_time")?.(UNCHANGED_BEAT_SONG_TIME);
+
+  // assert
+  expect(onState).toHaveBeenCalledTimes(1);
+  expect(bridge.beatCounter).toBe(1);
+  expect(bridge.beatFlashToken).toBe(1);
 });
 
 it("skips emit while a transition is in progress", async () => {

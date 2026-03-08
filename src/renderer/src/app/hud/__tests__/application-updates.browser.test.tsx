@@ -77,7 +77,7 @@ it("clears clip color immediately when incoming clip color is absent", async () 
   });
 });
 
-it("turns off flash state after the duration window", async () => {
+it("keeps the flash timeout active across same-token HUD updates", async () => {
   // arrange
   vi.useFakeTimers();
   const hudApi = installResolvedHudApiMock(
@@ -98,7 +98,6 @@ it("turns off flash state after the duration window", async () => {
   });
   const counterPanelClassNameBefore =
     page.getByTestId("counter-panel").element().getAttribute("class") ?? "";
-  await vi.advanceTimersByTimeAsync(STANDARD_FLASH_MS);
   hudApi.emit(
     makeHudState({
       beatFlashToken: 5,
@@ -107,6 +106,12 @@ it("turns off flash state after the duration window", async () => {
       isLastBar: false,
     }),
   );
+  await vi.waitFor(() => {
+    expect(page.getByTestId("counter-text").element().textContent).toBe(
+      "4:1:2",
+    );
+  });
+  await vi.advanceTimersByTimeAsync(STANDARD_FLASH_MS);
 
   // assert
   expect(counterPanelClassNameBefore).toContain("border-[#4a5a45]");
@@ -114,6 +119,51 @@ it("turns off flash state after the duration window", async () => {
     const counterPanelClassNameAfter =
       page.getByTestId("counter-panel").element().getAttribute("class") ?? "";
     expect(counterPanelClassNameAfter).not.toContain("border-[#4a5a45]");
+    expect(page.getByTestId("counter-text").element().textContent).toBe(
+      "4:1:2",
+    );
+  });
+});
+
+it("retriggers flash when beatFlashToken changes", async () => {
+  // arrange
+  vi.useFakeTimers();
+  const hudApi = installResolvedHudApiMock(
+    makeHudState({
+      beatFlashToken: 5,
+      counterText: "4:1:1",
+      isDownbeat: false,
+      isLastBar: false,
+    }),
+  );
+
+  // act
+  await render(<HudApp />);
+  await vi.waitFor(() => {
+    expect(page.getByTestId("counter-text").element().textContent).toBe(
+      "4:1:1",
+    );
+  });
+  await vi.advanceTimersByTimeAsync(STANDARD_FLASH_MS);
+  await vi.waitFor(() => {
+    const counterPanelClassName =
+      page.getByTestId("counter-panel").element().getAttribute("class") ?? "";
+    expect(counterPanelClassName).not.toContain("border-[#4a5a45]");
+  });
+  hudApi.emit(
+    makeHudState({
+      beatFlashToken: 6,
+      counterText: "4:1:2",
+      isDownbeat: false,
+      isLastBar: false,
+    }),
+  );
+
+  // assert
+  await vi.waitFor(() => {
+    const counterPanelClassName =
+      page.getByTestId("counter-panel").element().getAttribute("class") ?? "";
+    expect(counterPanelClassName).toContain("border-[#4a5a45]");
     expect(page.getByTestId("counter-text").element().textContent).toBe(
       "4:1:2",
     );

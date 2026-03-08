@@ -14,6 +14,54 @@ const COMPACT_MIN_WIDTH = 320;
 const COUNTER_CHARACTER_WIDTH = 52;
 
 /**
+ * Captures the inputs required to manage beat flash effects.
+ */
+interface BeatFlashLifecycleOptions {
+  /** Latest beat-flash token. */
+  beatFlashToken: number;
+  /** Whether the current beat is the downbeat. */
+  isDownbeat: boolean;
+  /** Whether the counter is currently in its last visible bar. */
+  isLastBar: boolean;
+  /** Ref holding the previous beat flash token. */
+  lastFlashTokenReference: RefObject<number>;
+  /** React state setter for flash visibility. */
+  setIsFlashActive: (enabled: boolean) => void;
+}
+
+/**
+ * Captures the inputs required to manage compact resize effects.
+ */
+interface CompactResizeLifecycleOptions extends CompactResizeRequest {
+  /** Whether compact mode is currently active. */
+  isCompactView: boolean;
+}
+
+/**
+ * Captures the inputs required to schedule a compact-mode resize.
+ */
+interface CompactResizeRequest {
+  /** Ref for measuring the compact counter panel. */
+  compactPanelReference: RefObject<HTMLDivElement | null>;
+  /** Current counter text used to derive compact width. */
+  counterText: string;
+  /** Ref holding the last sent compact size. */
+  lastCompactSizeReference: RefObject<CompactSize | undefined>;
+  /** React state setter for compact-mode visibility. */
+  setIsCompactView: (enabled: boolean) => void;
+}
+
+/**
+ * Stores the last compact window size sent to the main process.
+ */
+interface CompactSize {
+  /** Compact content height in pixels. */
+  height: number;
+  /** Compact content width in pixels. */
+  width: number;
+}
+
+/**
  * Aggregates renderer HUD state, refs, and UI event handlers for the app shell.
  */
 interface HudAppState {
@@ -49,14 +97,25 @@ export const useHudAppState = (): HudAppState => {
   const [isFlashActive, setIsFlashActive] = useState(false);
   // eslint-disable-next-line unicorn/prevent-abbreviations -- React ref identifiers must end in `Ref`.
   const lastFlashTokenReferenceRef = useRef(-1);
-
-  useBeatFlashLifecycle(hudState, lastFlashTokenReferenceRef, setIsFlashActive);
-  useCompactResizeLifecycle(
-    compactPanelElementRef,
-    hudState.counterText,
-    isCompactView,
-    setIsCompactView,
+  // eslint-disable-next-line unicorn/prevent-abbreviations -- React ref identifiers must end in `Ref`.
+  const lastCompactSizeReferenceRef = useRef<CompactSize | undefined>(
+    undefined,
   );
+
+  useBeatFlashLifecycle({
+    beatFlashToken: hudState.beatFlashToken,
+    isDownbeat: hudState.isDownbeat,
+    isLastBar: hudState.isLastBar,
+    lastFlashTokenReference: lastFlashTokenReferenceRef,
+    setIsFlashActive,
+  });
+  useCompactResizeLifecycle({
+    compactPanelReference: compactPanelElementRef,
+    counterText: hudState.counterText,
+    isCompactView,
+    lastCompactSizeReference: lastCompactSizeReferenceRef,
+    setIsCompactView,
+  });
   useHudStateSubscription(setHudState, setIsCompactView);
 
   /**
@@ -141,26 +200,39 @@ const loadInitialHudState = async (hudApi: HudApi): Promise<HudState> => {
 
 /**
  * Schedules a compact-mode resize request after the next layout frame.
- * @param compactPanelReference - Ref for the compact counter panel element.
- * @param counterText - The current counter string used to estimate width.
- * @param setIsCompactView - React state setter for compact-mode visibility.
+ * @param options - The compact resize inputs for the current frame.
+ * @returns The queued animation-frame id.
  */
-const requestCompactResize = (
-  compactPanelReference: RefObject<HTMLDivElement | null>,
-  counterText: string,
-  setIsCompactView: (enabled: boolean) => void,
-): void => {
-  globalThis.requestAnimationFrame(() => {
-    const compactHeight = resolveCompactHeight(compactPanelReference.current);
-    const compactWidth = resolveCompactWidth(counterText);
+const requestCompactResize = (options: CompactResizeRequest): number => {
+  const {
+    compactPanelReference,
+    counterText,
+    lastCompactSizeReference,
+    setIsCompactView,
+  } = options;
 
+  return globalThis.requestAnimationFrame(() => {
+    const nextCompactSize = {
+      height: resolveCompactHeight(compactPanelReference.current),
+      width: resolveCompactWidth(counterText),
+    };
+    const lastCompactSize = lastCompactSizeReference.current;
+    if (
+      nextCompactSize.height === lastCompactSize?.height &&
+      nextCompactSize.width === lastCompactSize.width
+    ) {
+      return;
+    }
+
+    lastCompactSizeReference.current = nextCompactSize;
     void getHudApi()
       .setCompactView({
         enabled: true,
-        height: compactHeight,
-        width: compactWidth,
+        height: nextCompactSize.height,
+        width: nextCompactSize.width,
       })
       .catch(() => {
+        lastCompactSizeReference.current = undefined;
         disableCompactView(setIsCompactView);
       });
   });
@@ -212,53 +284,79 @@ const toggleTrackLock = (): void => {
 
 /**
  * Tracks beat-flash tokens and clears the flash after the computed duration.
- * @param hudState - The latest HUD state snapshot.
- * @param lastFlashTokenReference - Ref holding the previous beat flash token.
- * @param setIsFlashActive - React state setter for flash visibility.
+ * @param options - The beat flash inputs for the current render.
  */
-const useBeatFlashLifecycle = (
-  hudState: HudState,
-  lastFlashTokenReference: RefObject<number>,
-  setIsFlashActive: (enabled: boolean) => void,
-): void => {
+const useBeatFlashLifecycle = (options: BeatFlashLifecycleOptions): void => {
+  const {
+    beatFlashToken,
+    isDownbeat,
+    isLastBar,
+    lastFlashTokenReference,
+    setIsFlashActive,
+  } = options;
+
   useEffect(() => {
-    if (hudState.beatFlashToken === lastFlashTokenReference.current) {
+    if (beatFlashToken === lastFlashTokenReference.current) {
       return;
     }
 
-    lastFlashTokenReference.current = hudState.beatFlashToken;
+    lastFlashTokenReference.current = beatFlashToken;
     activateFlash(setIsFlashActive);
 
     const timer = globalThis.setTimeout(() => {
       setIsFlashActive(false);
-    }, flashDuration(hudState));
+    }, flashDuration({ isDownbeat, isLastBar }));
 
     return () => {
       globalThis.clearTimeout(timer);
     };
-  }, [hudState, lastFlashTokenReference, setIsFlashActive]);
+  }, [
+    beatFlashToken,
+    isDownbeat,
+    isLastBar,
+    lastFlashTokenReference,
+    setIsFlashActive,
+  ]);
 };
 
 /**
  * Recomputes compact-mode bounds whenever the compact counter content changes.
- * @param compactPanelReference - Ref for the compact counter panel element.
- * @param counterText - The visible counter text.
- * @param isCompactView - Whether compact mode is active.
- * @param setIsCompactView - React state setter for compact-mode visibility.
+ * @param options - The compact resize inputs for the current render.
  */
 const useCompactResizeLifecycle = (
-  compactPanelReference: RefObject<HTMLDivElement | null>,
-  counterText: string,
-  isCompactView: boolean,
-  setIsCompactView: (enabled: boolean) => void,
+  options: CompactResizeLifecycleOptions,
 ): void => {
+  const {
+    compactPanelReference,
+    counterText,
+    isCompactView,
+    lastCompactSizeReference,
+    setIsCompactView,
+  } = options;
+
   useEffect(() => {
     if (!isCompactView) {
+      lastCompactSizeReference.current = undefined;
       return;
     }
 
-    requestCompactResize(compactPanelReference, counterText, setIsCompactView);
-  }, [compactPanelReference, counterText, isCompactView, setIsCompactView]);
+    const frameId = requestCompactResize({
+      compactPanelReference,
+      counterText,
+      lastCompactSizeReference,
+      setIsCompactView,
+    });
+
+    return () => {
+      globalThis.cancelAnimationFrame(frameId);
+    };
+  }, [
+    compactPanelReference,
+    counterText,
+    isCompactView,
+    lastCompactSizeReference,
+    setIsCompactView,
+  ]);
 };
 
 /**

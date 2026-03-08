@@ -39,6 +39,7 @@ const INITIAL_SLOT_INDEX = 1;
 const INITIAL_TRACK_INDEX = 0;
 const LOOPING_DISABLED = 0;
 const LOOPING_ENABLED = true;
+const MISMATCHED_TRACK_INDEX = 7;
 const PLAYING_SLOT_INDEX = 4;
 const SCENE_COLOR = 3_355_443;
 const STARTED_SLOT_TOKEN = 10;
@@ -312,6 +313,50 @@ it("subscribes clip observers and applies clip updates", async () => {
   expect(bridge.clipMeta.loopStart).toBe(CLIP_LOOP_START);
   expect(bridge.clipMeta.loopEnd).toBe(CLIP_END);
   expect(bridge.clipMeta.looping).toBe(false);
+});
+
+it("returns early from subscribeClip when there is no active clip", async () => {
+  // arrange
+  const { bridge } = await createBridge();
+  const clip = createLiveClip();
+  const observeSpy = vi.spyOn(bridge.access, "safeClipObserve");
+  const getSpy = vi.spyOn(bridge.access, "safeClipGet");
+
+  // act
+  await bridge.subscribeClip(
+    INITIAL_TRACK_INDEX,
+    INITIAL_SLOT_INDEX,
+    clip,
+    BASE_TOKEN,
+  );
+
+  // assert
+  expect(observeSpy).not.toHaveBeenCalled();
+  expect(getSpy).not.toHaveBeenCalled();
+});
+
+it("returns early from subscribeClip when the active clip does not match", async () => {
+  // arrange
+  const { bridge } = await createBridge();
+  const clip = createLiveClip();
+  const observeSpy = vi.spyOn(bridge.access, "safeClipObserve");
+  const getSpy = vi.spyOn(bridge.access, "safeClipGet");
+  bridge.activeClip = {
+    clip: INITIAL_SLOT_INDEX,
+    track: MISMATCHED_TRACK_INDEX,
+  };
+
+  // act
+  await bridge.subscribeClip(
+    INITIAL_TRACK_INDEX,
+    INITIAL_SLOT_INDEX,
+    clip,
+    BASE_TOKEN,
+  );
+
+  // assert
+  expect(observeSpy).not.toHaveBeenCalled();
+  expect(getSpy).not.toHaveBeenCalled();
 });
 
 it("ignores clip updates after the active clip changes or the token shifts", async () => {

@@ -9,7 +9,9 @@ export const STANDARD_FLASH_MS = 150;
  * @param state - HUD state used to derive downbeat and last-bar emphasis.
  * @returns The flash duration in milliseconds.
  */
-export function flashDuration(state: HudState): number {
+export function flashDuration(
+  state: Pick<HudState, "isDownbeat" | "isLastBar">,
+): number {
   if (state.isLastBar && state.isDownbeat) {
     return DOWNBEAT_LAST_BAR_FLASH_MS;
   }

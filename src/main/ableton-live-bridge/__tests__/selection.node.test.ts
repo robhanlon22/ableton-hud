@@ -143,7 +143,7 @@ it("returns early when the track token changes before the track resolves", async
   // arrange
   const { bridge } = await createBridge();
   const track = createLiveTrack();
-  const syncTrackStateSpy = vi.spyOn(bridge.subscriptions, "syncTrackState");
+  const trackGetSpy = vi.spyOn(bridge.access, "safeTrackGet");
   bridge.access.getTrack = vi.fn(() => {
     bridge.selectedTrackToken += 1;
     return resolved(track);
@@ -153,7 +153,7 @@ it("returns early when the track token changes before the track resolves", async
   await bridge.applySelectedTrack(LOCKED_SELECTED_TRACK_INDEX);
 
   // assert
-  expect(syncTrackStateSpy).not.toHaveBeenCalled();
+  expect(trackGetSpy).not.toHaveBeenCalled();
 });
 
 it("keeps the selected track when the resolved track is missing", async () => {
