@@ -1,9 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
-import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-import type { HudMode, HudState } from "../shared/types";
+import type { HudMode, HudState } from "@shared/types";
 
 import {
   CompactViewRequestSchema,
@@ -11,26 +6,47 @@ import {
   HUD_CHANNELS,
   HudModeSchema,
   HudStateSchema,
-} from "../shared/ipc";
+} from "@shared/ipc";
+import { app, BrowserWindow, ipcMain } from "electron";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { AbletonLiveBridge } from "./ableton-live-bridge";
 import { PrefStore } from "./prefs";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-let mainWindow: BrowserWindow | null = null;
-let latestHudState: HudState | null = null;
-let bridge: AbletonLiveBridge | null = null;
-let mode: HudMode = "elapsed";
-let trackLocked = false;
-let isCompactView = false;
-let suppressPersist = false;
-let preCompactBounds: null | {
+const __dirname = path.dirname(__filename);
+const MAX_PORT_NUMBER = 65_535;
+interface CompactWindowBounds {
   contentHeight: number;
   contentWidth: number;
   x: number;
   y: number;
-} = null;
+}
+
+interface InitialWindowBounds {
+  height: number;
+  width: number;
+  x?: number;
+  y?: number;
+}
+
+interface StoredWindowBounds {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+}
+
+let mainWindow: BrowserWindow | undefined;
+let latestHudState: HudState | undefined;
+let bridge: AbletonLiveBridge | undefined;
+let mode: HudMode = "elapsed";
+let trackLocked = false;
+let isCompactView = false;
+let suppressPersist = false;
+let preCompactBounds: CompactWindowBounds | undefined;
 
 const WINDOW_CONTENT_WIDTH = 370;
 const WINDOW_CONTENT_HEIGHT = 180;
@@ -42,7 +58,11 @@ const rendererDebugPort = process.env.AOSC_RENDERER_DEBUG_PORT;
 
 if (rendererDebugPort) {
   const parsedPort = Number.parseInt(rendererDebugPort, 10);
-  if (Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= 65535) {
+  if (
+    Number.isInteger(parsedPort) &&
+    parsedPort > 0 &&
+    parsedPort <= MAX_PORT_NUMBER
+  ) {
     app.commandLine.appendSwitch("remote-debugging-port", String(parsedPort));
   }
 }
@@ -71,56 +91,30 @@ function applyHudTopmost(win: BrowserWindow, enabled: boolean): void {
 }
 
 /**
- *
+ * Builds the fallback HUD state used before the bridge publishes live data.
+ * @returns The default HUD state snapshot for the current window mode.
+ */
+function buildDefaultState(): HudState {
+  return createDefaultHudState(
+    mode,
+    resolveAlwaysOnTop(),
+    isCompactView,
+    trackLocked,
+  );
+}
+
+/**
+ * Creates the Electron browser window and restores persisted preferences.
+ * @returns A promise that settles after the window is ready.
  */
 async function createWindow(): Promise<void> {
   const prefs = await prefStore.load();
   const windowBounds = prefs.windowBounds;
   isCompactView = prefs.compactMode;
-  const positionBounds = windowBounds
-    ? {
-        x: windowBounds.x,
-        y: windowBounds.y,
-      }
-    : {};
-  const initialBounds = isCompactView
-    ? {
-        ...positionBounds,
-        height: COMPACT_CONTENT_HEIGHT,
-        width: COMPACT_CONTENT_WIDTH,
-      }
-    : {
-        ...positionBounds,
-        height: windowBounds?.height ?? WINDOW_CONTENT_HEIGHT,
-        width: windowBounds?.width ?? WINDOW_CONTENT_WIDTH,
-      };
-  preCompactBounds =
-    isCompactView && windowBounds
-      ? {
-          contentHeight: windowBounds.height,
-          contentWidth: windowBounds.width,
-          x: windowBounds.x,
-          y: windowBounds.y,
-        }
-      : null;
-
-  const preloadCandidates = [
-    join(__dirname, "../preload/index.cjs"),
-    join(__dirname, "../preload/index.js"),
-    join(__dirname, "../preload/index.mjs"),
-  ];
-  const preloadPath =
-    preloadCandidates.find((candidate) => existsSync(candidate)) ??
-    preloadCandidates[0];
-
-  if (!existsSync(preloadPath)) {
-    throw new Error(
-      `Unable to find preload bundle. Tried: ${preloadCandidates.join(", ")}`,
-    );
-  }
+  preCompactBounds = resolvePreCompactBounds(windowBounds);
 
   mainWindow = new BrowserWindow({
-    ...initialBounds,
+    ...resolveInitialWindowBounds(windowBounds),
     alwaysOnTop: false,
     autoHideMenuBar: true,
     resizable: !isCompactView,
@@ -129,53 +123,151 @@ async function createWindow(): Promise<void> {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      preload: preloadPath,
+      preload: resolvePreloadPath(),
       sandbox: false,
     },
   });
   applyHudTopmost(mainWindow, prefs.alwaysOnTop);
-
-  const rendererUrl =
-    process.env.ELECTRON_RENDERER_URL ?? process.env.VITE_DEV_SERVER_URL;
-  if (rendererUrl) {
-    await mainWindow.loadURL(rendererUrl);
-  } else {
-    await mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
-  }
-
-  mainWindow.on("resize", () => {
-    if (suppressPersist) {
-      return;
-    }
-    void persistPrefs();
-  });
-
-  mainWindow.on("move", () => {
-    if (suppressPersist) {
-      return;
-    }
-    void persistPrefs();
-  });
-
-  mainWindow.webContents.on("did-finish-load", () => {
-    const initialState = latestHudState
-      ? withWindowState(latestHudState)
-      : createDefaultHudState(
-          mode,
-          resolveAlwaysOnTop(),
-          isCompactView,
-          trackLocked,
-        );
-    mainWindow?.webContents.send(HUD_CHANNELS.state, initialState);
-  });
-
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
+  await loadRenderer(mainWindow);
+  registerWindowListeners(mainWindow);
 }
 
 /**
- *
+ * Returns the latest HUD state, augmented with window-derived flags.
+ * @returns The state that preload should hand to the renderer on first load.
+ */
+function getInitialState(): HudState {
+  return latestHudState ? withWindowState(latestHudState) : buildDefaultState();
+}
+
+/**
+ * Updates compact-mode window state from an IPC request payload.
+ * @param _event - The IPC invocation event, unused here.
+ * @param request - Untrusted renderer payload to validate before applying.
+ * @returns A promise that settles after window state and preferences are updated.
+ */
+async function handleSetCompactView(
+  _event: unknown,
+  request: unknown,
+): Promise<void> {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  const parsedRequest = CompactViewRequestSchema.parse(request);
+  if (parsedRequest.enabled) {
+    const { height, width } = parsedRequest;
+    if (!isCompactView) {
+      const bounds = mainWindow.getBounds();
+      const [contentWidth, contentHeight] = mainWindow.getContentSize();
+      preCompactBounds = {
+        contentHeight,
+        contentWidth,
+        x: bounds.x,
+        y: bounds.y,
+      };
+    }
+
+    suppressPersist = true;
+    isCompactView = true;
+    mainWindow.setResizable(false);
+    mainWindow.setContentSize(width, height);
+    suppressPersist = false;
+    await persistPrefs();
+    return;
+  }
+
+  if (!isCompactView) {
+    return;
+  }
+
+  suppressPersist = true;
+  mainWindow.setResizable(true);
+  if (preCompactBounds) {
+    mainWindow.setPosition(preCompactBounds.x, preCompactBounds.y);
+    mainWindow.setContentSize(
+      preCompactBounds.contentWidth,
+      preCompactBounds.contentHeight,
+    );
+  }
+
+  isCompactView = false;
+  suppressPersist = false;
+  preCompactBounds = undefined;
+  await persistPrefs();
+}
+
+/**
+ * Persists a requested HUD timing mode.
+ * @param _event - The IPC invocation event, unused here.
+ * @param nextMode - The requested mode from the renderer.
+ * @returns A promise that settles after the bridge and prefs are updated.
+ */
+async function handleSetMode(
+  _event: unknown,
+  nextMode: HudMode,
+): Promise<void> {
+  const parsedMode = HudModeSchema.parse(nextMode);
+  mode = parsedMode;
+  bridge?.setMode(parsedMode);
+  await persistPrefs();
+}
+
+/**
+ * Logs startup failure details and terminates the Electron app.
+ * @param error - The startup failure.
+ */
+function handleStartupFailure(error: unknown): void {
+  const message =
+    error instanceof Error ? (error.stack ?? error.message) : String(error);
+  process.stderr.write(`Failed to start Ableton HUD.\n${message}\n`);
+  app.quit();
+}
+
+/**
+ * Toggles the always-on-top window flag.
+ * @returns A promise that settles after preferences are persisted.
+ */
+async function handleToggleTopmost(): Promise<void> {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  const nextEnabled = !mainWindow.isAlwaysOnTop();
+  applyHudTopmost(mainWindow, nextEnabled);
+  await persistPrefs();
+  sendStateToWindow(getInitialState());
+}
+
+/**
+ * Toggles track locking in the Ableton bridge.
+ * @returns A promise that settles after preferences are persisted.
+ */
+async function handleToggleTrackLock(): Promise<void> {
+  if (!bridge) {
+    return;
+  }
+
+  trackLocked = bridge.toggleTrackLock();
+  await persistPrefs();
+}
+
+/**
+ * Loads the renderer bundle or dev server into the main window.
+ * @param win - The window to populate.
+ * @returns A promise that settles after the renderer target loads.
+ */
+async function loadRenderer(win: BrowserWindow): Promise<void> {
+  const rendererUrl =
+    process.env.ELECTRON_RENDERER_URL ?? process.env.VITE_DEV_SERVER_URL;
+  await (rendererUrl
+    ? win.loadURL(rendererUrl)
+    : win.loadFile(path.join(__dirname, "../renderer/index.html")));
+}
+
+/**
+ * Persists the latest window and HUD preferences to disk.
+ * @returns A promise that settles after the preferences file is written.
  */
 async function persistPrefs(): Promise<void> {
   if (!mainWindow || mainWindow.isDestroyed()) {
@@ -209,113 +301,47 @@ async function persistPrefs(): Promise<void> {
 }
 
 /**
+ * Persists preferences unless a temporary resize/move mutation is in progress.
+ */
+function persistUnlessSuppressed(): void {
+  if (suppressPersist) {
+    return;
+  }
+
+  void persistPrefs();
+}
+
+/**
  *
  */
 function registerIpcHandlers(): void {
   ipcMain.removeHandler(HUD_CHANNELS.getInitialState);
-  ipcMain.handle(HUD_CHANNELS.getInitialState, () => {
-    return latestHudState
-      ? withWindowState(latestHudState)
-      : createDefaultHudState(
-          mode,
-          resolveAlwaysOnTop(),
-          isCompactView,
-          trackLocked,
-        );
-  });
-
+  ipcMain.handle(HUD_CHANNELS.getInitialState, getInitialState);
   ipcMain.removeHandler(HUD_CHANNELS.setMode);
-  ipcMain.handle(HUD_CHANNELS.setMode, async (_event, nextMode: HudMode) => {
-    const parsedMode = HudModeSchema.parse(nextMode);
-    mode = parsedMode;
-    bridge?.setMode(parsedMode);
-    await persistPrefs();
-  });
-
+  ipcMain.handle(HUD_CHANNELS.setMode, handleSetMode);
   ipcMain.removeHandler(HUD_CHANNELS.setCompactView);
-  ipcMain.handle(HUD_CHANNELS.setCompactView, async (_event, request) => {
-    if (!mainWindow || mainWindow.isDestroyed()) {
-      return;
-    }
-
-    const parsedRequest = CompactViewRequestSchema.parse(request);
-    if (parsedRequest.enabled) {
-      if (
-        parsedRequest.width === undefined ||
-        parsedRequest.height === undefined
-      ) {
-        throw new Error("Compact view dimensions are required when enabled.");
-      }
-
-      if (!isCompactView) {
-        const bounds = mainWindow.getBounds();
-        const [contentWidth, contentHeight] = mainWindow.getContentSize();
-        preCompactBounds = {
-          contentHeight,
-          contentWidth,
-          x: bounds.x,
-          y: bounds.y,
-        };
-      }
-
-      suppressPersist = true;
-      isCompactView = true;
-      mainWindow.setResizable(false);
-      mainWindow.setContentSize(parsedRequest.width, parsedRequest.height);
-      suppressPersist = false;
-      await persistPrefs();
-      return;
-    }
-
-    if (!isCompactView) {
-      return;
-    }
-
-    suppressPersist = true;
-    mainWindow.setResizable(true);
-    if (preCompactBounds) {
-      mainWindow.setPosition(preCompactBounds.x, preCompactBounds.y);
-      mainWindow.setContentSize(
-        preCompactBounds.contentWidth,
-        preCompactBounds.contentHeight,
-      );
-    }
-
-    isCompactView = false;
-    suppressPersist = false;
-    preCompactBounds = null;
-    await persistPrefs();
-  });
-
+  ipcMain.handle(HUD_CHANNELS.setCompactView, handleSetCompactView);
   ipcMain.removeHandler(HUD_CHANNELS.toggleTrackLock);
-  ipcMain.handle(HUD_CHANNELS.toggleTrackLock, async () => {
-    if (!bridge) {
-      return;
-    }
-
-    trackLocked = bridge.toggleTrackLock();
-    await persistPrefs();
-  });
-
+  ipcMain.handle(HUD_CHANNELS.toggleTrackLock, handleToggleTrackLock);
   ipcMain.removeHandler(HUD_CHANNELS.toggleTopmost);
-  ipcMain.handle(HUD_CHANNELS.toggleTopmost, async () => {
-    if (!mainWindow || mainWindow.isDestroyed()) {
-      return;
-    }
+  ipcMain.handle(HUD_CHANNELS.toggleTopmost, handleToggleTopmost);
+}
 
-    const nextEnabled = !mainWindow.isAlwaysOnTop();
-    applyHudTopmost(mainWindow, nextEnabled);
-    await persistPrefs();
-
-    const nextState = latestHudState
+/**
+ * Registers main-window lifecycle listeners used for persistence and hydration.
+ * @param win - The window to observe.
+ */
+function registerWindowListeners(win: BrowserWindow): void {
+  win.on("resize", persistUnlessSuppressed);
+  win.on("move", persistUnlessSuppressed);
+  win.webContents.on("did-finish-load", () => {
+    const initialState = latestHudState
       ? withWindowState(latestHudState)
-      : createDefaultHudState(
-          mode,
-          resolveAlwaysOnTop(),
-          isCompactView,
-          trackLocked,
-        );
-    sendStateToWindow(nextState);
+      : buildDefaultState();
+    mainWindow?.webContents.send(HUD_CHANNELS.state, initialState);
+  });
+  win.on("closed", () => {
+    mainWindow = undefined;
   });
 }
 
@@ -327,6 +353,78 @@ function resolveAlwaysOnTop(): boolean {
   return Boolean(
     mainWindow && !mainWindow.isDestroyed() && mainWindow.isAlwaysOnTop(),
   );
+}
+
+/**
+ * Resolves the starting bounds for the main HUD window.
+ * @param windowBounds - Stored content bounds, if preferences already exist.
+ * @returns Window bounds suitable for the next BrowserWindow construction.
+ */
+function resolveInitialWindowBounds(
+  windowBounds?: StoredWindowBounds,
+): InitialWindowBounds {
+  const positionBounds = windowBounds
+    ? {
+        x: windowBounds.x,
+        y: windowBounds.y,
+      }
+    : {};
+  if (isCompactView) {
+    return {
+      ...positionBounds,
+      height: COMPACT_CONTENT_HEIGHT,
+      width: COMPACT_CONTENT_WIDTH,
+    };
+  }
+
+  return {
+    ...positionBounds,
+    height: windowBounds?.height ?? WINDOW_CONTENT_HEIGHT,
+    width: windowBounds?.width ?? WINDOW_CONTENT_WIDTH,
+  };
+}
+
+/**
+ * Resolves the bounds to restore when exiting compact mode.
+ * @param windowBounds - Stored content bounds from the preference file.
+ * @returns The non-compact window bounds when compact mode is active.
+ */
+function resolvePreCompactBounds(
+  windowBounds?: StoredWindowBounds,
+): CompactWindowBounds | undefined {
+  if (!isCompactView || !windowBounds) {
+    return undefined;
+  }
+
+  return {
+    contentHeight: windowBounds.height,
+    contentWidth: windowBounds.width,
+    x: windowBounds.x,
+    y: windowBounds.y,
+  };
+}
+
+/**
+ * Finds the emitted preload bundle across the supported output extensions.
+ * @returns The absolute preload bundle path that exists on disk.
+ */
+function resolvePreloadPath(): string {
+  const preloadCandidates = [
+    path.join(__dirname, "../preload/index.cjs"),
+    path.join(__dirname, "../preload/index.js"),
+    path.join(__dirname, "../preload/index.mjs"),
+  ];
+  const preloadPath =
+    preloadCandidates.find((candidate) => existsSync(candidate)) ??
+    preloadCandidates[0];
+
+  if (!existsSync(preloadPath)) {
+    throw new Error(
+      `Unable to find preload bundle. Tried: ${preloadCandidates.join(", ")}`,
+    );
+  }
+
+  return preloadPath;
 }
 
 /**
@@ -346,6 +444,46 @@ function sendStateToWindow(state: HudState): void {
 }
 
 /**
+ * Boots the Electron main process after the app-ready signal is available.
+ * @returns A promise that settles once startup listeners and the first window are ready.
+ */
+async function startApplication(): Promise<void> {
+  try {
+    await app.whenReady();
+
+    const prefs = await prefStore.load();
+    isCompactView = prefs.compactMode;
+    mode = prefs.mode;
+    trackLocked = prefs.trackLocked;
+
+    bridge = new AbletonLiveBridge(mode, sendStateToWindow, trackLocked);
+    bridge.start();
+
+    registerIpcHandlers();
+    await createWindow();
+
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        void createWindow();
+      }
+    });
+
+    app.on("before-quit", () => {
+      bridge?.stop();
+      bridge = undefined;
+    });
+
+    app.on("window-all-closed", () => {
+      if (process.platform !== "darwin") {
+        app.quit();
+      }
+    });
+  } catch (error) {
+    handleStartupFailure(error);
+  }
+}
+
+/**
  * Adds live window flags to a HUD state snapshot.
  * @param state - The HUD state to augment.
  * @returns The provided state with the latest window-derived fields.
@@ -358,32 +496,6 @@ function withWindowState(state: HudState): HudState {
   };
 }
 
-void app.whenReady().then(async () => {
-  const prefs = await prefStore.load();
-  isCompactView = prefs.compactMode;
-  mode = prefs.mode;
-  trackLocked = prefs.trackLocked;
-
-  bridge = new AbletonLiveBridge(mode, sendStateToWindow, trackLocked);
-  bridge.start();
-
-  registerIpcHandlers();
-  await createWindow();
-
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      void createWindow();
-    }
-  });
-});
-
-app.on("before-quit", () => {
-  bridge?.stop();
-  bridge = null;
-});
-
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+queueMicrotask(() => {
+  void startApplication();
 });

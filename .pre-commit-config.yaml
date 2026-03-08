@@ -7,10 +7,10 @@ repos:
         entry: pnpm exec prettier --write --ignore-unknown
         types: [file]
       - id: eslint-fix
-        name: eslint --fix
+        name: pnpm run lint:fix
         language: system
-        entry: pnpm exec eslint --fix
-        types_or: [ts, tsx, javascript, jsx]
+        entry: pnpm run lint:fix
+        files: \.(?:[cm]?js|jsx|[cm]?ts|tsx)$
       - id: tsc-noemit
         name: tsc --noEmit
         language: system

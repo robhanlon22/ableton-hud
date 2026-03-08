@@ -1,87 +1,90 @@
+import { cn } from "@renderer/lib/utilities";
 import * as React from "react";
-
-import { cn } from "../../lib/utils";
 
 /**
  * Renders the base card container.
- * @param props - Card container props.
- * @returns A styled card wrapper element.
+ * @param properties - Card container props.
+ * @returns The rendered card wrapper.
  */
-function Card(props: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element {
-  const { className, ...restProps } = props;
+function Card(
+  properties: Readonly<React.HTMLAttributes<HTMLDivElement>>,
+): React.JSX.Element {
+  const { className, ...restProperties } = properties;
   return (
     <div
       className={cn(
         "rounded-md border border-ableton-border bg-ableton-panel/90",
         className,
       )}
-      {...restProps}
+      {...restProperties}
     />
   );
 }
 
 /**
- * Renders card body content spacing.
- * @param props - Card content props.
- * @returns A styled card content element.
+ * Renders the card content section.
+ * @param properties - Card content props.
+ * @returns The rendered card content section.
  */
 function CardContent(
-  props: React.HTMLAttributes<HTMLDivElement>,
+  properties: Readonly<React.HTMLAttributes<HTMLDivElement>>,
 ): React.JSX.Element {
-  const { className, ...restProps } = props;
-  return <div className={cn("px-3 pb-3 pt-0", className)} {...restProps} />;
+  const { className, ...restProperties } = properties;
+  return (
+    <div className={cn("px-3 pb-3 pt-0", className)} {...restProperties} />
+  );
 }
 
 /**
- * Renders the footer row for card actions.
- * @param props - Card footer props.
- * @returns A styled card footer element.
+ * Renders the card footer action row.
+ * @param properties - Card footer props.
+ * @returns The rendered card footer section.
  */
 function CardFooter(
-  props: React.HTMLAttributes<HTMLDivElement>,
+  properties: Readonly<React.HTMLAttributes<HTMLDivElement>>,
 ): React.JSX.Element {
-  const { className, ...restProps } = props;
+  const { className, ...restProperties } = properties;
   return (
     <div
       className={cn("flex items-center px-3 pb-3 pt-0", className)}
-      {...restProps}
+      {...restProperties}
     />
   );
 }
 
 /**
- * Renders the header area of a card.
- * @param props - Card header props.
- * @returns A styled card header element.
+ * Renders the card header region.
+ * @param properties - Card header props.
+ * @returns The rendered card header section.
  */
 function CardHeader(
-  props: React.HTMLAttributes<HTMLDivElement>,
+  properties: Readonly<React.HTMLAttributes<HTMLDivElement>>,
 ): React.JSX.Element {
-  const { className, ...restProps } = props;
+  const { className, ...restProperties } = properties;
   return (
     <div
       className={cn("flex flex-col space-y-1.5 px-3 py-2", className)}
-      {...restProps}
+      {...restProperties}
     />
   );
 }
 
 /**
  * Renders compact uppercase title text for cards.
- * @param props - Card title props.
- * @returns A styled card title element.
+ * @param properties - Card title props.
+ * @returns The rendered card title element.
  */
 function CardTitle(
-  props: React.HTMLAttributes<HTMLDivElement>,
+  properties: Readonly<React.HTMLAttributes<HTMLDivElement>>,
 ): React.JSX.Element {
-  const { className, ...restProps } = props;
+  const { className, ...restProperties } = properties;
   return (
     <div
       className={cn(
         "text-[11px] font-semibold uppercase tracking-[0.1em] text-ableton-muted",
         className,
       )}
-      {...restProps}
+      {...restProperties}
     />
   );
 }

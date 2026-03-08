@@ -1,4 +1,8 @@
-import type { HudState } from "../../../shared/types";
+import type { HudState } from "@shared/types";
+
+export const DOWNBEAT_LAST_BAR_FLASH_MS = 320;
+export const EMPHASIZED_FLASH_MS = 230;
+export const STANDARD_FLASH_MS = 150;
 
 /**
  * Computes flash animation duration for the current musical position.
@@ -7,10 +11,10 @@ import type { HudState } from "../../../shared/types";
  */
 export function flashDuration(state: HudState): number {
   if (state.isLastBar && state.isDownbeat) {
-    return 320;
+    return DOWNBEAT_LAST_BAR_FLASH_MS;
   }
   if (state.isLastBar || state.isDownbeat) {
-    return 230;
+    return EMPHASIZED_FLASH_MS;
   }
-  return 150;
+  return STANDARD_FLASH_MS;
 }

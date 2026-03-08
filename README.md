@@ -97,10 +97,18 @@ Run app in debug dev mode (auto-select free inspector/CDP ports):
 pnpm run dev:debug
 ```
 
+Lint:
+
+```bash
+pnpm run lint
+pnpm run lint:fix
+```
+
 Validate:
 
 ```bash
 pre-commit run --all-files
+pnpm run lint
 pnpm test
 pnpm run typecheck
 pnpm run build
@@ -108,9 +116,14 @@ pnpm run test:e2e
 ```
 
 `pre-commit run --all-files` now includes the docs validator, `tsc --noEmit`,
-and `pnpm test`. The CI lint job skips that test hook via `SKIP` because the
-dedicated `test` workflow already covers it. Run `pnpm run test:e2e` manually
-or rely on the dedicated CI job when you need Electron end-to-end coverage.
+`pnpm run lint:fix`, and `pnpm test`. The CI lint job skips that test hook via
+`SKIP` because the dedicated `test` workflow already covers it. `pnpm run lint`
+is the strict zero-warning check, while `pnpm run lint:fix` is the mechanical
+cleanup entry point used by pre-commit. `pnpm test` now shuffles file order and
+intra-file test order on every run and logs the shuffle seed at startup; rerun
+with `VITEST_SEQUENCE_SEED=<seed> pnpm test` to reproduce an order-dependent
+failure. Run `pnpm run test:e2e` manually or rely on the dedicated CI job when
+you need Electron end-to-end coverage.
 
 Build local macOS app directory:
 

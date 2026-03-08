@@ -32,6 +32,8 @@ any local Ableton instance.
 - Main-process handlers must remove existing handlers before re-registering.
 - The browser and Electron test harnesses stay deterministic. Do not replace the
   fake websocket transport with a live Ableton dependency in automated tests.
+- Vitest unit coverage runs with shuffled file and in-file test order; use
+  `VITEST_SEQUENCE_SEED` when you need to reproduce a specific order locally.
 - User-visible behavior changes should update the product spec in the same PR.
 
 ## Change Recipes

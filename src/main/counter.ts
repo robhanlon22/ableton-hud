@@ -1,6 +1,9 @@
-import type { ClipTimingMeta, CounterParts, TimingGrid } from "../shared/types";
+import type { ClipTimingMeta, CounterParts, TimingGrid } from "@shared/types";
 
 export const EPSILON = 1e-4;
+const DEFAULT_BEATS_PER_BAR = 4;
+const DEFAULT_INDEX_OFFSET = 1;
+const FINAL_SIXTEENTH_INDEX = 3;
 
 // Transport beat counter tracks whole song beats starting at 0.
 /**
@@ -15,7 +18,7 @@ export function computeBeatInBar(
 ): number {
   const beats = Math.max(1, Math.round(beatsPerBar));
   const zeroBased = ((beatCounter % beats) + beats) % beats;
-  return zeroBased + 1;
+  return zeroBased + DEFAULT_INDEX_OFFSET;
 }
 
 /**
@@ -31,12 +34,12 @@ export function computeBeatsPerBar(
   const numerator =
     Number.isFinite(signatureNumerator) && signatureNumerator > 0
       ? signatureNumerator
-      : 4;
+      : DEFAULT_BEATS_PER_BAR;
   const denominator =
     Number.isFinite(signatureDenominator) && signatureDenominator > 0
       ? signatureDenominator
-      : 4;
-  return (numerator * 4) / denominator;
+      : DEFAULT_BEATS_PER_BAR;
+  return (numerator * DEFAULT_BEATS_PER_BAR) / denominator;
 }
 
 /**
@@ -73,7 +76,7 @@ export function createTimingGrid(
     beatLength,
     beatsPerBar,
     beatsPerDisplayBar,
-    sixteenthLength: beatLength / 4,
+    sixteenthLength: beatLength / DEFAULT_BEATS_PER_BAR,
   };
 }
 
@@ -158,11 +161,14 @@ function toMusicalPositionParts(
   const sixteenthIndex = Math.floor(
     (withinBeat + EPSILON) / timingGrid.sixteenthLength,
   );
-  const clampedSixteenthIndex = Math.min(Math.max(0, sixteenthIndex), 3);
+  const clampedSixteenthIndex = Math.min(
+    Math.max(0, sixteenthIndex),
+    FINAL_SIXTEENTH_INDEX,
+  );
 
   return {
-    bar: barIndex + 1,
-    beat: clampedBeatIndex + 1,
-    sixteenth: clampedSixteenthIndex + 1,
+    bar: barIndex + DEFAULT_INDEX_OFFSET,
+    beat: clampedBeatIndex + DEFAULT_INDEX_OFFSET,
+    sixteenth: clampedSixteenthIndex + DEFAULT_INDEX_OFFSET,
   };
 }

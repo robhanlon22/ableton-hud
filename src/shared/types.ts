@@ -17,9 +17,9 @@ export interface HudState {
   alwaysOnTop: boolean;
   beatFlashToken: number;
   beatInBar: number;
-  clipColor: null | number;
-  clipIndex: null | number;
-  clipName: null | string;
+  clipColor: number | undefined;
+  clipIndex: number | undefined;
+  clipName: string | undefined;
   compactView: boolean;
   connected: boolean;
   counterParts: CounterParts;
@@ -29,15 +29,15 @@ export interface HudState {
   isPlaying: boolean;
   lastBarSource: LastBarSource;
   mode: HudMode;
-  sceneColor: null | number;
-  sceneName: null | string;
-  trackColor: null | number;
-  trackIndex: null | number;
+  sceneColor: number | undefined;
+  sceneName: string | undefined;
+  trackColor: number | undefined;
+  trackIndex: number | undefined;
   trackLocked: boolean;
-  trackName: null | string;
+  trackName: string | undefined;
 }
 
-export type LastBarSource = "clip_end" | "loop_end" | null;
+export type LastBarSource = "clip_end" | "loop_end" | undefined;
 
 export interface TimingGrid {
   beatLength: number;

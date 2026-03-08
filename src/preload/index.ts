@@ -1,15 +1,14 @@
-import { contextBridge, ipcRenderer } from "electron";
-
-import type { HudMode, HudState } from "../shared/types";
+import type { HudMode, HudState } from "@shared/types";
 
 import {
   CompactViewRequestSchema,
   HUD_CHANNELS,
   HudModeSchema,
   HudStateSchema,
-} from "../shared/ipc";
+} from "@shared/ipc";
+import { contextBridge, ipcRenderer } from "electron";
 
-interface HudApi {
+export interface HudApi {
   getInitialState: () => Promise<HudState>;
   onHudState: (callback: (state: HudState) => void) => () => void;
   setCompactView: (request: {

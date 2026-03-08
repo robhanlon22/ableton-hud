@@ -11,13 +11,32 @@ import {
   toRemainingCounterParts,
 } from "./counter";
 
-describe("counter", () => {
+const COMMON_DENOMINATOR = 4;
+const COMMON_NUMERATOR = 4;
+const COMPOUND_DENOMINATOR = 8;
+const COMPOUND_NUMERATOR = 7;
+const DOUBLE_BAR_COUNT = 2;
+const FOURTH_SIXTEENTH = 0.25;
+const FULL_BAR = 4;
+const HALF_BEAT = 0.5;
+const LAST_SIXTEENTH = 0.99;
+const MALFORMED_BEAT_LENGTH = -1;
+const MALFORMED_BEATS_PER_BAR = -4;
+const NEAR_FULL_BAR = 3.75;
+const NON_LAST_BAR_REMAINDER = 4.1;
+const QUARTER_BEAT_EPSILON = 0.24;
+const RARE_METER_FALLBACK = 5;
+const SEVEN_EIGHTHS_NUMERATOR = -7;
+const THREE_AND_A_HALF_BEATS = 3.5;
+const THREE_BEAT_TICK = 3;
+
+describe("counter timing helpers", () => {
   it("computes beats per bar from signature", () => {
     // arrange
-    const numerator = 4;
-    const denominator = 4;
-    const compoundNumerator = 7;
-    const compoundDenominator = 8;
+    const numerator = COMMON_NUMERATOR;
+    const denominator = COMMON_DENOMINATOR;
+    const compoundNumerator = COMPOUND_NUMERATOR;
+    const compoundDenominator = COMPOUND_DENOMINATOR;
 
     // act
     const quarterTimeResult = computeBeatsPerBar(numerator, denominator);
@@ -27,25 +46,26 @@ describe("counter", () => {
     );
 
     // assert
-    expect(quarterTimeResult).toBe(4);
-    expect(compoundResult).toBe(3.5);
+    expect(quarterTimeResult).toBe(COMMON_NUMERATOR);
+    expect(compoundResult).toBe(THREE_AND_A_HALF_BEATS);
   });
 
   it("builds timing grid from signature", () => {
     // arrange
     // act
-    const grid = createTimingGrid(4, 4);
+    const grid = createTimingGrid(COMMON_NUMERATOR, COMMON_DENOMINATOR);
+
     // assert
-    expect(grid.beatsPerBar).toBe(4);
+    expect(grid.beatsPerBar).toBe(COMMON_NUMERATOR);
     expect(grid.beatLength).toBe(1);
-    expect(grid.sixteenthLength).toBe(0.25);
-    expect(grid.beatsPerDisplayBar).toBe(4);
+    expect(grid.sixteenthLength).toBe(FOURTH_SIXTEENTH);
+    expect(grid.beatsPerDisplayBar).toBe(COMMON_NUMERATOR);
   });
 
   it("computes beat in bar using zero-based song beat ticks", () => {
     // arrange
-    const beatsPerBar = 4;
-    const songBeatTicks = [0, 1, 3, 4];
+    const beatsPerBar = COMMON_NUMERATOR;
+    const songBeatTicks = [0, 1, THREE_BEAT_TICK, COMMON_NUMERATOR];
 
     // act
     const mappedBeats = songBeatTicks.map((tick) =>
@@ -53,54 +73,74 @@ describe("counter", () => {
     );
 
     // assert
-    expect(mappedBeats).toEqual([1, 2, 4, 1]);
+    expect(mappedBeats).toEqual([1, DOUBLE_BAR_COUNT, COMMON_NUMERATOR, 1]);
   });
 
   it("formats elapsed values as bar:beat:16th", () => {
     // arrange
+    const grid = createTimingGrid(COMMON_NUMERATOR, COMMON_DENOMINATOR);
+
     // act
-    const grid = createTimingGrid(4, 4);
+    const elapsedParts = [
+      toElapsedCounterParts(0, grid),
+      toElapsedCounterParts(QUARTER_BEAT_EPSILON, grid),
+      toElapsedCounterParts(FOURTH_SIXTEENTH, grid),
+      toElapsedCounterParts(HALF_BEAT, grid),
+      toElapsedCounterParts(LAST_SIXTEENTH, grid),
+      toElapsedCounterParts(1, grid),
+      toElapsedCounterParts(FULL_BAR, grid),
+    ];
 
     // assert
-    expect(formatCounterParts(toElapsedCounterParts(0, grid))).toBe("1:1:1");
-    expect(formatCounterParts(toElapsedCounterParts(0.24, grid))).toBe("1:1:1");
-    expect(formatCounterParts(toElapsedCounterParts(0.25, grid))).toBe("1:1:2");
-    expect(formatCounterParts(toElapsedCounterParts(0.5, grid))).toBe("1:1:3");
-    expect(formatCounterParts(toElapsedCounterParts(0.99, grid))).toBe("1:1:4");
-    expect(formatCounterParts(toElapsedCounterParts(1, grid))).toBe("1:2:1");
-    expect(formatCounterParts(toElapsedCounterParts(4, grid))).toBe("2:1:1");
+    expect(elapsedParts.map((parts) => formatCounterParts(parts))).toEqual([
+      "1:1:1",
+      "1:1:1",
+      "1:1:2",
+      "1:1:3",
+      "1:1:4",
+      "1:2:1",
+      "2:1:1",
+    ]);
   });
 
   it("formats remaining values with zero endpoint", () => {
     // arrange
+    const grid = createTimingGrid(COMMON_NUMERATOR, COMMON_DENOMINATOR);
+
     // act
-    const grid = createTimingGrid(4, 4);
+    const remainingParts = [
+      toRemainingCounterParts(0, grid),
+      toRemainingCounterParts(NEAR_FULL_BAR, grid),
+      toRemainingCounterParts(FULL_BAR, grid),
+    ];
 
     // assert
-    expect(formatCounterParts(toRemainingCounterParts(0, grid))).toBe("0:0:0");
-    expect(formatCounterParts(toRemainingCounterParts(3.75, grid))).toBe(
+    expect(remainingParts.map((parts) => formatCounterParts(parts))).toEqual([
+      "0:0:0",
       "1:4:4",
-    );
-    expect(formatCounterParts(toRemainingCounterParts(4, grid))).toBe("2:1:1");
+      "2:1:1",
+    ]);
   });
+});
 
+describe("counter edge cases", () => {
   it("detects loop span validity", () => {
     // arrange
     const validLoopMeta: Parameters<typeof hasValidLoopSpan>[0] = {
-      length: 8,
-      loopEnd: 4,
+      length: COMPOUND_DENOMINATOR,
+      loopEnd: FULL_BAR,
       looping: true,
       loopStart: 0,
     };
     const zeroSpanMeta: Parameters<typeof hasValidLoopSpan>[0] = {
-      length: 8,
-      loopEnd: 2,
+      length: COMPOUND_DENOMINATOR,
+      loopEnd: DOUBLE_BAR_COUNT,
       looping: true,
-      loopStart: 2,
+      loopStart: DOUBLE_BAR_COUNT,
     };
     const nonLoopingMeta: Parameters<typeof hasValidLoopSpan>[0] = {
-      length: 8,
-      loopEnd: 4,
+      length: COMPOUND_DENOMINATOR,
+      loopEnd: FULL_BAR,
       looping: false,
       loopStart: 0,
     };
@@ -118,8 +158,13 @@ describe("counter", () => {
 
   it("detects last bar from remaining beats", () => {
     // arrange
-    const remainingValues = [0.99, 4, 4.1, 0];
-    const beatsPerBar = 4;
+    const remainingValues = [
+      LAST_SIXTEENTH,
+      FULL_BAR,
+      NON_LAST_BAR_REMAINDER,
+      0,
+    ];
+    const beatsPerBar = COMMON_NUMERATOR;
 
     // act
     const results = remainingValues.map((remaining) =>
@@ -134,27 +179,32 @@ describe("counter", () => {
     // arrange
     const signatures: [number, number][] = [
       [Number.NaN, 0],
-      [-7, Number.POSITIVE_INFINITY],
-      [5, 0],
-      [Number.NaN, 8],
+      [SEVEN_EIGHTHS_NUMERATOR, Number.POSITIVE_INFINITY],
+      [RARE_METER_FALLBACK, 0],
+      [Number.NaN, COMPOUND_DENOMINATOR],
     ];
 
     // act
-    const results = signatures.map(([num, den]) =>
-      computeBeatsPerBar(num, den),
+    const results = signatures.map(([number_, den]) =>
+      computeBeatsPerBar(number_, den),
     );
 
     // assert
-    expect(results).toEqual([4, 4, 5, 2]);
+    expect(results).toEqual([
+      COMMON_NUMERATOR,
+      COMMON_NUMERATOR,
+      RARE_METER_FALLBACK,
+      DOUBLE_BAR_COUNT,
+    ]);
   });
 
   it("handles defensive clamping branches in musical position conversion", () => {
     // arrange
     const malformedGrid = {
-      beatLength: -1,
-      beatsPerBar: -4,
-      beatsPerDisplayBar: 4,
-      sixteenthLength: -0.25,
+      beatLength: MALFORMED_BEAT_LENGTH,
+      beatsPerBar: MALFORMED_BEATS_PER_BAR,
+      beatsPerDisplayBar: COMMON_NUMERATOR,
+      sixteenthLength: -FOURTH_SIXTEENTH,
     };
 
     // act

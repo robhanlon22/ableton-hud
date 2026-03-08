@@ -1,7 +1,12 @@
+import { createDefaultHudState } from "@shared/ipc";
 import { describe, expect, it } from "vitest";
 
-import { createDefaultHudState } from "../../../shared/ipc";
-import { flashDuration } from "./hud-timing";
+import {
+  DOWNBEAT_LAST_BAR_FLASH_MS,
+  EMPHASIZED_FLASH_MS,
+  flashDuration,
+  STANDARD_FLASH_MS,
+} from "./hud-timing";
 
 describe("flashDuration", () => {
   it("returns longest flash for last-bar downbeats", () => {
@@ -16,7 +21,7 @@ describe("flashDuration", () => {
     const duration = flashDuration(state);
 
     // assert
-    expect(duration).toBe(320);
+    expect(duration).toBe(DOWNBEAT_LAST_BAR_FLASH_MS);
   });
 
   it("returns medium flash when either downbeat or last-bar is true", () => {
@@ -37,8 +42,8 @@ describe("flashDuration", () => {
     const lastBarDuration = flashDuration(lastBarState);
 
     // assert
-    expect(downbeatDuration).toBe(230);
-    expect(lastBarDuration).toBe(230);
+    expect(downbeatDuration).toBe(EMPHASIZED_FLASH_MS);
+    expect(lastBarDuration).toBe(EMPHASIZED_FLASH_MS);
   });
 
   it("returns shortest flash during regular beats", () => {
@@ -53,6 +58,6 @@ describe("flashDuration", () => {
     const duration = flashDuration(state);
 
     // assert
-    expect(duration).toBe(150);
+    expect(duration).toBe(STANDARD_FLASH_MS);
   });
 });

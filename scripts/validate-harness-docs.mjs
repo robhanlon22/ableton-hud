@@ -1,9 +1,10 @@
-#!/usr/bin/env node
+/* eslint-disable unicorn/prevent-abbreviations */
 
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 const repoRoot = process.cwd();
+const NEWLINE = "\n";
 
 const artifactGroups = [
   {
@@ -149,7 +150,22 @@ async function resolveArtifact(group) {
       return candidate;
     }
   }
-  return null;
+}
+
+/**
+ * Writes one line to stderr.
+ * @param message - The message to write.
+ */
+function writeStderrLine(message) {
+  process.stderr.write(`${message}${NEWLINE}`);
+}
+
+/**
+ * Writes one line to stdout.
+ * @param message - The message to write.
+ */
+function writeStdoutLine(message) {
+  process.stdout.write(`${message}${NEWLINE}`);
 }
 
 const issues = [];
@@ -192,14 +208,14 @@ if (executionPlansIndex) {
 }
 
 if (issues.length > 0) {
-  console.error("Harness docs validation failed:");
+  writeStderrLine("Harness docs validation failed:");
   for (const issue of issues) {
-    console.error(`- ${issue}`);
+    writeStderrLine(`- ${issue}`);
   }
   process.exitCode = 1;
 } else {
-  console.log("Harness docs validation passed.");
+  writeStdoutLine("Harness docs validation passed.");
   for (const [label, resolved] of resolvedArtifacts.entries()) {
-    console.log(`- ${label}: ${resolved}`);
+    writeStdoutLine(`- ${label}: ${resolved}`);
   }
 }

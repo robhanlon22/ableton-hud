@@ -1,9 +1,9 @@
+import type { HudMode } from "@shared/types";
+
 import { app, type Rectangle } from "electron";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import path from "node:path";
 import { z } from "zod";
-
-import type { HudMode } from "../shared/types";
 
 const BoundsSchema = z.object({
   height: z.number().int().positive(),
@@ -34,14 +34,15 @@ const DEFAULT_PREFS: HudPreferences = {
   mode: "elapsed",
   trackLocked: false,
 };
+const JSON_INDENT_SPACES = 2;
 
 export class PrefStore {
   private readonly path: string;
 
   constructor() {
-    const e2eUserDataPath = process.env.AOSC_E2E_USER_DATA;
-    const basePath = e2eUserDataPath ?? app.getPath("userData");
-    this.path = join(basePath, "hud-preferences.json");
+    const endToEndUserDataPath = process.env.AOSC_E2E_USER_DATA;
+    const basePath = endToEndUserDataPath ?? app.getPath("userData");
+    this.path = path.join(basePath, "hud-preferences.json");
   }
 
   async load(): Promise<HudPreferences> {
@@ -58,10 +59,10 @@ export class PrefStore {
   }
 
   async save(nextPrefs: HudPreferences): Promise<void> {
-    await mkdir(dirname(this.path), { recursive: true });
+    await mkdir(path.dirname(this.path), { recursive: true });
     await writeFile(
       this.path,
-      `${JSON.stringify(nextPrefs, null, 2)}\n`,
+      `${JSON.stringify(nextPrefs, undefined, JSON_INDENT_SPACES)}\n`,
       "utf8",
     );
   }

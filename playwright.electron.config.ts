@@ -2,7 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   expect: {
-    timeout: 5_000,
+    timeout: 5000,
   },
   fullyParallel: false,
   outputDir: "test-results/playwright",

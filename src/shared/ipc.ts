@@ -12,6 +12,15 @@ export const HUD_CHANNELS = {
 } as const;
 
 export const HudModeSchema = z.enum(["elapsed", "remaining"]);
+const MAX_COLOR_VALUE = 0xff_ff_ff;
+const HudColorSchema = z.number().int().min(0).max(MAX_COLOR_VALUE);
+const UndefinedableColorSchema = z.union([HudColorSchema, z.undefined()]);
+const UndefinedableLastBarSourceSchema = z.union([
+  z.enum(["loop_end", "clip_end"]),
+  z.undefined(),
+]);
+const UndefinedableIntegerSchema = z.union([z.number().int(), z.undefined()]);
+const UndefinedableStringSchema = z.union([z.string(), z.undefined()]);
 
 const CounterPartsSchema: z.ZodType<CounterParts> = z.object({
   bar: z.number().int().nonnegative(),
@@ -19,41 +28,24 @@ const CounterPartsSchema: z.ZodType<CounterParts> = z.object({
   sixteenth: z.number().int().nonnegative(),
 });
 
-export const CompactViewRequestSchema = z
-  .object({
-    enabled: z.boolean(),
-    height: z.number().int().positive().optional(),
-    width: z.number().int().positive().optional(),
-  })
-  .superRefine((request, context) => {
-    if (!request.enabled) {
-      return;
-    }
-
-    if (request.width === undefined) {
-      context.addIssue({
-        code: "custom",
-        message: "Width is required when compact mode is enabled.",
-        path: ["width"],
-      });
-    }
-
-    if (request.height === undefined) {
-      context.addIssue({
-        code: "custom",
-        message: "Height is required when compact mode is enabled.",
-        path: ["height"],
-      });
-    }
-  });
+export const CompactViewRequestSchema = z.discriminatedUnion("enabled", [
+  z.object({
+    enabled: z.literal(false),
+  }),
+  z.object({
+    enabled: z.literal(true),
+    height: z.number().int().positive(),
+    width: z.number().int().positive(),
+  }),
+]);
 
 export const HudStateSchema: z.ZodType<HudState> = z.object({
   alwaysOnTop: z.boolean(),
   beatFlashToken: z.number().int().nonnegative(),
   beatInBar: z.number().int().positive(),
-  clipColor: z.number().int().min(0).max(0xffffff).nullable(),
-  clipIndex: z.number().int().nullable(),
-  clipName: z.string().nullable(),
+  clipColor: UndefinedableColorSchema,
+  clipIndex: UndefinedableIntegerSchema,
+  clipName: UndefinedableStringSchema,
   compactView: z.boolean(),
   connected: z.boolean(),
   counterParts: CounterPartsSchema,
@@ -61,14 +53,14 @@ export const HudStateSchema: z.ZodType<HudState> = z.object({
   isDownbeat: z.boolean(),
   isLastBar: z.boolean(),
   isPlaying: z.boolean(),
-  lastBarSource: z.enum(["loop_end", "clip_end"]).nullable(),
+  lastBarSource: UndefinedableLastBarSourceSchema,
   mode: HudModeSchema,
-  sceneColor: z.number().int().min(0).max(0xffffff).nullable(),
-  sceneName: z.string().nullable(),
-  trackColor: z.number().int().min(0).max(0xffffff).nullable(),
-  trackIndex: z.number().int().nullable(),
+  sceneColor: UndefinedableColorSchema,
+  sceneName: UndefinedableStringSchema,
+  trackColor: UndefinedableColorSchema,
+  trackIndex: UndefinedableIntegerSchema,
   trackLocked: z.boolean(),
-  trackName: z.string().nullable(),
+  trackName: UndefinedableStringSchema,
 });
 
 /**
@@ -89,9 +81,9 @@ export function createDefaultHudState(
     alwaysOnTop,
     beatFlashToken: 0,
     beatInBar: 1,
-    clipColor: null,
-    clipIndex: null,
-    clipName: null,
+    clipColor: undefined,
+    clipIndex: undefined,
+    clipName: undefined,
     compactView,
     connected: false,
     counterParts: {
@@ -103,13 +95,13 @@ export function createDefaultHudState(
     isDownbeat: true,
     isLastBar: false,
     isPlaying: false,
-    lastBarSource: null,
+    lastBarSource: undefined,
     mode,
-    sceneColor: null,
-    sceneName: null,
-    trackColor: null,
-    trackIndex: null,
+    sceneColor: undefined,
+    sceneName: undefined,
+    trackColor: undefined,
+    trackIndex: undefined,
     trackLocked,
-    trackName: null,
+    trackName: undefined,
   };
 }
