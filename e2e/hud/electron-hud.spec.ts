@@ -27,6 +27,24 @@ const CLIP_B_PLAYING_POSITION_BEATS = 9.75;
 let fakeServer: FakeAbletonLiveServer;
 
 /**
+ * Closes the HUD app and attaches a CI screenshot artifact for the current test.
+ * @param app - Running Electron app handles to close.
+ * @param removeProfile - Whether to delete the temporary profile directory.
+ * @param screenshotLabel - Optional screenshot label when a test closes multiple app instances.
+ */
+async function closeCurrentHudApp(
+  app: RunningHudApp,
+  removeProfile = true,
+  screenshotLabel?: string,
+): Promise<void> {
+  await closeHudApp(app, {
+    removeProfile,
+    screenshotLabel,
+    testInfo: test.info(),
+  });
+}
+
+/**
  * Launches the HUD app against the current fake Ableton server.
  * @param existingTemporaryHome - Optional prior profile directory to reuse.
  * @returns Running Electron app handles.
@@ -63,7 +81,7 @@ test("launches a window and renders default counter", async () => {
       ),
     ).toBeVisible();
   } finally {
-    await closeHudApp(app);
+    await closeCurrentHudApp(app);
   }
 });
 
@@ -81,7 +99,7 @@ test("toggles counter mode from elapsed to remaining", async () => {
     await modeToggle.click();
     await expect(modeToggle).toHaveText("Remaining");
   } finally {
-    await closeHudApp(app);
+    await closeCurrentHudApp(app);
   }
 });
 
@@ -102,7 +120,7 @@ test("toggles always-on-top button title", async () => {
 
     await expect(toggleButton).toHaveAttribute("title", "NORMAL");
   } finally {
-    await closeHudApp(app);
+    await closeCurrentHudApp(app);
   }
 });
 
@@ -120,7 +138,7 @@ test("toggles track lock button title", async () => {
     await lockButton.click();
     await expect(lockButton).toHaveAttribute("title", "LOCKED");
   } finally {
-    await closeHudApp(app);
+    await closeCurrentHudApp(app);
   }
 });
 
@@ -148,7 +166,7 @@ test("toggles compact mode and resizes window to counter panel", async () => {
     await expect(app.page.getByTestId("mode-toggle")).toHaveText("Elapsed");
     expect(await waitForStableWindowContentSize(app)).toEqual(initialSize);
   } finally {
-    await closeHudApp(app);
+    await closeCurrentHudApp(app);
   }
 });
 
@@ -176,7 +194,11 @@ test("restores full size after compact relaunch cycle", async () => {
         windowBounds: expect.objectContaining(FULL_DETAILS_WINDOW_SIZE),
       });
   } finally {
-    await closeHudApp(app, false);
+    await closeCurrentHudApp(
+      app,
+      false,
+      "restores-full-size-compact-relaunch-compact-state",
+    );
   }
 
   await expect
@@ -202,7 +224,11 @@ test("restores full size after compact relaunch cycle", async () => {
       ),
     ).toEqual(FULL_DETAILS_WINDOW_SIZE);
   } finally {
-    await closeHudApp(relaunchedApp);
+    await closeCurrentHudApp(
+      relaunchedApp,
+      true,
+      "restores-full-size-compact-relaunch-restored-state",
+    );
   }
 });
 
@@ -242,7 +268,7 @@ test("renders fake transport payload from websocket server", async () => {
     await expect(app.page.getByTestId("track-pill")).toContainText("Bass");
     await expect(app.page.getByTestId("scene-pill")).toContainText("Hook");
   } finally {
-    await closeHudApp(app);
+    await closeCurrentHudApp(app);
   }
 });
 
@@ -301,7 +327,7 @@ test("automatically reconnects after an unexpected live socket drop", async () =
     await expect(app.page.getByTestId("clip-pill")).toContainText("Clip B");
     await expect(app.page.getByTestId("counter-text")).not.toHaveText("0:0:0");
   } finally {
-    await closeHudApp(app);
+    await closeCurrentHudApp(app);
   }
 });
 
@@ -326,7 +352,7 @@ test.describe("Fullscreen overlay policy", () => {
           visibleOnAllWorkspaces: true,
         });
     } finally {
-      await closeHudApp(app);
+      await closeCurrentHudApp(app);
     }
   });
 
@@ -371,7 +397,7 @@ test.describe("Fullscreen overlay policy", () => {
           alwaysOnTop: true,
         });
     } finally {
-      await closeHudApp(app);
+      await closeCurrentHudApp(app);
     }
   });
 });

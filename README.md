@@ -128,8 +128,11 @@ JSDoc on class declarations and expressions, function declarations and
 expressions, method definitions, arrow functions, TypeScript interfaces and
 their members/signatures, and TypeScript type declarations. Start with
 `pnpm run lint:fix`, then write the missing docs that autofix cannot
-synthesize. It also rejects `Reflect`; use explicit property access,
-assignment, or a typed adapter instead.
+synthesize. The CI E2E job also captures HUD screenshots and uploads them,
+along with the Playwright HTML report, as workflow artifacts on every run so
+Windows and macOS executions can be inspected visually. It also rejects
+`Reflect`; use explicit property access, assignment, or a typed adapter
+instead.
 
 Build local macOS app directory:
 
@@ -167,6 +170,8 @@ Release workflow behavior:
   and `v*` tags
 - `e2e.yml` runs `pnpm run test:e2e` on macOS and Windows for pull requests,
   `main`, and `v*` tags
+- `e2e.yml` uploads HUD screenshots plus the Playwright HTML report as
+  workflow artifacts on every run
 - `release.yml` runs on pull requests, `main`, tags, and manual runs
 - `release.yml` waits for successful `Lint`, `Test`, and `E2E` workflow runs on
   the same commit before it runs release-specific `typecheck` and packaging jobs

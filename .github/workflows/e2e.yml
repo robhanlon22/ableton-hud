@@ -74,8 +74,8 @@ jobs:
         if: runner.os == 'macOS'
         run: pnpm run test:e2e
 
-      - name: Upload Playwright artifacts on failure
-        if: failure()
+      - name: Upload Playwright artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-artifacts-${{ runner.os }}

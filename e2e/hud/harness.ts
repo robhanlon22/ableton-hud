@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { expect, type TestInfo } from "@playwright/test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -12,11 +12,18 @@ import { z } from "zod";
 const MAIN_ENTRY = path.resolve(process.cwd(), "out/main/index.js");
 const PROFILE_DIR_PREFIX = "ableton-hud-playwright-home-";
 const HUD_BOOTSTRAP_WAIT_MS = 300;
+const ASCII_DIGIT_NINE_CODE_POINT = 57;
+const ASCII_DIGIT_ZERO_CODE_POINT = 48;
+const ASCII_LOWERCASE_Z_CODE_POINT = 122;
+const ASCII_LOWERCASE_A_CODE_POINT = 97;
+const SCREENSHOT_ARTIFACT_INDEX_WIDTH = 2;
 const WINDOW_SIZE_STABILITY_ATTEMPTS = 25;
 const WINDOW_SIZE_STABILITY_REQUIRED_MATCHES = 2;
 const WINDOW_SIZE_STABILITY_WAIT_MS = 100;
+const CI_ARTIFACT_SCREENSHOTS_ENABLED = Boolean(process.env.CI);
 
 const ignoreLaunchCleanupError = String;
+const ignoreScreenshotError = String;
 
 const persistedPrefsSchema = z.object({
   alwaysOnTop: z.boolean().optional(),
@@ -30,6 +37,26 @@ const persistedPrefsSchema = z.object({
     })
     .optional(),
 });
+
+/**
+ * Configures optional CI artifact capture during HUD app teardown.
+ */
+export interface CloseHudAppOptions {
+  /**
+   * Whether to remove the temporary profile directory after closing the app.
+   */
+  removeProfile?: boolean;
+
+  /**
+   * Optional label used for the attached HUD screenshot artifact.
+   */
+  screenshotLabel?: string;
+
+  /**
+   * Playwright test metadata used to attach the captured screenshot.
+   */
+  testInfo?: TestInfo;
+}
 
 /**
  * Configures how the Electron HUD app should be launched for E2E tests.
@@ -127,15 +154,18 @@ const createLaunchEnvironment = (
 };
 
 /**
- * Closes the Electron app and removes temporary profile state.
+ * Closes the Electron app, optionally captures a CI screenshot, and removes temporary profile state.
  * @param app - Running app handles produced by {@link launchHudApp}.
- * @param removeProfile - Whether to remove the temporary profile directory.
+ * @param options - Teardown options for screenshot capture and profile cleanup.
  */
 export async function closeHudApp(
   app: RunningHudApp,
-  removeProfile = true,
+  options: CloseHudAppOptions = {},
 ): Promise<void> {
+  const { removeProfile = true } = options;
+
   try {
+    await attachHudScreenshot(app, options).catch(ignoreScreenshotError);
     await app.electronApp.close();
   } finally {
     if (removeProfile) {
@@ -208,6 +238,101 @@ export async function readWindowContentSize(
     const [width, height] = mainWindow.getContentSize();
     return { height, width };
   });
+}
+
+/**
+ * Captures and attaches a HUD screenshot for CI artifact inspection.
+ * @param app - Running app handles produced by {@link launchHudApp}.
+ * @param options - Screenshot attachment options for the current test.
+ */
+async function attachHudScreenshot(
+  app: RunningHudApp,
+  options: CloseHudAppOptions,
+): Promise<void> {
+  const { screenshotLabel, testInfo } = options;
+  const attachmentLabel = screenshotLabel ?? testInfo?.title;
+  if (
+    !CI_ARTIFACT_SCREENSHOTS_ENABLED ||
+    attachmentLabel === undefined ||
+    testInfo === undefined ||
+    app.page.isClosed()
+  ) {
+    return;
+  }
+
+  const artifactIndex = testInfo.attachments.length + 1;
+  const screenshotPath = testInfo.outputPath(
+    `${String(artifactIndex).padStart(SCREENSHOT_ARTIFACT_INDEX_WIDTH, "0")}-${slugifyArtifactLabel(attachmentLabel)}.png`,
+  );
+  await app.page.screenshot({
+    animations: "disabled",
+    path: screenshotPath,
+  });
+  await testInfo.attach(attachmentLabel, {
+    contentType: "image/png",
+    path: screenshotPath,
+  });
+}
+
+/**
+ * Checks whether a character is safe to use directly inside an artifact filename.
+ * @param character - Single lowercase character candidate.
+ * @returns Whether the character can be emitted without replacement.
+ */
+function isAsciiArtifactCharacter(character: string): boolean {
+  const codePoint = character.codePointAt(0);
+  if (codePoint === undefined) {
+    return false;
+  }
+
+  return (
+    (codePoint >= ASCII_DIGIT_ZERO_CODE_POINT &&
+      codePoint <= ASCII_DIGIT_NINE_CODE_POINT) ||
+    (codePoint >= ASCII_LOWERCASE_A_CODE_POINT &&
+      codePoint <= ASCII_LOWERCASE_Z_CODE_POINT)
+  );
+}
+
+/**
+ * Builds a filesystem-safe slug for Playwright artifact filenames.
+ * @param label - Human-readable artifact label.
+ * @returns A lowercase filename-safe slug.
+ */
+function slugifyArtifactLabel(label: string): string {
+  let artifactSlug = "";
+
+  for (const character of label.trim().toLowerCase()) {
+    if (isAsciiArtifactCharacter(character)) {
+      artifactSlug += character;
+      continue;
+    }
+
+    if (!artifactSlug.endsWith("-")) {
+      artifactSlug += "-";
+    }
+  }
+
+  return trimArtifactDelimiter(artifactSlug);
+}
+
+/**
+ * Trims leading and trailing hyphen delimiters from an artifact slug.
+ * @param artifactSlug - Slug assembled from the original artifact label.
+ * @returns The slug without surrounding delimiter characters.
+ */
+function trimArtifactDelimiter(artifactSlug: string): string {
+  let endIndex = artifactSlug.length;
+  let startIndex = 0;
+
+  while (startIndex < endIndex && artifactSlug[startIndex] === "-") {
+    startIndex += 1;
+  }
+
+  while (endIndex > startIndex && artifactSlug[endIndex - 1] === "-") {
+    endIndex -= 1;
+  }
+
+  return artifactSlug.slice(startIndex, endIndex);
 }
 
 /**

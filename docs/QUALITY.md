@@ -62,6 +62,8 @@ Use this file as the source of truth for validation routing and reporting.
 - `e2e.yml`
   - runs `pnpm run test:e2e` on `windows-latest` and `macos-latest`
   - runs on pull requests, `main`, and `v*` tags
+  - captures HUD screenshots on CI and uploads them, along with the Playwright
+    HTML report, as workflow artifacts on every run
 - `release.yml`
   - waits for successful `Lint`, `Test`, and `E2E` workflow runs on the current
     commit before running release-specific validation
@@ -81,6 +83,8 @@ Use this file as the source of truth for validation routing and reporting.
 - For visible UI changes, include screenshot or GIF evidence.
 - For Electron end-to-end coverage, keep the fake Ableton websocket server as
   the transport source.
+- When CI E2E coverage is relevant, check the uploaded screenshot and
+  Playwright report artifacts for visual confirmation of the Windows/macOS runs.
 
 ## Harness Docs
 
