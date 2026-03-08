@@ -1,4 +1,5 @@
 import type {
+  AbletonLiveBridge,
   ClipProperty,
   LiveClip,
   LiveClipSlot,
@@ -10,7 +11,8 @@ import type {
   SongProperty,
   TrackProperty,
 } from "@main/ableton-live-bridge";
-import type { ClipTimingMeta, HudMode, HudState } from "@shared/types";
+import type { BridgeSession } from "@main/ableton-live-bridge/session";
+import type { HudState } from "@shared/types";
 
 import { vi } from "vitest";
 
@@ -79,16 +81,6 @@ export interface BridgeAccessRuntime {
 }
 
 /**
- * Describes the active clip reference stored by the bridge runtime.
- */
-export interface BridgeClipReference {
-  /** Zero-based active clip index. */
-  clip: number;
-  /** Zero-based active track index. */
-  track: number;
-}
-
-/**
  * Describes environment overrides applied while constructing bridge tests.
  */
 export interface BridgeOverrides {
@@ -101,137 +93,23 @@ export interface BridgeOverrides {
 }
 
 /**
- * Describes the internal bridge runtime surface exercised by tests.
+ * Describes the fully wired bridge-session test context.
  */
-export interface BridgeRuntime {
-  /** Guarded Live access helpers. */
-  access: BridgeAccessRuntime;
-  /** Active clip reference, when one is selected. */
-  activeClip: BridgeClipReference | undefined;
-  /** Active scene index, when known. */
-  activeScene: number | undefined;
-  /** Applies a selected track to bridge state. */
-  applySelectedTrack: (trackIndex: number) => Promise<void>;
-  /** Current beat counter. */
-  beatCounter: number;
-  /** Beat-flash state token. */
-  beatFlashToken: number;
-  /** Bootstraps bridge observers for the active connection. */
-  bootstrap: (epoch?: number) => Promise<void>;
-  /** Clears clip subscriptions. */
-  clearClipSubscription: (preserveDisplay?: boolean) => void;
-  /** Clears a group of observer cleanups. */
-  clearObserverGroup: (cleanups: Cleanup[]) => void;
-  /** Clears scene subscriptions. */
-  clearSceneSubscription: (preserveDisplay?: boolean) => void;
-  /** Current clip color snapshot. */
-  clipColor: number | undefined;
-  /** Current clip timing metadata snapshot. */
-  clipMeta: ClipTimingMeta;
-  /** Current clip name snapshot. */
-  clipName: string | undefined;
-  /** Registered clip observer cleanups. */
-  clipObserverCleanups: Cleanup[];
-  /** Starts a Live connection attempt. */
-  connect: () => Promise<void>;
-  /** Whether the bridge is connected. */
-  connected: boolean;
-  /** Whether a connect attempt is in flight. */
-  connectInFlight: boolean;
-  /** Monotonic connection epoch counter. */
-  connectionEpoch: number;
-  /** Current song position, when available. */
-  currentPosition: number | undefined;
-  /** Emits the latest HUD state snapshot. */
-  emit: () => void;
-  /** Handles playing-position updates. */
-  handlePlayingPosition: (position: number) => void;
-  /** Handles playing-slot updates. */
-  handlePlayingSlot: (slotIndex: number) => Promise<void>;
-  /** Handles selected-track updates. */
-  handleSelectedTrack: (trackIndex: number) => void;
-  /** Handles song-time updates. */
-  handleSongTime: (songTime: number) => boolean;
-  /** Checks whether a loop wrap is natural. */
-  isNaturalLoopWrap: (
-    previousPosition: number,
-    currentPosition: number,
-  ) => boolean;
-  /** Whether the transport is currently playing. */
-  isPlaying: boolean;
-  /** Last launch position, when known. */
-  launchPosition: number | undefined;
-  /** Number of loop wraps observed for the active clip. */
-  loopWrapCount: number;
-  /** Active HUD mode. */
-  mode: HudMode;
-  /** Deferred selected track while the lock is enabled. */
-  pendingSelectedTrack: number | undefined;
-  /** Previous transport position, when known. */
-  previousPosition: number | undefined;
-  /** Current reconnect attempt count. */
-  reconnectAttempt: number;
-  /** Registers an observer cleanup into a cleanup group. */
-  registerCleanup: (cleanupGroup: Cleanup[], stop: Cleanup | undefined) => void;
-  /** Resets clip run-state bookkeeping. */
-  resetClipRunState: () => void;
-  /** Resolves a selected-track payload to a track index. */
-  resolveTrackIndex: (selectedTrack: unknown) => Promise<number>;
-  /** Current scene color snapshot. */
-  sceneColor: number | undefined;
-  /** Current scene name snapshot. */
-  sceneName: string | undefined;
-  /** Registered scene observer cleanups. */
-  sceneObserverCleanups: Cleanup[];
-  /** Schedules a reconnect attempt. */
-  scheduleReconnect: () => void;
-  /** Currently selected track index. */
-  selectedTrack: number | undefined;
-  /** Token guarding selected-track async work. */
-  selectedTrackToken: number;
-  /** Sets the active HUD mode. */
-  setMode: (mode: HudMode) => void;
-  /** Sets the track-lock state. */
-  setTrackLocked: (trackLocked: boolean) => void;
-  /** Current time-signature denominator. */
-  signatureDenominator: number;
-  /** Current time-signature numerator. */
-  signatureNumerator: number;
-  /** Starts the bridge lifecycle. */
-  start: () => void;
-  /** Whether the bridge has been started. */
-  started: boolean;
-  /** Stops the bridge lifecycle. */
-  stop: () => void;
-  /** Subscribes to a resolved clip. */
-  subscribeClip: (
-    trackIndex: number,
-    slotIndex: number,
-    clip: LiveClip,
-    token: number,
-  ) => Promise<void>;
-  /** Subscribes to a resolved scene. */
-  subscribeScene: (sceneIndex: number, token: number) => Promise<void>;
-  /** Toggles the track-lock state. */
-  toggleTrackLock: () => boolean;
-  /** Current track color snapshot. */
-  trackColor: number | undefined;
-  /** Whether track lock is enabled. */
-  trackLocked: boolean;
-  /** Current track name snapshot. */
-  trackName: string | undefined;
-  /** Registered track observer cleanups. */
-  trackObserverCleanups: Cleanup[];
-  /** Whether a clip transition is in progress. */
-  transitionInProgress: boolean;
+export interface BridgeSessionTestContext {
+  /** Active mocked Live harness. */
+  harness: LiveHarness;
+  /** HUD state observer spy. */
+  onState: HudStateSpy;
+  /** Internal bridge session runtime under test. */
+  session: BridgeSession;
 }
 
 /**
- * Describes the fully wired bridge test context.
+ * Describes the fully wired public bridge-shell test context.
  */
 export interface BridgeTestContext {
-  /** Internal bridge runtime under test. */
-  bridge: BridgeRuntime;
+  /** Public bridge shell under test. */
+  bridge: AbletonLiveBridge;
   /** Active mocked Live harness. */
   harness: LiveHarness;
   /** HUD state observer spy. */

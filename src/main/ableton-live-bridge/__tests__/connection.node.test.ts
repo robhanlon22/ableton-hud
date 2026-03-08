@@ -1,5 +1,6 @@
 import {
   createBridge,
+  createSession,
   DEFAULT_BRIDGE_PORT,
   DEFAULT_LIVE_HOST,
   flushMicrotasks,
@@ -114,7 +115,7 @@ it("handles connect failure by emitting a disconnected state", async () => {
 it("retries after a startup connect failure and resets backoff after connect", async () => {
   // arrange
   vi.useFakeTimers();
-  const { bridge, harness } = await createBridge();
+  const { harness, session: bridge } = await createSession();
   harness.instance.connect.mockRejectedValueOnce(new Error("boot-fail"));
 
   // act
@@ -122,8 +123,8 @@ it("retries after a startup connect failure and resets backoff after connect", a
   await flushMicrotasks();
   await vi.advanceTimersByTimeAsync(RECONNECT_DELAY_MS);
   await flushMicrotasks();
-  resolveHarnessEventHandler(harness, "connect")();
-  resolveHarnessEventHandler(harness, "disconnect")();
+  bridge.handleConnect();
+  bridge.handleDisconnect();
 
   // assert
   expect(harness.instance.connect).toHaveBeenCalledTimes(DOUBLE_CALL_COUNT);
@@ -133,7 +134,7 @@ it("retries after a startup connect failure and resets backoff after connect", a
 
 it("does not run concurrent connect attempts while one is in flight", async () => {
   // arrange
-  const { bridge, harness } = await createBridge();
+  const { harness, session: bridge } = await createSession();
   let resolveConnect: () => void = throwUnsetConnectResolver;
   harness.instance.connect.mockImplementation(
     () =>
@@ -159,7 +160,7 @@ it("does not run concurrent connect attempts while one is in flight", async () =
 it("cancels a pending reconnect timer when stopping the bridge", async () => {
   // arrange
   vi.useFakeTimers();
-  const { bridge, harness } = await createBridge();
+  const { harness, session: bridge } = await createSession();
   harness.instance.connect.mockRejectedValue(new Error("offline"));
 
   // act
@@ -175,13 +176,13 @@ it("cancels a pending reconnect timer when stopping the bridge", async () => {
 
 it("ignores late connect events after stop", async () => {
   // arrange
-  const { bridge, harness } = await createBridge();
+  const { session: bridge } = await createSession();
   const bootstrapSpy = vi.spyOn(bridge, "bootstrap");
 
   // act
   bridge.start();
   bridge.stop();
-  resolveHarnessEventHandler(harness, "connect")();
+  bridge.handleConnect();
   await flushMicrotasks();
 
   // assert
@@ -191,13 +192,13 @@ it("ignores late connect events after stop", async () => {
 
 it("ignores late disconnect events after stop", async () => {
   // arrange
-  const { bridge, harness } = await createBridge();
+  const { session: bridge } = await createSession();
   const emitSpy = vi.spyOn(bridge, "emit");
 
   // act
   bridge.start();
   bridge.stop();
-  resolveHarnessEventHandler(harness, "disconnect")();
+  bridge.handleDisconnect();
   await flushMicrotasks();
 
   // assert
@@ -207,7 +208,7 @@ it("ignores late disconnect events after stop", async () => {
 
 it("returns early from bootstrap when the epoch is stale", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const observeSpy = vi.spyOn(bridge.access, "safeSongViewObserve");
 
   // act
@@ -219,7 +220,7 @@ it("returns early from bootstrap when the epoch is stale", async () => {
 
 it("skips reconnect work when connect fails after the bridge stops", async () => {
   // arrange
-  const { bridge, harness } = await createBridge();
+  const { harness, session: bridge } = await createSession();
   let rejectConnect: (error: Error) => void = throwUnsetConnectRejector;
   harness.instance.connect.mockImplementationOnce(
     () =>
@@ -244,7 +245,7 @@ it("skips reconnect work when connect fails after the bridge stops", async () =>
 
 it("returns early when scheduling reconnect while stopped", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   bridge.started = false;
   const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
 
@@ -258,7 +259,6 @@ it("returns early when scheduling reconnect while stopped", async () => {
 it("updates mode and toggles track lock", async () => {
   // arrange
   const { bridge, onState } = await createBridge();
-  const emitSpy = vi.spyOn(bridge, "emit");
 
   bridge.setTrackLocked(false);
   bridge.setMode("remaining");
@@ -270,13 +270,12 @@ it("updates mode and toggles track lock", async () => {
   // assert
   expect(toggled).toBe(true);
   expect(toggledBack).toBe(false);
-  expect(emitSpy).toHaveBeenCalled();
   expect(onState).toHaveBeenCalled();
 });
 
 it("applies a pending selected track when unlocking", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   bridge.trackLocked = true;
   bridge.pendingSelectedTrack = PENDING_TRACK_INDEX;
   const applySpy = vi

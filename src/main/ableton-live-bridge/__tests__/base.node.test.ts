@@ -1,5 +1,5 @@
 import {
-  createBridge,
+  createSession,
   flushMicrotasks,
   rejected,
   resetBridgeTestEnvironment,
@@ -12,13 +12,13 @@ beforeEach(() => {
 
 it("swallows rejected cleanup callbacks while clearing observer groups", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session } = await createSession();
   const successfulCleanup = vi.fn(() => Promise.resolve());
   const failingCleanup = vi.fn(() => rejected(new Error("cleanup-failed")));
   const cleanups = [successfulCleanup, failingCleanup];
 
   // act
-  bridge.clearObserverGroup(cleanups);
+  session.clearObserverGroup(cleanups);
   await flushMicrotasks();
 
   // assert
@@ -29,14 +29,14 @@ it("swallows rejected cleanup callbacks while clearing observer groups", async (
 
 it("swallows live disconnect failures during stop", async () => {
   // arrange
-  const { bridge, harness } = await createBridge();
+  const { harness, session } = await createSession();
   const disconnectError = new Error("not-connected");
   harness.instance.disconnect.mockImplementation(() => {
     throw disconnectError;
   });
 
   // act
-  const stopBridge = bridge.stop.bind(bridge);
+  const stopBridge = session.stop.bind(session);
 
   // assert
   expect(stopBridge).not.toThrow();

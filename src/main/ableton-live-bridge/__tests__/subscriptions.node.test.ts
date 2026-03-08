@@ -3,18 +3,16 @@ import type {
   LiveClip,
   SceneProperty,
 } from "@main/ableton-live-bridge";
-import type {
-  BridgeRuntime,
-  Observer,
-} from "@main/ableton-live-bridge/__tests__/test-types";
+import type { Observer } from "@main/ableton-live-bridge/__tests__/test-types";
+import type { BridgeSession } from "@main/ableton-live-bridge/session";
 
 import {
-  createBridge,
   createCleanupMock,
   createLiveClip,
   createLiveClipSlot,
   createLiveScene,
   createLiveTrack,
+  createSession,
   resetBridgeTestEnvironment,
   resolved,
 } from "@main/ableton-live-bridge/__tests__/test-support";
@@ -55,7 +53,7 @@ beforeEach(() => {
 
 it("returns early from handlePlayingSlot when no track is selected", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const clearSpy = vi.spyOn(bridge, "clearClipSubscription");
 
   // act
@@ -67,7 +65,7 @@ it("returns early from handlePlayingSlot when no track is selected", async () =>
 
 it("clears clip state only for inactive slots when playback has stopped", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const clearSpy = vi.spyOn(bridge, "clearClipSubscription");
   const emitSpy = vi.spyOn(bridge, "emit");
   bridge.selectedTrack = ACTIVE_TRACK_INDEX;
@@ -85,7 +83,7 @@ it("clears clip state only for inactive slots when playback has stopped", async 
 
 it("returns early from handlePlayingSlot when the active clip is unchanged", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const subscribeClipSpy = vi.spyOn(bridge, "subscribeClip");
   bridge.selectedTrack = ACTIVE_TRACK_INDEX;
   bridge.activeClip = { clip: ACTIVE_CLIP_INDEX, track: ACTIVE_TRACK_INDEX };
@@ -99,7 +97,7 @@ it("returns early from handlePlayingSlot when the active clip is unchanged", asy
 
 it("loads and subscribes the active playing slot when a clip exists", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const clip = createLiveClip();
   const subscribeClipSpy = vi
     .spyOn(bridge, "subscribeClip")
@@ -120,7 +118,7 @@ it("loads and subscribes the active playing slot when a clip exists", async () =
 
 it("returns early when slot loading changes the selected track token", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const subscribeClipSpy = vi.spyOn(bridge, "subscribeClip");
   stubPlayableSlot(bridge, STARTED_SLOT_TOKEN, createLiveClip());
   bridge.access.getTrack = vi.fn(() => {
@@ -137,7 +135,7 @@ it("returns early when slot loading changes the selected track token", async () 
 
 it("returns early when slot loading changes token after clip slot lookup", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const subscribeClipSpy = vi.spyOn(bridge, "subscribeClip");
   stubPlayableSlot(bridge, STARTED_SLOT_TOKEN, createLiveClip());
   bridge.access.safeTrackChild = vi.fn(() => {
@@ -154,7 +152,7 @@ it("returns early when slot loading changes token after clip slot lookup", async
 
 it("returns early when slot loading finds no clip or changes token during clip checks", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const subscribeClipSpy = vi.spyOn(bridge, "subscribeClip");
   stubPlayableSlot(bridge, STARTED_SLOT_TOKEN, createLiveClip());
 
@@ -175,7 +173,7 @@ it("returns early when slot loading finds no clip or changes token during clip c
 
 it("returns early when slot loading changes token after the clip resolves", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const subscribeClipSpy = vi.spyOn(bridge, "subscribeClip");
   stubPlayableSlot(bridge, TOKEN_CHANGED_SLOT_TOKEN, createLiveClip());
   bridge.access.safeClipSlotClip = vi.fn(() => {
@@ -192,7 +190,7 @@ it("returns early when slot loading changes token after the clip resolves", asyn
 
 it("returns early when the scene subscription changes the selected track token", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const subscribeClipSpy = vi.spyOn(bridge, "subscribeClip");
   const subscribeSceneSpy = vi
     .spyOn(bridge, "subscribeScene")
@@ -215,7 +213,7 @@ it("returns early when the scene subscription changes the selected track token",
 
 it("subscribes scene observers and applies scene updates", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const listeners = new Map<SceneProperty, Observer>();
   const scene = createLiveScene({
     get: vi.fn((property: SceneProperty) =>
@@ -242,7 +240,7 @@ it("subscribes scene observers and applies scene updates", async () => {
 
 it("returns early from subscribeScene when the scene selection is no longer current", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const sceneChildSpy = vi.spyOn(bridge.access, "safeSongSceneChild");
   bridge.selectedTrackToken = BASE_TOKEN;
   bridge.activeScene = ACTIVE_SCENE_INDEX;
@@ -256,7 +254,7 @@ it("returns early from subscribeScene when the scene selection is no longer curr
 
 it("ignores scene updates after the active scene changes or the token shifts", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const listeners = new Map<SceneProperty, Observer>();
   const scene = createLiveScene({
     get: vi.fn((property: SceneProperty) => {
@@ -290,7 +288,7 @@ it("ignores scene updates after the active scene changes or the token shifts", a
 
 it("subscribes clip observers and applies clip updates", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const listeners = new Map<ClipProperty, Observer>();
   const clip = createLiveClip({
     get: vi.fn((property: ClipProperty) => {
@@ -354,7 +352,7 @@ it("subscribes clip observers and applies clip updates", async () => {
 
 it("returns early from subscribeClip when there is no active clip", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const clip = createLiveClip();
   const observeSpy = vi.spyOn(bridge.access, "safeClipObserve");
   const getSpy = vi.spyOn(bridge.access, "safeClipGet");
@@ -374,7 +372,7 @@ it("returns early from subscribeClip when there is no active clip", async () => 
 
 it("returns early from subscribeClip when the active clip does not match", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const clip = createLiveClip();
   const observeSpy = vi.spyOn(bridge.access, "safeClipObserve");
   const getSpy = vi.spyOn(bridge.access, "safeClipGet");
@@ -398,7 +396,7 @@ it("returns early from subscribeClip when the active clip does not match", async
 
 it("ignores clip updates after the active clip changes or the token shifts", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const listeners = new Map<ClipProperty, Observer>();
   const clip = createLiveClip({
     get: vi.fn((property: ClipProperty) => {
@@ -447,7 +445,7 @@ it("ignores clip updates after the active clip changes or the token shifts", asy
  * @param clip - The clip returned from the mocked slot.
  */
 function stubPlayableSlot(
-  bridge: BridgeRuntime,
+  bridge: BridgeSession,
   token: number,
   clip: LiveClip,
 ): void {

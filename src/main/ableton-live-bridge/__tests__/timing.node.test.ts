@@ -2,8 +2,8 @@ import type { SongProperty } from "@main/ableton-live-bridge";
 import type { Observer } from "@main/ableton-live-bridge/__tests__/test-types";
 
 import {
-  createBridge,
   createCleanupMock,
+  createSession,
   flushMicrotasks,
   resetBridgeTestEnvironment,
   resolved,
@@ -41,7 +41,7 @@ beforeEach(() => {
 
 it("tracks song time and clip position through natural and non-natural wraps", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
 
   // act
   const firstSongTimeChanged = bridge.handleSongTime(FIRST_SONG_TIME);
@@ -75,7 +75,7 @@ it("tracks song time and clip position through natural and non-natural wraps", a
 
 it("emits song-time updates only when the beat-derived HUD state changes", async () => {
   // arrange
-  const { bridge, onState } = await createBridge();
+  const { onState, session: bridge } = await createSession();
   const songListeners = new Map<SongProperty, Observer>();
   bridge.access.safeSongObserve = vi.fn(
     (property: SongProperty, listener: Observer) => {
@@ -127,7 +127,7 @@ it("emits song-time updates only when the beat-derived HUD state changes", async
 
 it("skips emit while a transition is in progress", async () => {
   // arrange
-  const { bridge, onState } = await createBridge();
+  const { onState, session: bridge } = await createSession();
   bridge.transitionInProgress = true;
 
   // act
@@ -139,7 +139,7 @@ it("skips emit while a transition is in progress", async () => {
 
 it("reports loop-end and clip-end HUD state", async () => {
   // arrange
-  const { bridge, onState } = await createBridge();
+  const { onState, session: bridge } = await createSession();
   bridge.connected = true;
   bridge.isPlaying = true;
   bridge.sceneColor = 0;
@@ -183,7 +183,7 @@ it("reports loop-end and clip-end HUD state", async () => {
 
 it("bootstraps observers and applies callback updates", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const songListeners = new Map<SongProperty, Observer>();
   let selectedTrackListener: Observer | undefined;
   bridge.access.safeSongObserve = vi.fn(
@@ -236,7 +236,7 @@ it("bootstraps observers and applies callback updates", async () => {
 
 it("returns early from bootstrap when the epoch changes after selected-track lookup", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   bridge.started = true;
   bridge.connectionEpoch = BOOTSTRAP_EPOCH_AFTER_LOOKUP;
   bridge.access.safeSongGet = vi.fn((property: SongProperty) => {
@@ -269,7 +269,7 @@ it("returns early from bootstrap when the epoch changes after selected-track loo
 
 it("returns early from bootstrap when the epoch changes during selected-track resolution", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   bridge.started = true;
   bridge.connectionEpoch = BOOTSTRAP_EPOCH_AFTER_RESOLUTION;
   bridge.access.safeSongGet = vi.fn((property: SongProperty) => {

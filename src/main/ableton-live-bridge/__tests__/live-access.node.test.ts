@@ -1,12 +1,12 @@
 import type { BridgeAccessRuntime } from "@main/ableton-live-bridge/__tests__/test-types";
 
 import {
-  createBridge,
   createCleanupMock,
   createLiveClip,
   createLiveClipSlot,
   createLiveScene,
   createLiveTrack,
+  createSession,
   rejected,
   resetBridgeTestEnvironment,
   resolved,
@@ -76,7 +76,7 @@ async function resolveRejectedAccessResults(options: RejectedAccessOptions) {
 
 it("resolves track references from ids and paths", async () => {
   // arrange
-  const { bridge, harness } = await createBridge();
+  const { harness, session: bridge } = await createSession();
   harness.instance.song.children = vi.fn(() => {
     return resolved([
       createLiveTrack({
@@ -118,7 +118,7 @@ it("resolves track references from ids and paths", async () => {
 
 it("filters invalid Live surface shapes and non-function cleanups", async () => {
   // arrange
-  const { bridge, harness } = await createBridge();
+  const { harness, session: bridge } = await createSession();
   harness.instance.song.child = vi.fn((child: "scenes" | "tracks") => {
     if (child === "tracks") {
       return resolved({ bad: true });
@@ -181,7 +181,7 @@ it("filters invalid Live surface shapes and non-function cleanups", async () => 
 
 it("returns undefined when song-level Live calls reject", async () => {
   // arrange
-  const { bridge, harness } = await createBridge();
+  const { harness, session: bridge } = await createSession();
   harness.instance.song.child = vi.fn((child: "scenes" | "tracks") => {
     return rejected(
       new Error(child === "tracks" ? "track failure" : "scene failure"),
@@ -231,7 +231,7 @@ it("returns undefined when song-level Live calls reject", async () => {
 
 it("returns undefined when clip, scene, and track Live calls reject", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session: bridge } = await createSession();
   const invalidClip = createLiveClip({
     get: vi.fn(() => rejected(new Error("clip-get failure"))),
     observe: vi.fn(() => rejected(new Error("clip-observe failure"))),
@@ -281,7 +281,7 @@ it("returns undefined when clip, scene, and track Live calls reject", async () =
 
 it("returns valid guarded values when the Live surfaces match the expected shape", async () => {
   // arrange
-  const { bridge, harness } = await createBridge();
+  const { harness, session: bridge } = await createSession();
   const cleanup = createCleanupMock();
   const clip = createLiveClip({
     get: vi.fn(() => resolved("Clip")),

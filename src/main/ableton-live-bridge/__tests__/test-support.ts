@@ -8,7 +8,7 @@ import type {
 } from "@main/ableton-live-bridge";
 import type {
   BridgeOverrides,
-  BridgeRuntime,
+  BridgeSessionTestContext,
   BridgeTestContext,
   Cleanup,
   LiveHarness,
@@ -24,31 +24,6 @@ let activeHarness: LiveHarness | undefined;
  * @returns An undefined payload.
  */
 const noop = (): undefined => undefined;
-const BRIDGE_RUNTIME_METHOD_NAMES = [
-  "applySelectedTrack",
-  "bootstrap",
-  "clearClipSubscription",
-  "clearObserverGroup",
-  "clearSceneSubscription",
-  "connect",
-  "emit",
-  "handlePlayingPosition",
-  "handlePlayingSlot",
-  "handleSelectedTrack",
-  "handleSongTime",
-  "isNaturalLoopWrap",
-  "registerCleanup",
-  "resetClipRunState",
-  "resolveTrackIndex",
-  "scheduleReconnect",
-  "setMode",
-  "setTrackLocked",
-  "start",
-  "stop",
-  "subscribeClip",
-  "subscribeScene",
-  "toggleTrackLock",
-] as const;
 
 /**
  * Describes the host and port passed to the mocked Live client constructor.
@@ -97,36 +72,23 @@ vi.mock("ws", () => ({ default: wsCtorMock }));
 vi.mock("ableton-live", () => ({ AbletonLive: abletonLiveMock }));
 
 /**
- * Creates a bridge instance with optional environment overrides.
+ * Creates a public bridge instance with optional environment overrides.
  * @param overrides - Optional host, port, and websocket overrides.
- * @returns A bridge runtime, its active harness, and HUD state spy.
+ * @returns A public bridge shell, its active harness, and HUD state spy.
  */
 export async function createBridge(
   overrides?: BridgeOverrides,
 ): Promise<BridgeTestContext> {
-  vi.resetModules();
-  setBridgeEnvironment(overrides);
-
-  const harness = createHarness();
-  activeHarness = harness;
-  const module = await import("@main/ableton-live-bridge");
-  const onState = vi.fn<(state: HudState) => void>();
-  const BridgeConstructor = module.AbletonLiveBridge;
+  const runtime = await createRuntimeHarness(overrides);
+  const BridgeConstructor = runtime.bridgeModule.AbletonLiveBridge;
   if (typeof BridgeConstructor !== "function") {
     throw new TypeError("Expected AbletonLiveBridge constructor export.");
   }
 
-  const bridgeCandidate: unknown = new BridgeConstructor(
-    "elapsed",
-    onState,
-    false,
-  );
-  const bridge = resolveBridgeRuntime(bridgeCandidate);
-
   return {
-    bridge,
-    harness,
-    onState,
+    bridge: new BridgeConstructor("elapsed", runtime.onState, false),
+    harness: runtime.harness,
+    onState: runtime.onState,
   };
 }
 
@@ -231,6 +193,42 @@ export function createLiveTrack(overrides: Partial<LiveTrack> = {}): LiveTrack {
 }
 
 /**
+ * Creates an internal bridge session with optional environment overrides.
+ * @param overrides - Optional host, port, and websocket overrides.
+ * @returns A bridge session, its active harness, and HUD state spy.
+ */
+export async function createSession(
+  overrides?: BridgeOverrides,
+): Promise<BridgeSessionTestContext> {
+  const runtime = await createRuntimeHarness(overrides);
+  const normalizers = {
+    ...runtime.bridgeModule.defaultPayloadNormalizers,
+  };
+  const host =
+    process.env.AOSC_LIVE_HOST ?? runtime.typesModule.DEFAULT_LIVE_HOST;
+  const port = runtime.bridgeModule.resolveLivePort(process.env.AOSC_LIVE_PORT);
+  const live = runtime.bridgeModule.defaultLiveFactory.create({ host, port });
+  const access = new runtime.accessModule.LiveBridgeAccess(
+    live.song,
+    live.songView,
+    normalizers,
+  );
+
+  return {
+    harness: runtime.harness,
+    onState: runtime.onState,
+    session: new runtime.sessionModule.BridgeSession({
+      access,
+      live,
+      mode: "elapsed",
+      normalizers,
+      onState: runtime.onState,
+      trackLocked: false,
+    }),
+  };
+}
+
+/**
  * Waits for queued microtasks to settle.
  * @returns A promise that resolves after two microtask ticks.
  */
@@ -302,51 +300,57 @@ function clearRuntimeWebSocket(runtime: WebSocketRuntime): void {
 }
 
 /**
- * Checks whether an object exposes a named method on itself or its prototype chain.
- * @param value - Candidate object to inspect.
- * @param methodName - Method name that must resolve to a function.
- * @returns Whether the named method exists and is callable.
+ * Creates a shared runtime harness for bridge and session tests.
+ * @param overrides - Optional host, port, and websocket overrides.
+ * @returns Imported bridge modules plus the active harness and HUD state spy.
  */
-function hasNamedMethod(value: object, methodName: string): boolean {
-  const ownDescriptor = Object.getOwnPropertyDescriptor(value, methodName);
-  if (typeof ownDescriptor?.value === "function") {
-    return true;
-  }
+async function createRuntimeHarness(overrides?: BridgeOverrides): Promise<{
+  /**
+   *
+   */
+  accessModule: typeof import("@main/ableton-live-bridge/live-access");
+  /**
+   *
+   */
+  bridgeModule: typeof import("@main/ableton-live-bridge");
+  /**
+   *
+   */
+  harness: LiveHarness;
+  /**
+   *
+   */
+  onState: ReturnType<typeof vi.fn<(state: HudState) => void>>;
+  /**
+   *
+   */
+  sessionModule: typeof import("@main/ableton-live-bridge/session");
+  /**
+   *
+   */
+  typesModule: typeof import("@main/ableton-live-bridge/types");
+}> {
+  vi.resetModules();
+  setBridgeEnvironment(overrides);
 
-  const prototypeCandidate: unknown = Object.getPrototypeOf(value);
-  if (prototypeCandidate === null || typeof prototypeCandidate !== "object") {
-    return false;
-  }
+  const harness = createHarness();
+  activeHarness = harness;
+  const [bridgeModule, accessModule, sessionModule, typesModule] =
+    await Promise.all([
+      import("@main/ableton-live-bridge"),
+      import("@main/ableton-live-bridge/live-access"),
+      import("@main/ableton-live-bridge/session"),
+      import("@main/ableton-live-bridge/types"),
+    ]);
 
-  return hasNamedMethod(prototypeCandidate, methodName);
-}
-
-/**
- * Checks whether an unknown value exposes the bridge runtime members used by tests.
- * @param value - The candidate runtime value.
- * @returns Whether the runtime surface is present.
- */
-function isBridgeRuntime(value: unknown): value is BridgeRuntime {
-  if (value === null || typeof value !== "object") {
-    return false;
-  }
-
-  return BRIDGE_RUNTIME_METHOD_NAMES.every((methodName) => {
-    return hasNamedMethod(value, methodName);
-  });
-}
-
-/**
- * Narrows an unknown bridge instance to the internal runtime surface used by tests.
- * @param value - The candidate bridge instance.
- * @returns The checked runtime surface.
- */
-function resolveBridgeRuntime(value: unknown): BridgeRuntime {
-  if (!isBridgeRuntime(value)) {
-    throw new TypeError("Expected an AbletonLiveBridge runtime instance.");
-  }
-
-  return value;
+  return {
+    accessModule,
+    bridgeModule,
+    harness,
+    onState: vi.fn<(state: HudState) => void>(),
+    sessionModule,
+    typesModule,
+  };
 }
 
 /**

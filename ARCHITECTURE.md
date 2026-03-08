@@ -21,7 +21,9 @@ any local Ableton instance.
 - Shared runtime data shapes: `src/shared/types/index.ts`
 - Electron startup entry: `src/main/index.ts`
 - Electron startup and window behavior: `src/main/app/index.ts`
-- Ableton transport and clip-state ingestion: `src/main/ableton-live-bridge/index.ts`
+- Ableton transport and clip-state ingestion:
+  `src/main/ableton-live-bridge/index.ts` plus
+  `src/main/ableton-live-bridge/session.ts`
 - Renderer composition and control behavior: `src/renderer/src/app/hud/index.tsx`
 - Human-facing product behavior: `docs/product-specs/hud-behavior.md`
 - Validation routing and evidence expectations: `docs/QUALITY.md`

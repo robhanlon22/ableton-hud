@@ -11,6 +11,7 @@ import { useHudAppState } from "../use-hud-app-state";
 
 const MEASURED_COMPACT_PANEL_HEIGHT = 20;
 const MEASURED_COMPACT_PANEL_WIDTH = 200;
+const SECOND_COMPACT_MEASUREMENT = 2;
 
 /**
  * Triggers compact-mode activation without mounting a compact panel element.
@@ -104,12 +105,10 @@ it("does not resend compact resize when the measured compact size is unchanged",
   });
   hudApi.setCompactView.mockClear();
   hudApi.emit(makeHudState({ compactView: true, counterText: "7:7:7" }));
-  await new Promise<void>((resolve) => {
-    globalThis.requestAnimationFrame(() => {
-      globalThis.requestAnimationFrame(() => {
-        resolve();
-      });
-    });
+  await vi.waitFor(() => {
+    expect(getBoundingClientRectSpy).toHaveBeenCalledTimes(
+      SECOND_COMPACT_MEASUREMENT,
+    );
   });
 
   // assert

@@ -1,7 +1,7 @@
 import {
-  createBridge,
   createLiveClipSlot,
   createLiveTrack,
+  createSession,
   flushMicrotasks,
   rejected,
   resetBridgeTestEnvironment,
@@ -20,11 +20,11 @@ beforeEach(() => {
 
 it("swallows observer cleanup failures during teardown", async () => {
   // arrange
-  const { bridge } = await createBridge();
+  const { session } = await createSession();
   const cleanupGroup = [() => rejected(new Error("cleanup failed"))];
 
   // act
-  bridge.clearObserverGroup(cleanupGroup);
+  session.clearObserverGroup(cleanupGroup);
   await flushMicrotasks();
 
   // assert
@@ -33,18 +33,18 @@ it("swallows observer cleanup failures during teardown", async () => {
 
 it("returns early when the resolved clip slot has no clip instance", async () => {
   // arrange
-  const { bridge } = await createBridge();
-  bridge.selectedTrack = ACTIVE_TRACK_INDEX;
-  bridge.selectedTrackToken = TRACK_TOKEN;
-  bridge.subscribeScene = vi.fn(() => Promise.resolve());
-  bridge.access.getTrack = vi.fn(() => resolved(createLiveTrack()));
-  bridge.access.safeTrackChild = vi.fn(() => resolved(createLiveClipSlot()));
-  bridge.access.safeClipSlotGet = vi.fn(() => resolved(true));
-  bridge.access.safeClipSlotClip = vi.fn(() => resolved(MISSING_CLIP));
-  const subscribeClipSpy = vi.spyOn(bridge, "subscribeClip");
+  const { session } = await createSession();
+  session.selectedTrack = ACTIVE_TRACK_INDEX;
+  session.selectedTrackToken = TRACK_TOKEN;
+  session.subscribeScene = vi.fn(() => Promise.resolve());
+  session.access.getTrack = vi.fn(() => resolved(createLiveTrack()));
+  session.access.safeTrackChild = vi.fn(() => resolved(createLiveClipSlot()));
+  session.access.safeClipSlotGet = vi.fn(() => resolved(true));
+  session.access.safeClipSlotClip = vi.fn(() => resolved(MISSING_CLIP));
+  const subscribeClipSpy = vi.spyOn(session, "subscribeClip");
 
   // act
-  await bridge.handlePlayingSlot(SLOT_INDEX);
+  await session.handlePlayingSlot(SLOT_INDEX);
 
   // assert
   expect(subscribeClipSpy).not.toHaveBeenCalled();
