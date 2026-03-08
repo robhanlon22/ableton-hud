@@ -12,22 +12,24 @@ Ableton HUD is a small Electron application with four core layers:
   logic.
 
 Deterministic end-to-end coverage lives in `e2e/`, where Playwright launches
-the compiled Electron app against `e2e/fake-ableton-live-server.ts` rather than
+the compiled Electron app against `e2e/fake-ableton-live/server.ts` rather than
 any local Ableton instance.
 
 ## Source Of Truth By Concern
 
-- IPC contracts: `src/shared/ipc.ts`
-- Shared runtime data shapes: `src/shared/types.ts`
-- Electron startup and window behavior: `src/main/index.ts`
-- Ableton transport and clip-state ingestion: `src/main/ableton-live-bridge.ts`
-- Renderer composition and control behavior: `src/renderer/src/app/hud-app.tsx`
+- IPC contracts: `src/shared/ipc/index.ts`
+- Shared runtime data shapes: `src/shared/types/index.ts`
+- Electron startup entry: `src/main/index.ts`
+- Electron startup and window behavior: `src/main/app/index.ts`
+- Ableton transport and clip-state ingestion: `src/main/ableton-live-bridge/index.ts`
+- Renderer composition and control behavior: `src/renderer/src/app/hud/index.tsx`
 - Human-facing product behavior: `docs/product-specs/hud-behavior.md`
 - Validation routing and evidence expectations: `docs/QUALITY.md`
 
 ## Key Invariants
 
-- Every IPC contract change starts in `src/shared/ipc.ts`, then flows through
+- Every IPC contract change starts in `src/shared/ipc/index.ts`, then flows
+  through
   main, preload, renderer, and tests.
 - Main-process handlers must remove existing handlers before re-registering.
 - The browser and Electron test harnesses stay deterministic. Do not replace the

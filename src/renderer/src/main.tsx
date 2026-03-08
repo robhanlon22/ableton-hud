@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 
-import { HudApp } from "./app/hud-app";
+import { HudApp } from "./app/hud";
 import "./index.css";
 
 const rootElement = document.querySelector("#root");

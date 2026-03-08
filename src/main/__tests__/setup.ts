@@ -1,4 +1,4 @@
-import { restoreProcessPlatform } from "@main/__tests__/index-test-utilities";
+import { restoreProcessPlatform } from "@main/app/__tests__/utilities";
 import { afterEach, vi } from "vitest";
 
 const MICROTASK_FLUSH_COUNT = 8;

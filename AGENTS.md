@@ -27,7 +27,7 @@
 
 - Keep TypeScript strict and preserve explicit types where contracts are non-obvious.
 - Keep IPC schema-first:
-  - channels and schemas live in `src/shared/ipc.ts`
+  - channels and schemas live in `src/shared/ipc/index.ts`
   - validate inbound IPC payloads in main/preload
   - validate outbound HUD state before send
 - For main-process IPC registration, call `ipcMain.removeHandler(channel)` before re-registering.
@@ -43,7 +43,7 @@
 - `pnpm test` retains 100% coverage with per-file thresholds; do not bypass this with coverage ignores.
 - Browser tests should prefer `render` from `vitest-browser-react` and locator-driven assertions.
 - E2E must stay deterministic:
-  - use `e2e/fake-ableton-live-server.ts`
+  - use `e2e/fake-ableton-live/server.ts`
   - launch `out/main/index.js`
   - isolate user/profile directories
   - keep `workers: 1`, `fullyParallel: false`, `trace: retain-on-failure`
