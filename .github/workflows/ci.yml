@@ -7,6 +7,13 @@ on:
       - main
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      debug_windows_e2e:
+        description: Open a tmate session after a failed Windows E2E run
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -134,6 +141,13 @@ jobs:
           ABLETON_HUD_E2E_THEME: ${{ matrix.e2e_theme }}
           CI_ENVIRONMENT_NAME: ${{ matrix.report_tag }}
         run: pnpm run test:e2e
+
+      - name: Debug failed Windows E2E runner with tmate
+        if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug_windows_e2e && matrix.report_tag == 'windows' }}
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 30
+        with:
+          limit-access-to-actor: true
 
       - name: Upload Playwright artifacts
         if: always()

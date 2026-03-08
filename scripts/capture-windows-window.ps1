@@ -9,7 +9,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-Add-Type -ReferencedAssemblies System.Drawing.Common -TypeDefinition @"
+Add-Type -ReferencedAssemblies @(
+    "System.Drawing.Common",
+    "System.Drawing.Primitives"
+) -TypeDefinition @"
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
