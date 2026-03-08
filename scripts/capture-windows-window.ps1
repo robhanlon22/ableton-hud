@@ -42,6 +42,13 @@ public static class WindowCapture {
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
 
+    public static void ThrowLastWin32Error(string operation) {
+        int errorCode = Marshal.GetLastWin32Error();
+        throw new InvalidOperationException(
+            operation + " failed with Win32 error " + errorCode + "."
+        );
+    }
+
     public static RECT GetBounds(IntPtr hwnd) {
         RECT rect;
         int hr = DwmGetWindowAttribute(
@@ -52,10 +59,7 @@ public static class WindowCapture {
         );
         if (hr != 0) {
             if (!GetWindowRect(hwnd, out rect)) {
-                throw new System.ComponentModel.Win32Exception(
-                    Marshal.GetLastWin32Error(),
-                    "GetWindowRect failed."
-                );
+                ThrowLastWin32Error("GetWindowRect");
             }
         }
 
@@ -75,10 +79,7 @@ public static class WindowCapture {
                 IntPtr hdc = graphics.GetHdc();
                 try {
                     if (!PrintWindow(hwnd, hdc, 0)) {
-                        throw new System.ComponentModel.Win32Exception(
-                            Marshal.GetLastWin32Error(),
-                            "PrintWindow failed."
-                        );
+                        ThrowLastWin32Error("PrintWindow");
                     }
                 } finally {
                     graphics.ReleaseHdc(hdc);
