@@ -190,6 +190,29 @@ it("returns early when slot loading changes token after the clip resolves", asyn
   expect(subscribeClipSpy).not.toHaveBeenCalled();
 });
 
+it("returns early when the scene subscription changes the selected track token", async () => {
+  // arrange
+  const { bridge } = await createBridge();
+  const subscribeClipSpy = vi.spyOn(bridge, "subscribeClip");
+  const subscribeSceneSpy = vi
+    .spyOn(bridge, "subscribeScene")
+    .mockImplementation(() => {
+      bridge.selectedTrackToken += 1;
+      return resolved();
+    });
+  stubPlayableSlot(bridge, STARTED_SLOT_TOKEN, createLiveClip());
+
+  // act
+  await bridge.handlePlayingSlot(INITIAL_SLOT_INDEX);
+
+  // assert
+  expect(subscribeSceneSpy).toHaveBeenCalledWith(
+    INITIAL_SLOT_INDEX,
+    STARTED_SLOT_TOKEN,
+  );
+  expect(subscribeClipSpy).not.toHaveBeenCalled();
+});
+
 it("subscribes scene observers and applies scene updates", async () => {
   // arrange
   const { bridge } = await createBridge();
@@ -215,6 +238,20 @@ it("subscribes scene observers and applies scene updates", async () => {
   // assert
   expect(bridge.sceneName).toBe("Chorus");
   expect(bridge.sceneColor).toBe(UPDATED_SCENE_COLOR);
+});
+
+it("returns early from subscribeScene when the scene selection is no longer current", async () => {
+  // arrange
+  const { bridge } = await createBridge();
+  const sceneChildSpy = vi.spyOn(bridge.access, "safeSongSceneChild");
+  bridge.selectedTrackToken = BASE_TOKEN;
+  bridge.activeScene = ACTIVE_SCENE_INDEX;
+
+  // act
+  await bridge.subscribeScene(ACTIVE_SCENE_INDEX, STARTED_SLOT_TOKEN);
+
+  // assert
+  expect(sceneChildSpy).not.toHaveBeenCalled();
 });
 
 it("ignores scene updates after the active scene changes or the token shifts", async () => {

@@ -1,18 +1,43 @@
 /* eslint-disable max-lines -- Keeping bridge orchestration in one place is simpler than splitting it into adapter files. */
-import type { HudMode, HudState } from "@shared/types";
+import type { ClipTimingMeta, HudMode, HudState } from "@shared/types";
+
+import { EPSILON, hasValidLoopSpan } from "@main/counter";
+import WebSocket from "ws";
 
 import type {
+  BridgeClipReference,
   BridgeDeps,
+  ClipProperty,
+  LiveClient,
   LiveClip,
   LiveScene,
+  LiveSong,
+  LiveSongView,
   LiveTrack,
+  ObserverCleanup,
+  PayloadNormalizers,
+  SceneProperty,
   SongProperty,
+  TrackProperty,
 } from "./types";
 
-import { AbletonLiveBridgeBase } from "./base";
 import { LiveBridgeAccess } from "./live-access";
+import {
+  defaultLiveFactory,
+  defaultPayloadNormalizers,
+  resolveLivePort,
+} from "./normalizers";
 import { buildHudState } from "./state";
-import { DEFAULT_CLIP_META, INACTIVE_SLOT_INDEX } from "./types";
+import {
+  DEFAULT_BEATS_PER_BAR,
+  DEFAULT_CLIP_META,
+  DEFAULT_LIVE_HOST,
+  INACTIVE_SLOT_INDEX,
+  LOOP_WRAP_TOLERANCE_BEATS,
+  RECONNECT_BACKOFF_BASE,
+  RECONNECT_BASE_DELAY_MS,
+  RECONNECT_MAX_DELAY_MS,
+} from "./types";
 export {
   defaultLiveFactory,
   defaultPayloadNormalizers,
@@ -42,20 +67,99 @@ export type {
 } from "./types";
 
 /**
- * Identifies the currently active clip by track and slot index.
+ * WebSocket constructor shape accepted by the bridge in browser and Node runtimes.
  */
-interface ActiveClipKey {
-  /** Zero-based clip-slot index. */
-  clip: number;
-  /** Zero-based track index. */
-  track: number;
+type RuntimeWebSocketCtor = typeof globalThis.WebSocket | typeof WebSocket;
+
+/**
+ * Mutable global runtime fields needed to install a WebSocket shim in tests and Node.
+ */
+interface WebSocketRuntime {
+  /**
+   * WebSocket constructor exposed by the current runtime, when present.
+   */
+  WebSocket?: RuntimeWebSocketCtor;
 }
+
+const SONG_PROPERTIES = [
+  "signature_numerator",
+  "signature_denominator",
+  "is_playing",
+  "current_song_time",
+] as const satisfies readonly SongProperty[];
+
+const TRACK_OBSERVER_PROPERTIES = [
+  "playing_slot_index",
+  "name",
+  "color",
+] as const satisfies readonly TrackProperty[];
+
+const TRACK_SNAPSHOT_PROPERTIES = [
+  "name",
+  "color",
+] as const satisfies readonly Exclude<TrackProperty, "playing_slot_index">[];
+
+const SCENE_PROPERTIES = [
+  "name",
+  "color",
+] as const satisfies readonly SceneProperty[];
+
+const CLIP_PROPERTIES = [
+  "playing_position",
+  "name",
+  "color",
+  "length",
+  "loop_start",
+  "loop_end",
+  "looping",
+] as const satisfies readonly ClipProperty[];
 
 /**
  * Owns the Ableton Live bridge lifecycle and HUD-facing runtime state.
  */
-export class AbletonLiveBridge extends AbletonLiveBridgeBase {
+export class AbletonLiveBridge {
   readonly access: LiveBridgeAccess;
+
+  protected activeClip: BridgeClipReference | undefined;
+  protected activeScene: number | undefined;
+  protected beatCounter = 0;
+  protected beatFlashToken = 0;
+  protected clipColor: number | undefined;
+  protected clipMeta = cloneDefaultClipMeta();
+  protected clipName: string | undefined;
+  protected clipObserverCleanups: ObserverCleanup[] = [];
+  protected connected = false;
+  protected connectInFlight = false;
+  protected connectionEpoch = 0;
+  protected currentPosition: number | undefined;
+  protected isPlaying = false;
+  protected lastWholeBeat: number | undefined;
+  protected launchPosition: number | undefined;
+  protected readonly live: LiveClient;
+  protected loopWrapCount = 0;
+  protected mode: HudMode;
+  protected readonly normalizers: PayloadNormalizers;
+  protected readonly onState: (state: HudState) => void;
+  protected pendingSelectedTrack: number | undefined;
+  protected previousPosition: number | undefined;
+  protected reconnectAttempt = 0;
+  protected reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+  protected sceneColor: number | undefined;
+  protected sceneName: string | undefined;
+  protected sceneObserverCleanups: ObserverCleanup[] = [];
+  protected selectedTrack: number | undefined;
+  protected selectedTrackToken = 0;
+  protected signatureDenominator = DEFAULT_BEATS_PER_BAR;
+  protected signatureNumerator = DEFAULT_BEATS_PER_BAR;
+  protected readonly song: LiveSong;
+  protected songObserverCleanups: ObserverCleanup[] = [];
+  protected readonly songView: LiveSongView;
+  protected started = false;
+  protected trackColor: number | undefined;
+  protected trackLocked: boolean;
+  protected trackName: string | undefined;
+  protected trackObserverCleanups: ObserverCleanup[] = [];
+  protected transitionInProgress = false;
 
   /**
    * Builds the bridge runtime around the guarded Live access layer.
@@ -70,12 +174,99 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
     trackLocked = false,
     deps: BridgeDeps = {},
   ) {
-    super(mode, onState, trackLocked, deps);
+    const host =
+      deps.hostOverride ?? process.env.AOSC_LIVE_HOST ?? DEFAULT_LIVE_HOST;
+    const port = resolveLivePort(
+      deps.portOverride ?? process.env.AOSC_LIVE_PORT,
+    );
+    const websocketCtor = deps.websocketCtor ?? WebSocket;
+    if (!Object.hasOwn(globalThis, "WebSocket")) {
+      installGlobalWebSocket(globalThis, websocketCtor);
+    }
+
+    this.mode = mode;
+    this.onState = onState;
+    this.trackLocked = trackLocked;
+    this.normalizers = {
+      ...defaultPayloadNormalizers,
+      ...deps.normalizers,
+    };
+
+    this.live = (deps.liveFactory ?? defaultLiveFactory).create({ host, port });
+    this.song = this.live.song;
+    this.songView = this.live.songView;
     this.access = new LiveBridgeAccess(
       this.song,
       this.songView,
       this.normalizers,
     );
+
+    this.live.on("connect", this.handleConnect);
+    this.live.on("disconnect", this.handleDisconnect);
+  }
+
+  /**
+   * Updates the HUD mode and emits the next state snapshot.
+   * @param mode - The next HUD mode.
+   */
+  setMode(mode: HudMode): void {
+    this.mode = mode;
+    this.emit();
+  }
+
+  /**
+   * Updates track-lock state and applies any deferred track selection.
+   * @param trackLocked - Whether track selection should stay locked.
+   */
+  setTrackLocked(trackLocked: boolean): void {
+    if (this.trackLocked === trackLocked) {
+      return;
+    }
+
+    this.trackLocked = trackLocked;
+    if (!trackLocked && this.pendingSelectedTrack !== undefined) {
+      const pendingTrack = this.pendingSelectedTrack;
+      this.pendingSelectedTrack = undefined;
+      void this.applySelectedTrack(pendingTrack);
+      return;
+    }
+
+    this.emit();
+  }
+
+  /**
+   * Starts the bridge connection lifecycle.
+   */
+  start(): void {
+    if (this.started) {
+      return;
+    }
+
+    this.started = true;
+    void this.connect();
+  }
+
+  /**
+   * Stops the bridge and tears down active subscriptions.
+   */
+  stop(): void {
+    this.started = false;
+    this.connectionEpoch += 1;
+    this.clearReconnectTimer();
+    this.clearObserverGroup(this.songObserverCleanups);
+    this.clearTrackSubscription();
+    this.connectInFlight = false;
+    this.connected = false;
+    disconnectLiveClient(this.live);
+  }
+
+  /**
+   * Toggles track lock and returns the new state.
+   * @returns Whether track lock is enabled after toggling.
+   */
+  toggleTrackLock(): boolean {
+    this.setTrackLocked(!this.trackLocked);
+    return this.trackLocked;
   }
 
   /**
@@ -90,18 +281,28 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
 
     const token = this.beginTrackSelection(trackIndex);
     const track = await this.access.getTrack(trackIndex);
-    if (track === undefined || token !== this.selectedTrackToken) {
+    if (
+      track === undefined ||
+      !this.isCurrentTrackSelection(trackIndex, token)
+    ) {
       return;
     }
 
-    await this.syncSelectedTrackState(track);
+    await this.syncSelectedTrackState(track, trackIndex, token);
+    if (!this.isCurrentTrackSelection(trackIndex, token)) {
+      return;
+    }
+
     await this.observeTrack(track, trackIndex);
+    if (!this.isCurrentTrackSelection(trackIndex, token)) {
+      return;
+    }
 
     const playingSlot = await this.access.safeTrackGet(
       track,
       "playing_slot_index",
     );
-    if (token !== this.selectedTrackToken) {
+    if (!this.isCurrentTrackSelection(trackIndex, token)) {
       return;
     }
 
@@ -123,24 +324,7 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
 
     this.resetSongSubscriptions();
     await this.observeSelectedTrack();
-    await this.observeSongProperty("signature_numerator", (value) => {
-      this.signatureNumerator = Math.max(
-        1,
-        Math.round(this.normalizers.toNumber(value)),
-      );
-    });
-    await this.observeSongProperty("signature_denominator", (value) => {
-      this.signatureDenominator = Math.max(
-        1,
-        Math.round(this.normalizers.toNumber(value)),
-      );
-    });
-    await this.observeSongProperty("is_playing", (value) => {
-      this.isPlaying = this.normalizers.toBoolean(value);
-    });
-    await this.observeSongProperty("current_song_time", (value) => {
-      return this.handleSongTime(this.normalizers.toNumber(value));
-    });
+    await this.observeSongProperties();
     await this.syncSongState(epoch);
   }
 
@@ -173,30 +357,161 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
       return;
     }
 
-    this.onState(
-      buildHudState({
-        activeClip: this.activeClip,
-        beatCounter: this.beatCounter,
-        beatFlashToken: this.beatFlashToken,
-        clipColor: this.clipColor,
-        clipMeta: this.clipMeta,
-        clipName: this.clipName,
-        connected: this.connected,
-        currentPosition: this.currentPosition,
-        isPlaying: this.isPlaying,
-        launchPosition: this.launchPosition,
-        loopWrapCount: this.loopWrapCount,
-        mode: this.mode,
-        sceneColor: this.sceneColor,
-        sceneName: this.sceneName,
-        selectedTrack: this.selectedTrack,
-        signatureDenominator: this.signatureDenominator,
-        signatureNumerator: this.signatureNumerator,
-        trackColor: this.trackColor,
-        trackLocked: this.trackLocked,
-        trackName: this.trackName,
-      }),
-    );
+    this.onState(buildHudState(this.snapshot()));
+  }
+
+  /**
+   * Applies a raw clip property update to bridge state.
+   * @param property - Clip property being updated.
+   * @param value - Raw Live payload for the property.
+   */
+  private applyClipProperty(property: ClipProperty, value: unknown): void {
+    switch (property) {
+      case "color": {
+        this.clipColor = this.normalizers.toColorValue(value);
+        return;
+      }
+
+      case "length": {
+        this.clipMeta.length = this.normalizers.toNumber(
+          value,
+          this.clipMeta.length,
+        );
+        return;
+      }
+
+      case "loop_end": {
+        this.clipMeta.loopEnd = this.normalizers.toNumber(
+          value,
+          this.clipMeta.loopEnd,
+        );
+        return;
+      }
+
+      case "loop_start": {
+        this.clipMeta.loopStart = this.normalizers.toNumber(
+          value,
+          this.clipMeta.loopStart,
+        );
+        return;
+      }
+
+      case "name": {
+        this.clipName = this.normalizers.toStringValue(value);
+        return;
+      }
+
+      case "playing_position": {
+        this.handlePlayingPosition(this.normalizers.toNumber(value));
+        return;
+      }
+
+      case "looping": {
+        this.clipMeta.looping = this.normalizers.toBoolean(value);
+      }
+    }
+  }
+
+  /**
+   * Applies a raw scene property update to bridge state.
+   * @param property - Scene property being updated.
+   * @param value - Raw Live payload for the property.
+   */
+  private applySceneProperty(property: SceneProperty, value: unknown): void {
+    switch (property) {
+      case "name": {
+        this.sceneName = this.normalizers.toStringValue(value);
+        return;
+      }
+
+      case "color": {
+        this.sceneColor = this.normalizers.toSceneColorValue(value);
+      }
+    }
+  }
+
+  /**
+   * Applies a raw song property update to bridge state.
+   * @param property - Song property being updated.
+   * @param value - Raw Live payload for the property.
+   * @returns Whether the update should emit a HUD state.
+   */
+  private applySongProperty(
+    property: SongProperty,
+    value: unknown,
+  ): boolean | undefined {
+    switch (property) {
+      case "current_song_time": {
+        return this.handleSongTime(this.normalizers.toNumber(value));
+      }
+
+      case "is_playing": {
+        this.isPlaying = this.normalizers.toBoolean(value);
+        return;
+      }
+
+      case "signature_denominator": {
+        this.signatureDenominator = Math.max(
+          1,
+          Math.round(this.normalizers.toNumber(value)),
+        );
+        return;
+      }
+
+      case "signature_numerator": {
+        this.signatureNumerator = Math.max(
+          1,
+          Math.round(this.normalizers.toNumber(value)),
+        );
+        return;
+      }
+    }
+  }
+
+  /**
+   * Applies a raw track property update to bridge state.
+   * @param property - Track property being updated.
+   * @param value - Raw Live payload for the property.
+   * @returns Whether the update should emit a HUD state.
+   */
+  private applyTrackProperty(
+    property: TrackProperty,
+    value: unknown,
+  ): boolean | undefined {
+    switch (property) {
+      case "name": {
+        this.trackName = this.normalizers.toStringValue(value);
+        return;
+      }
+
+      case "playing_slot_index": {
+        void this.handlePlayingSlot(
+          this.normalizers.toNumber(value, INACTIVE_SLOT_INDEX),
+        );
+        return false;
+      }
+
+      case "color": {
+        this.trackColor = this.normalizers.toColorValue(value);
+      }
+    }
+  }
+
+  /**
+   * Applies a raw selected-track snapshot property to bridge state.
+   * @param property - Track property being updated.
+   * @param value - Raw Live payload for the property.
+   */
+  private applyTrackSnapshotProperty(
+    property: Exclude<TrackProperty, "playing_slot_index">,
+    value: unknown,
+  ): void {
+    if (property === "name") {
+      this.trackName = this.normalizers.toStringValue(value);
+      return;
+    }
+
+    this.trackColor = this.normalizers.toColorValue(value);
   }
 
   /**
@@ -213,6 +528,102 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
     this.emit();
     return this.selectedTrackToken;
   }
+
+  /**
+   * Clears clip observers and optionally preserves displayed clip metadata.
+   * @param preserveDisplay - Whether to retain current clip display fields.
+   */
+  private clearClipSubscription(preserveDisplay = false): void {
+    this.clearObserverGroup(this.clipObserverCleanups);
+    this.clearSceneSubscription(preserveDisplay);
+    this.activeClip = undefined;
+
+    if (!preserveDisplay) {
+      this.clipName = undefined;
+      this.clipColor = undefined;
+    }
+
+    this.clipMeta = cloneDefaultClipMeta();
+    this.resetClipRunState();
+  }
+
+  /**
+   * Runs and removes a group of observer cleanup callbacks.
+   * @param cleanups - Cleanup callbacks to invoke and clear.
+   */
+  private clearObserverGroup(cleanups: ObserverCleanup[]): void {
+    for (const cleanup of cleanups.splice(0)) {
+      void Promise.resolve(cleanup()).catch(ignoreObserverCleanupError);
+    }
+  }
+
+  /**
+   * Cancels any queued reconnect attempt.
+   */
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer !== undefined) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
+  }
+
+  /**
+   * Clears scene observers and optionally preserves displayed scene metadata.
+   * @param preserveDisplay - Whether to retain current scene display fields.
+   */
+  private clearSceneSubscription(preserveDisplay = false): void {
+    this.clearObserverGroup(this.sceneObserverCleanups);
+    this.activeScene = undefined;
+
+    if (!preserveDisplay) {
+      this.sceneColor = undefined;
+      this.sceneName = undefined;
+    }
+  }
+
+  /**
+   * Clears the current track subscription and any dependent clip state.
+   */
+  private clearTrackSubscription(): void {
+    this.clearObserverGroup(this.trackObserverCleanups);
+    this.clearClipSubscription();
+  }
+
+  /**
+   * Handles a successful Live connection.
+   */
+  private readonly handleConnect = (): void => {
+    if (!this.started) {
+      return;
+    }
+
+    this.connected = true;
+    this.clearReconnectTimer();
+    this.reconnectAttempt = 0;
+    const epoch = ++this.connectionEpoch;
+    void this.bootstrap(epoch);
+    this.emit();
+  };
+
+  /**
+   * Handles a Live disconnect and schedules reconnection.
+   */
+  private readonly handleDisconnect = (): void => {
+    if (!this.started) {
+      return;
+    }
+
+    this.connected = false;
+    this.connectionEpoch += 1;
+    this.pendingSelectedTrack = undefined;
+    this.selectedTrack = undefined;
+    this.trackColor = undefined;
+    this.trackName = undefined;
+    this.clearObserverGroup(this.songObserverCleanups);
+    this.clearTrackSubscription();
+    this.emit();
+    this.scheduleReconnect();
+  };
 
   /** Clears clip state when playback has stopped on the selected track. */
   private handleInactiveSlot(): void {
@@ -275,11 +686,31 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
     try {
       const token = this.selectedTrackToken;
       this.preparePlayingSlot(selectedTrack, slotIndex);
-      await this.subscribeScene(slotIndex, token);
-      const clip = await this.loadActiveClip(selectedTrack, slotIndex, token);
-      if (clip !== undefined) {
-        await this.subscribeClip(selectedTrack, slotIndex, clip, token);
+
+      const track = await this.access.getTrack(selectedTrack);
+      if (
+        track === undefined ||
+        !this.isCurrentSlotSelection(selectedTrack, slotIndex, token)
+      ) {
+        return;
       }
+
+      await this.subscribeScene(slotIndex, token);
+      if (!this.isCurrentSlotSelection(selectedTrack, slotIndex, token)) {
+        return;
+      }
+
+      const clip = await this.resolveSlotClip(
+        track,
+        selectedTrack,
+        slotIndex,
+        token,
+      );
+      if (clip === undefined) {
+        return;
+      }
+
+      await this.subscribeClip(selectedTrack, slotIndex, clip, token);
     } finally {
       this.transitionInProgress = false;
       this.emit();
@@ -287,83 +718,185 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
   }
 
   /**
-   * Loads the active clip for the selected slot when it still exists.
-   * @param trackIndex - Zero-based selected track index.
-   * @param slotIndex - Zero-based clip-slot index.
-   * @param token - Selection token guarding against stale async work.
-   * @returns The active clip when it is still current.
+   * Applies a selected track immediately or defers it while locked.
+   * @param trackIndex - The selected Live track index.
    */
-  private async loadActiveClip(
-    trackIndex: number,
-    slotIndex: number,
-    token: number,
-  ): Promise<LiveClip | undefined> {
-    const track = await this.access.getTrack(trackIndex);
-    if (track === undefined || token !== this.selectedTrackToken) {
-      return undefined;
+  private handleSelectedTrack(trackIndex: number): void {
+    if (trackIndex < 0) {
+      return;
     }
 
-    const clipSlot = await this.access.safeTrackChild(track, slotIndex);
-    if (clipSlot === undefined || token !== this.selectedTrackToken) {
-      return undefined;
+    if (
+      this.trackLocked &&
+      this.selectedTrack !== undefined &&
+      this.selectedTrack !== trackIndex
+    ) {
+      this.pendingSelectedTrack = trackIndex;
+      return;
     }
 
-    const hasClip = this.normalizers.toBoolean(
-      await this.access.safeClipSlotGet(clipSlot, "has_clip"),
-    );
-    if (!hasClip || token !== this.selectedTrackToken) {
-      return undefined;
-    }
-
-    const clip = await this.access.safeClipSlotClip(clipSlot);
-    return token === this.selectedTrackToken ? clip : undefined;
+    this.pendingSelectedTrack = undefined;
+    void this.applySelectedTrack(trackIndex);
   }
 
   /**
-   * Registers clip observers for the currently active clip.
+   * Updates beat counters from the current Live song time.
+   * @param songTime - The current song time in beats.
+   * @returns Whether the beat-derived HUD state changed.
+   */
+  private handleSongTime(songTime: number): boolean {
+    const wholeBeat = Math.max(0, Math.floor(songTime + EPSILON));
+
+    if (this.lastWholeBeat === undefined) {
+      this.lastWholeBeat = wholeBeat;
+      if (wholeBeat === this.beatCounter) {
+        return false;
+      }
+
+      this.beatCounter = wholeBeat;
+      return true;
+    }
+
+    if (wholeBeat === this.lastWholeBeat) {
+      return false;
+    }
+
+    this.lastWholeBeat = wholeBeat;
+    this.beatCounter = wholeBeat;
+    this.beatFlashToken += 1;
+    return true;
+  }
+
+  /**
+   * Checks whether the active clip matches a track and clip index.
+   * @param track - Candidate track index.
+   * @param clip - Candidate clip index.
+   * @returns Whether the active clip matches the given location.
+   */
+  private isActiveClip(track: number, clip: number): boolean {
+    return this.activeClip?.track === track && this.activeClip.clip === clip;
+  }
+
+  /**
+   * Checks whether the current active clip still matches a guarded clip subscription.
+   * @param trackIndex - Candidate selected track index.
+   * @param slotIndex - Candidate clip-slot index.
+   * @param token - Candidate selected-track token.
+   * @returns Whether the clip subscription is still current.
+   */
+  private isCurrentClipSubscription(
+    trackIndex: number,
+    slotIndex: number,
+    token: number,
+  ): boolean {
+    return (
+      token === this.selectedTrackToken &&
+      this.isActiveClip(trackIndex, slotIndex)
+    );
+  }
+
+  /**
+   * Checks whether an epoch still matches the active connection.
+   * @param epoch - Connection epoch to validate.
+   * @returns Whether the epoch is still current.
+   */
+  private isCurrentEpoch(epoch: number): boolean {
+    return this.started && epoch === this.connectionEpoch;
+  }
+
+  /**
+   * Checks whether the current active scene still matches a guarded slot transition.
+   * @param sceneIndex - Candidate active scene index.
+   * @param token - Candidate selected-track token.
+   * @returns Whether the scene transition is still current.
+   */
+  private isCurrentSceneSelection(sceneIndex: number, token: number): boolean {
+    return token === this.selectedTrackToken && this.activeScene === sceneIndex;
+  }
+
+  /**
+   * Checks whether the current active clip still matches a guarded slot transition.
+   * @param trackIndex - Candidate selected track index.
+   * @param slotIndex - Candidate clip-slot index.
+   * @param token - Candidate selected-track token.
+   * @returns Whether the clip transition is still current.
+   */
+  private isCurrentSlotSelection(
+    trackIndex: number,
+    slotIndex: number,
+    token: number,
+  ): boolean {
+    return (
+      this.isCurrentTrackSelection(trackIndex, token) &&
+      this.isCurrentClipSubscription(trackIndex, slotIndex, token)
+    );
+  }
+
+  /**
+   * Checks whether the selected-track transaction still matches the current selection.
+   * @param trackIndex - Candidate selected track index.
+   * @param token - Candidate selected-track token.
+   * @returns Whether the track selection is still current.
+   */
+  private isCurrentTrackSelection(trackIndex: number, token: number): boolean {
+    return (
+      token === this.selectedTrackToken && this.selectedTrack === trackIndex
+    );
+  }
+
+  /**
+   * Checks whether a position jump is a natural loop wrap.
+   * @param previousPosition - Previous clip position in beats.
+   * @param currentPosition - Current clip position in beats.
+   * @returns Whether the jump stays within the configured loop span.
+   */
+  private isNaturalLoopWrap(
+    previousPosition: number,
+    currentPosition: number,
+  ): boolean {
+    if (!hasValidLoopSpan(this.clipMeta)) {
+      return false;
+    }
+
+    const loopSpan = this.clipMeta.loopEnd - this.clipMeta.loopStart;
+    const wrappedDelta = currentPosition + loopSpan - previousPosition;
+
+    return (
+      previousPosition >= this.clipMeta.loopStart - EPSILON &&
+      previousPosition <= this.clipMeta.loopEnd + EPSILON &&
+      currentPosition >= this.clipMeta.loopStart - EPSILON &&
+      currentPosition <= this.clipMeta.loopEnd + EPSILON &&
+      wrappedDelta >= -EPSILON &&
+      wrappedDelta <= loopSpan + LOOP_WRAP_TOLERANCE_BEATS
+    );
+  }
+
+  /**
+   * Computes the next reconnect delay and advances backoff state.
+   * @returns The delay in milliseconds before the next reconnect attempt.
+   */
+  private nextReconnectDelayMs(): number {
+    const delay = Math.min(
+      RECONNECT_BASE_DELAY_MS * RECONNECT_BACKOFF_BASE ** this.reconnectAttempt,
+      RECONNECT_MAX_DELAY_MS,
+    );
+    this.reconnectAttempt += 1;
+    return delay;
+  }
+
+  /**
+   * Observes the active clip while it remains current.
    * @param clip - Active clip to observe.
    * @param activeClip - Active clip identity to guard observer callbacks.
-   * @returns A promise that settles after all clip observers are attached.
+   * @returns A promise that settles after clip observers are attached.
    */
   private async observeClip(
     clip: LiveClip,
-    activeClip: ActiveClipKey,
+    activeClip: BridgeClipReference,
   ): Promise<void> {
-    await this.observeClipProperty(
-      clip,
-      activeClip,
-      "playing_position",
-      (value) => {
-        this.handlePlayingPosition(this.normalizers.toNumber(value));
-      },
-    );
-    await this.observeClipProperty(clip, activeClip, "name", (value) => {
-      this.clipName = this.normalizers.toStringValue(value);
-    });
-    await this.observeClipProperty(clip, activeClip, "color", (value) => {
-      this.clipColor = this.normalizers.toColorValue(value);
-    });
-    await this.observeClipProperty(clip, activeClip, "length", (value) => {
-      this.clipMeta.length = this.normalizers.toNumber(
-        value,
-        this.clipMeta.length,
-      );
-    });
-    await this.observeClipProperty(clip, activeClip, "loop_start", (value) => {
-      this.clipMeta.loopStart = this.normalizers.toNumber(
-        value,
-        this.clipMeta.loopStart,
-      );
-    });
-    await this.observeClipProperty(clip, activeClip, "loop_end", (value) => {
-      this.clipMeta.loopEnd = this.normalizers.toNumber(
-        value,
-        this.clipMeta.loopEnd,
-      );
-    });
-    await this.observeClipProperty(clip, activeClip, "looping", (value) => {
-      this.clipMeta.looping = this.normalizers.toBoolean(value);
-    });
+    for (const property of CLIP_PROPERTIES) {
+      await this.observeClipProperty(clip, activeClip, property);
+    }
   }
 
   /**
@@ -371,28 +904,19 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
    * @param clip - Active clip to observe.
    * @param activeClip - Active clip identity to guard observer callbacks.
    * @param property - Clip property to observe.
-   * @param applyValue - State update to apply for observed values.
    * @returns A promise that settles after the observer is registered.
    */
   private async observeClipProperty(
     clip: LiveClip,
-    activeClip: ActiveClipKey,
-    property:
-      | "color"
-      | "length"
-      | "loop_end"
-      | "loop_start"
-      | "looping"
-      | "name"
-      | "playing_position",
-    applyValue: (value: unknown) => void,
+    activeClip: BridgeClipReference,
+    property: ClipProperty,
   ): Promise<void> {
     const stop = await this.access.safeClipObserve(clip, property, (value) => {
       if (!this.isActiveClip(activeClip.track, activeClip.clip)) {
         return;
       }
 
-      applyValue(value);
+      this.applyClipProperty(property, value);
       this.emit();
     });
     this.registerCleanup(this.clipObserverCleanups, stop);
@@ -403,14 +927,12 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
    * @param scene - Active scene to observe.
    * @param sceneIndex - Zero-based active scene index.
    * @param property - Scene property to observe.
-   * @param applyValue - State update to apply for observed values.
    * @returns A promise that settles after the observer is registered.
    */
   private async observeSceneProperty(
     scene: LiveScene,
     sceneIndex: number,
-    property: "color" | "name",
-    applyValue: (value: unknown) => void,
+    property: SceneProperty,
   ): Promise<void> {
     const stop = await this.access.safeSceneObserve(
       scene,
@@ -420,14 +942,17 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
           return;
         }
 
-        applyValue(value);
+        this.applySceneProperty(property, value);
         this.emit();
       },
     );
     this.registerCleanup(this.sceneObserverCleanups, stop);
   }
 
-  /** @returns A promise that settles after the selected-track observer is registered. */
+  /**
+   * Observes the selected-track payload from Live's song view.
+   * @returns A promise that settles after the observer is registered.
+   */
   private async observeSelectedTrack(): Promise<void> {
     const stop = await this.access.safeSongViewObserve(
       "selected_track",
@@ -442,16 +967,22 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
 
   /**
    * Observes song-level state needed by the HUD.
+   * @returns A promise that settles after all song observers are registered.
+   */
+  private async observeSongProperties(): Promise<void> {
+    for (const property of SONG_PROPERTIES) {
+      await this.observeSongProperty(property);
+    }
+  }
+
+  /**
+   * Observes song-level state needed by the HUD.
    * @param property - Song property to observe.
-   * @param applyValue - State update to apply for observed values.
    * @returns A promise that settles after the observer is registered.
    */
-  private async observeSongProperty(
-    property: SongProperty,
-    applyValue: (value: unknown) => unknown,
-  ): Promise<void> {
+  private async observeSongProperty(property: SongProperty): Promise<void> {
     const stop = await this.access.safeSongObserve(property, (value) => {
-      if (applyValue(value) !== false) {
+      if (this.applySongProperty(property, value) !== false) {
         this.emit();
       }
     });
@@ -468,47 +999,37 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
     track: LiveTrack,
     trackIndex: number,
   ): Promise<void> {
-    const stopPlayingSlot = await this.access.safeTrackObserve(
+    for (const property of TRACK_OBSERVER_PROPERTIES) {
+      await this.observeTrackProperty(track, trackIndex, property);
+    }
+  }
+
+  /**
+   * Observes a track property while the given track remains selected.
+   * @param track - Selected Live track.
+   * @param trackIndex - Zero-based selected track index.
+   * @param property - Track property to observe.
+   * @returns A promise that settles after the observer is registered.
+   */
+  private async observeTrackProperty(
+    track: LiveTrack,
+    trackIndex: number,
+    property: TrackProperty,
+  ): Promise<void> {
+    const stop = await this.access.safeTrackObserve(
       track,
-      "playing_slot_index",
-      (slotIndex) => {
+      property,
+      (value) => {
         if (this.selectedTrack !== trackIndex) {
           return;
         }
 
-        void this.handlePlayingSlot(
-          this.normalizers.toNumber(slotIndex, INACTIVE_SLOT_INDEX),
-        );
-      },
-    );
-    const stopTrackName = await this.access.safeTrackObserve(
-      track,
-      "name",
-      (name) => {
-        if (this.selectedTrack !== trackIndex) {
-          return;
+        if (this.applyTrackProperty(property, value) !== false) {
+          this.emit();
         }
-
-        this.trackName = this.normalizers.toStringValue(name);
-        this.emit();
       },
     );
-    const stopTrackColor = await this.access.safeTrackObserve(
-      track,
-      "color",
-      (color) => {
-        if (this.selectedTrack !== trackIndex) {
-          return;
-        }
-
-        this.trackColor = this.normalizers.toColorValue(color);
-        this.emit();
-      },
-    );
-
-    this.registerCleanup(this.trackObserverCleanups, stopPlayingSlot);
-    this.registerCleanup(this.trackObserverCleanups, stopTrackName);
-    this.registerCleanup(this.trackObserverCleanups, stopTrackColor);
+    this.registerCleanup(this.trackObserverCleanups, stop);
   }
 
   /**
@@ -520,8 +1041,32 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
     this.clearClipSubscription(true);
     this.activeClip = { clip: slotIndex, track: trackIndex };
     this.activeScene = slotIndex;
-    this.clipMeta = { ...DEFAULT_CLIP_META };
+    this.clipMeta = cloneDefaultClipMeta();
     this.resetClipRunState();
+  }
+
+  /**
+   * Registers an observer cleanup into a cleanup group.
+   * @param cleanupGroup - Cleanup collection to append to.
+   * @param stop - Cleanup callback to register.
+   */
+  private registerCleanup(
+    cleanupGroup: ObserverCleanup[],
+    stop: ObserverCleanup | undefined,
+  ): void {
+    if (typeof stop === "function") {
+      cleanupGroup.push(stop);
+    }
+  }
+
+  /**
+   * Resets clip playback state used for elapsed and remaining counters.
+   */
+  private resetClipRunState(): void {
+    this.launchPosition = undefined;
+    this.currentPosition = undefined;
+    this.previousPosition = undefined;
+    this.loopWrapCount = 0;
   }
 
   /** Clears song-level observers before reconnecting or resynchronizing. */
@@ -531,12 +1076,95 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
   }
 
   /**
+   * Resolves the active clip from the selected track and slot when it still exists.
+   * @param track - Selected Live track that owns the active slot.
+   * @param trackIndex - Zero-based selected track index.
+   * @param slotIndex - Zero-based active clip-slot index.
+   * @param token - Selection token guarding against stale async work.
+   * @returns The resolved clip when the slot still maps to the current selection.
+   */
+  private async resolveSlotClip(
+    track: LiveTrack,
+    trackIndex: number,
+    slotIndex: number,
+    token: number,
+  ): Promise<LiveClip | undefined> {
+    const clipSlot = await this.access.safeTrackChild(track, slotIndex);
+    if (
+      clipSlot === undefined ||
+      !this.isCurrentSlotSelection(trackIndex, slotIndex, token)
+    ) {
+      return undefined;
+    }
+
+    const hasClip = this.normalizers.toBoolean(
+      await this.access.safeClipSlotGet(clipSlot, "has_clip"),
+    );
+    if (
+      !hasClip ||
+      !this.isCurrentSlotSelection(trackIndex, slotIndex, token)
+    ) {
+      return undefined;
+    }
+
+    const clip = await this.access.safeClipSlotClip(clipSlot);
+    return this.isCurrentSlotSelection(trackIndex, slotIndex, token)
+      ? clip
+      : undefined;
+  }
+
+  /**
    * Resolves a selected-track payload into a zero-based track index.
    * @param selectedTrack - Raw selected-track payload from Live.
    * @returns The resolved track index.
    */
   private resolveTrackIndex(selectedTrack: unknown): Promise<number> {
     return this.access.resolveTrackIndex(selectedTrack);
+  }
+
+  /**
+   * Schedules a reconnect attempt when the bridge should reconnect.
+   */
+  private scheduleReconnect(): void {
+    if (!this.started || this.connected || this.connectInFlight) {
+      return;
+    }
+
+    this.clearReconnectTimer();
+    const delay = this.nextReconnectDelayMs();
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = undefined;
+      void this.connect();
+    }, delay);
+  }
+
+  /**
+   * Builds the current mutable bridge snapshot for HUD-state derivation.
+   * @returns The current bridge snapshot consumed by `buildHudState`.
+   */
+  private snapshot(): Parameters<typeof buildHudState>[0] {
+    return {
+      activeClip: this.activeClip,
+      beatCounter: this.beatCounter,
+      beatFlashToken: this.beatFlashToken,
+      clipColor: this.clipColor,
+      clipMeta: this.clipMeta,
+      clipName: this.clipName,
+      connected: this.connected,
+      currentPosition: this.currentPosition,
+      isPlaying: this.isPlaying,
+      launchPosition: this.launchPosition,
+      loopWrapCount: this.loopWrapCount,
+      mode: this.mode,
+      sceneColor: this.sceneColor,
+      sceneName: this.sceneName,
+      selectedTrack: this.selectedTrack,
+      signatureDenominator: this.signatureDenominator,
+      signatureNumerator: this.signatureNumerator,
+      trackColor: this.trackColor,
+      trackLocked: this.trackLocked,
+      trackName: this.trackName,
+    };
   }
 
   /**
@@ -553,13 +1181,28 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
     clip: LiveClip,
     token: number,
   ): Promise<void> {
-    const activeClip = this.activeClip;
-    if (activeClip?.track !== trackIndex || activeClip.clip !== slotIndex) {
+    if (!this.isCurrentClipSubscription(trackIndex, slotIndex, token)) {
       return;
     }
 
+    const activeClip: BridgeClipReference = {
+      clip: slotIndex,
+      track: trackIndex,
+    };
     await this.observeClip(clip, activeClip);
-    await this.syncClipSnapshot(clip, activeClip, token);
+
+    const clipValues = await Promise.all(
+      CLIP_PROPERTIES.map((property) =>
+        this.access.safeClipGet(clip, property),
+      ),
+    );
+    if (!this.isCurrentClipSubscription(trackIndex, slotIndex, token)) {
+      return;
+    }
+
+    for (const [index, property] of CLIP_PROPERTIES.entries()) {
+      this.applyClipProperty(property, clipValues[index]);
+    }
   }
 
   /**
@@ -572,99 +1215,60 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
     sceneIndex: number,
     token: number,
   ): Promise<void> {
+    if (!this.isCurrentSceneSelection(sceneIndex, token)) {
+      return;
+    }
+
     const scene = await this.access.safeSongSceneChild(sceneIndex);
     if (
       scene === undefined ||
-      token !== this.selectedTrackToken ||
-      this.activeScene !== sceneIndex
+      !this.isCurrentSceneSelection(sceneIndex, token)
     ) {
       return;
     }
 
-    await this.observeSceneProperty(scene, sceneIndex, "name", (value) => {
-      this.sceneName = this.normalizers.toStringValue(value);
-    });
-    await this.observeSceneProperty(scene, sceneIndex, "color", (value) => {
-      this.sceneColor = this.normalizers.toSceneColorValue(value);
-    });
-
-    const [sceneColor, sceneName] = await Promise.all([
-      this.access.safeSceneGet(scene, "color"),
-      this.access.safeSceneGet(scene, "name"),
-    ]);
-    if (token === this.selectedTrackToken && this.activeScene === sceneIndex) {
-      this.sceneColor = this.normalizers.toSceneColorValue(sceneColor);
-      this.sceneName = this.normalizers.toStringValue(sceneName);
+    for (const property of SCENE_PROPERTIES) {
+      await this.observeSceneProperty(scene, sceneIndex, property);
     }
-  }
 
-  /**
-   * Reads the initial clip snapshot after clip observers are attached.
-   * @param clip - Active clip to read.
-   * @param activeClip - Active clip identity to guard against stale async work.
-   * @param token - Selection token guarding against stale async work.
-   * @returns A promise that settles after the snapshot is applied.
-   */
-  private async syncClipSnapshot(
-    clip: LiveClip,
-    activeClip: ActiveClipKey,
-    token: number,
-  ): Promise<void> {
-    const [
-      playingPosition,
-      clipColor,
-      clipName,
-      clipLength,
-      loopStart,
-      loopEnd,
-      looping,
-    ] = await Promise.all([
-      this.access.safeClipGet(clip, "playing_position"),
-      this.access.safeClipGet(clip, "color"),
-      this.access.safeClipGet(clip, "name"),
-      this.access.safeClipGet(clip, "length"),
-      this.access.safeClipGet(clip, "loop_start"),
-      this.access.safeClipGet(clip, "loop_end"),
-      this.access.safeClipGet(clip, "looping"),
-    ]);
-
-    if (
-      token !== this.selectedTrackToken ||
-      !this.isActiveClip(activeClip.track, activeClip.clip)
-    ) {
+    const sceneValues = await Promise.all(
+      SCENE_PROPERTIES.map((property) =>
+        this.access.safeSceneGet(scene, property),
+      ),
+    );
+    if (!this.isCurrentSceneSelection(sceneIndex, token)) {
       return;
     }
 
-    this.handlePlayingPosition(this.normalizers.toNumber(playingPosition));
-    this.clipColor = this.normalizers.toColorValue(clipColor);
-    this.clipName = this.normalizers.toStringValue(clipName);
-    this.clipMeta.length = this.normalizers.toNumber(
-      clipLength,
-      this.clipMeta.length,
-    );
-    this.clipMeta.loopStart = this.normalizers.toNumber(
-      loopStart,
-      this.clipMeta.loopStart,
-    );
-    this.clipMeta.loopEnd = this.normalizers.toNumber(
-      loopEnd,
-      this.clipMeta.loopEnd,
-    );
-    this.clipMeta.looping = this.normalizers.toBoolean(looping);
+    for (const [index, property] of SCENE_PROPERTIES.entries()) {
+      this.applySceneProperty(property, sceneValues[index]);
+    }
   }
 
   /**
    * Syncs the selected-track snapshot before observers stream updates.
    * @param track - Selected Live track.
+   * @param trackIndex - Zero-based selected track index.
+   * @param token - Selection token guarding against stale async work.
    * @returns A promise that settles after the snapshot is applied.
    */
-  private async syncSelectedTrackState(track: LiveTrack): Promise<void> {
-    const [trackName, trackColor] = await Promise.all([
-      this.access.safeTrackGet(track, "name"),
-      this.access.safeTrackGet(track, "color"),
-    ]);
-    this.trackName = this.normalizers.toStringValue(trackName);
-    this.trackColor = this.normalizers.toColorValue(trackColor);
+  private async syncSelectedTrackState(
+    track: LiveTrack,
+    trackIndex: number,
+    token: number,
+  ): Promise<void> {
+    const trackValues = await Promise.all(
+      TRACK_SNAPSHOT_PROPERTIES.map((property) =>
+        this.access.safeTrackGet(track, property),
+      ),
+    );
+    if (!this.isCurrentTrackSelection(trackIndex, token)) {
+      return;
+    }
+
+    for (const [index, property] of TRACK_SNAPSHOT_PROPERTIES.entries()) {
+      this.applyTrackSnapshotProperty(property, trackValues[index]);
+    }
   }
 
   /**
@@ -673,30 +1277,68 @@ export class AbletonLiveBridge extends AbletonLiveBridgeBase {
    * @returns A promise that settles after the initial song state is applied.
    */
   private async syncSongState(epoch: number): Promise<void> {
-    const [signatureNumerator, signatureDenominator, isPlaying, songTime] =
-      await Promise.all([
-        this.access.safeSongGet("signature_numerator"),
-        this.access.safeSongGet("signature_denominator"),
-        this.access.safeSongGet("is_playing"),
-        this.access.safeSongGet("current_song_time"),
-      ]);
+    const songValues = await Promise.all(
+      SONG_PROPERTIES.map((property) => this.access.safeSongGet(property)),
+    );
     if (!this.isCurrentEpoch(epoch)) {
       return;
     }
 
-    this.isPlaying = this.normalizers.toBoolean(isPlaying);
-    this.signatureDenominator = Math.max(
-      1,
-      Math.round(this.normalizers.toNumber(signatureDenominator)),
-    );
-    this.signatureNumerator = Math.max(
-      1,
-      Math.round(this.normalizers.toNumber(signatureNumerator)),
-    );
-    this.handleSongTime(this.normalizers.toNumber(songTime));
+    for (const [index, property] of SONG_PROPERTIES.entries()) {
+      this.applySongProperty(property, songValues[index]);
+    }
 
     const selectedTrack = await this.access.safeSongViewGet("selected_track");
-    this.handleSelectedTrack(await this.resolveTrackIndex(selectedTrack));
+    if (!this.isCurrentEpoch(epoch)) {
+      return;
+    }
+
+    const trackIndex = await this.resolveTrackIndex(selectedTrack);
+    if (!this.isCurrentEpoch(epoch)) {
+      return;
+    }
+
+    this.handleSelectedTrack(trackIndex);
     this.emit();
   }
+}
+
+/**
+ * Clones the default clip metadata snapshot.
+ * @returns A fresh clip metadata object.
+ */
+function cloneDefaultClipMeta(): ClipTimingMeta {
+  return { ...DEFAULT_CLIP_META };
+}
+
+/**
+ * Best-effort disconnect for the Live client during app teardown.
+ * @param liveClient - Live client facade to disconnect.
+ */
+function disconnectLiveClient(liveClient: LiveClient): void {
+  try {
+    liveClient.disconnect();
+  } catch {
+    return;
+  }
+}
+
+/**
+ * Swallows observer cleanup failures during teardown.
+ * @returns `undefined`.
+ */
+function ignoreObserverCleanupError(): void {
+  return undefined;
+}
+
+/**
+ * Installs a WebSocket constructor on the global runtime when the host lacks one.
+ * @param runtime - Global runtime object that may expose WebSocket.
+ * @param websocketCtor - WebSocket constructor to install.
+ */
+function installGlobalWebSocket(
+  runtime: WebSocketRuntime,
+  websocketCtor: RuntimeWebSocketCtor,
+): void {
+  runtime.WebSocket = websocketCtor;
 }

@@ -12,6 +12,8 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 const ACTIVE_TRACK_INDEX = 3;
 const BOOTSTRAP_DENOMINATOR = 8;
+const BOOTSTRAP_EPOCH_AFTER_LOOKUP = 4;
+const BOOTSTRAP_EPOCH_AFTER_RESOLUTION = 8;
 const BOOTSTRAP_NUMERATOR = 7;
 const CLIP_LENGTH = 16;
 const CURRENT_POSITION = 3.5;
@@ -230,4 +232,78 @@ it("bootstraps observers and applies callback updates", async () => {
   expect(bridge.signatureNumerator).toBe(UPDATED_NUMERATOR);
   expect(bridge.signatureDenominator).toBe(UPDATED_DENOMINATOR);
   expect(bridge.isPlaying).toBe(true);
+});
+
+it("returns early from bootstrap when the epoch changes after selected-track lookup", async () => {
+  // arrange
+  const { bridge } = await createBridge();
+  bridge.started = true;
+  bridge.connectionEpoch = BOOTSTRAP_EPOCH_AFTER_LOOKUP;
+  bridge.access.safeSongGet = vi.fn((property: SongProperty) => {
+    if (property === "signature_numerator") {
+      return resolved(BOOTSTRAP_NUMERATOR);
+    }
+
+    if (property === "signature_denominator") {
+      return resolved(BOOTSTRAP_DENOMINATOR);
+    }
+
+    if (property === "is_playing") {
+      return resolved(true);
+    }
+
+    return resolved(TRACKING_SONG_TIME);
+  });
+  bridge.access.safeSongViewGet = vi.fn(() => {
+    bridge.connectionEpoch += 1;
+    return resolved({ path: "live_set tracks 2" });
+  });
+  const selectedTrackSpy = vi.spyOn(bridge, "handleSelectedTrack");
+
+  // act
+  await bridge.bootstrap(BOOTSTRAP_EPOCH_AFTER_LOOKUP);
+
+  // assert
+  expect(selectedTrackSpy).not.toHaveBeenCalled();
+});
+
+it("returns early from bootstrap when the epoch changes during selected-track resolution", async () => {
+  // arrange
+  const { bridge } = await createBridge();
+  bridge.started = true;
+  bridge.connectionEpoch = BOOTSTRAP_EPOCH_AFTER_RESOLUTION;
+  bridge.access.safeSongGet = vi.fn((property: SongProperty) => {
+    if (property === "signature_numerator") {
+      return resolved(BOOTSTRAP_NUMERATOR);
+    }
+
+    if (property === "signature_denominator") {
+      return resolved(BOOTSTRAP_DENOMINATOR);
+    }
+
+    if (property === "is_playing") {
+      return resolved(true);
+    }
+
+    return resolved(TRACKING_SONG_TIME);
+  });
+  bridge.access.safeSongViewGet = vi.fn(() =>
+    resolved({ path: "live_set tracks 2" }),
+  );
+  const resolveTrackIndexSpy = vi
+    .spyOn(bridge, "resolveTrackIndex")
+    .mockImplementation((selectedTrack: unknown) => {
+      bridge.connectionEpoch += 1;
+      return resolved(
+        typeof selectedTrack === "object" ? INITIAL_SELECTED_TRACK : -1,
+      );
+    });
+  const selectedTrackSpy = vi.spyOn(bridge, "handleSelectedTrack");
+
+  // act
+  await bridge.bootstrap(BOOTSTRAP_EPOCH_AFTER_RESOLUTION);
+
+  // assert
+  expect(resolveTrackIndexSpy).toHaveBeenCalledTimes(1);
+  expect(selectedTrackSpy).not.toHaveBeenCalled();
 });

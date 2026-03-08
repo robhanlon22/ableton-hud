@@ -195,6 +195,62 @@ it("returns early when the token changes after the slot lookup", async () => {
   expect(slotSpy).not.toHaveBeenCalled();
 });
 
+it("returns early when the token changes during selected-track snapshot sync", async () => {
+  // arrange
+  const { bridge } = await createBridge();
+  const track = createLiveTrack({
+    get: vi.fn((property: TrackProperty) => {
+      if (property === "name") {
+        bridge.selectedTrackToken += 1;
+      }
+
+      return resolved(
+        property === "playing_slot_index" ? SLOT_LOOKUP_TRACK_INDEX : 1,
+      );
+    }),
+    observe: vi.fn(() => resolved(createCleanupMock())),
+  });
+  bridge.access.getTrack = vi.fn(() => resolved(track));
+  const observeSpy = vi.spyOn(bridge.access, "safeTrackObserve");
+  const slotSpy = vi
+    .spyOn(bridge, "handlePlayingSlot")
+    .mockImplementation(() => resolved());
+
+  // act
+  await bridge.applySelectedTrack(UPDATED_TRACK_INDEX);
+
+  // assert
+  expect(observeSpy).not.toHaveBeenCalled();
+  expect(slotSpy).not.toHaveBeenCalled();
+});
+
+it("returns early when the token changes during track observer registration", async () => {
+  // arrange
+  const { bridge } = await createBridge();
+  const track = createLiveTrack({
+    get: vi.fn((property: TrackProperty) =>
+      resolved(property === "playing_slot_index" ? SLOT_LOOKUP_TRACK_INDEX : 1),
+    ),
+    observe: vi.fn((property: TrackProperty) => {
+      if (property === "color") {
+        bridge.selectedTrackToken += 1;
+      }
+
+      return resolved(createCleanupMock());
+    }),
+  });
+  bridge.access.getTrack = vi.fn(() => resolved(track));
+  const slotSpy = vi
+    .spyOn(bridge, "handlePlayingSlot")
+    .mockImplementation(() => resolved());
+
+  // act
+  await bridge.applySelectedTrack(UPDATED_TRACK_INDEX);
+
+  // assert
+  expect(slotSpy).not.toHaveBeenCalled();
+});
+
 it("ignores observer callbacks after the selection changes", async () => {
   // arrange
   const { bridge } = await createBridge();
