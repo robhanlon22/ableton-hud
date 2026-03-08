@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refresh README Screenshots"
+  short_description: "Refresh HUD screenshots from GitHub Pages"
+  default_prompt: "Use $refresh-readme-screenshots to pull the latest macOS and Windows HUD smoke screenshots from GitHub Pages and refresh the README table."

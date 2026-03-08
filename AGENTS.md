@@ -20,6 +20,7 @@
 - `src/renderer/src/`: React HUD UI and browser tests
 - `src/shared/`: shared IPC schemas, runtime types, cross-process contracts
 - `e2e/`: Playwright Electron tests plus fake Ableton Live websocket server
+- `.agents/skills/`: repo-local Codex skills for repeatable maintenance tasks
 - `docs/`: quality gates, product specs, screenshots, and harness documentation
 
 ## Non-Negotiables

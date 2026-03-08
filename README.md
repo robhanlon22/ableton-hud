@@ -14,18 +14,27 @@ A small desktop HUD for Ableton Live that shows the current clip position in
 > `Control-click -> Open`. On Windows you may see a SmartScreen warning before
 > launch.
 
+<!-- README_SCREENSHOT_TABLE_START -->
 <table align="center">
   <tr>
     <th>State</th>
-    <th>Screenshot</th>
+    <th>macOS</th>
+    <th>Windows</th>
   </tr>
   <tr>
     <td>Playing</td>
     <td>
       <img
-        src="docs/screenshots/hud-connected-elapsed.png"
-        alt="Playing HUD in Elapsed mode"
-        width="420"
+        src="docs/screenshots/hud-playing-macos.png"
+        alt="Playing HUD on macOS"
+        width="370"
+      />
+    </td>
+    <td>
+      <img
+        src="docs/screenshots/hud-playing-windows.png"
+        alt="Playing HUD on Windows"
+        width="370"
       />
     </td>
   </tr>
@@ -33,9 +42,16 @@ A small desktop HUD for Ableton Live that shows the current clip position in
     <td>Stopped</td>
     <td>
       <img
-        src="docs/screenshots/hud-stopped.png"
-        alt="Stopped HUD"
-        width="420"
+        src="docs/screenshots/hud-stopped-macos.png"
+        alt="Stopped HUD on macOS"
+        width="370"
+      />
+    </td>
+    <td>
+      <img
+        src="docs/screenshots/hud-stopped-windows.png"
+        alt="Stopped HUD on Windows"
+        width="370"
       />
     </td>
   </tr>
@@ -43,9 +59,16 @@ A small desktop HUD for Ableton Live that shows the current clip position in
     <td>Disconnected</td>
     <td>
       <img
-        src="docs/screenshots/hud-disconnected.png"
-        alt="Disconnected HUD"
-        width="420"
+        src="docs/screenshots/hud-disconnected-macos.png"
+        alt="Disconnected HUD on macOS"
+        width="370"
+      />
+    </td>
+    <td>
+      <img
+        src="docs/screenshots/hud-disconnected-windows.png"
+        alt="Disconnected HUD on Windows"
+        width="370"
       />
     </td>
   </tr>
@@ -53,9 +76,16 @@ A small desktop HUD for Ableton Live that shows the current clip position in
     <td>Remaining</td>
     <td>
       <img
-        src="docs/screenshots/hud-connected-remaining.png"
-        alt="Playing HUD in Remaining mode"
-        width="420"
+        src="docs/screenshots/hud-remaining-macos.png"
+        alt="Remaining-mode HUD on macOS"
+        width="370"
+      />
+    </td>
+    <td>
+      <img
+        src="docs/screenshots/hud-remaining-windows.png"
+        alt="Remaining-mode HUD on Windows"
+        width="370"
       />
     </td>
   </tr>
@@ -63,13 +93,21 @@ A small desktop HUD for Ableton Live that shows the current clip position in
     <td>Compact</td>
     <td>
       <img
-        src="docs/screenshots/hud-compact.png"
-        alt="Compact counter-only HUD"
+        src="docs/screenshots/hud-compact-macos.png"
+        alt="Compact counter-only HUD on macOS"
+        width="320"
+      />
+    </td>
+    <td>
+      <img
+        src="docs/screenshots/hud-compact-windows.png"
+        alt="Compact counter-only HUD on Windows"
         width="320"
       />
     </td>
   </tr>
 </table>
+<!-- README_SCREENSHOT_TABLE_END -->
 
 ## Table of contents
 
