@@ -64,8 +64,8 @@ Use this file as the source of truth for validation routing and reporting.
   - runs `pnpm test` on `windows-latest` and `macos-latest`
 - `E2E`
   - runs `pnpm run test:e2e` on `windows-latest` and `macos-latest`
-  - captures HUD screenshots on CI and uploads them, along with the Playwright
-    HTML report, as workflow artifacts on every run
+  - captures HUD screenshots on CI and uploads `test-results/playwright`
+    as a workflow artifact on every run
   - those artifacts include stable smoke renders for the known HUD states:
     playing, stopped, disconnected, remaining, and compact
   - uploads Windows/macOS Playwright blob reports on successful runs
@@ -81,6 +81,8 @@ Use this file as the source of truth for validation routing and reporting.
     [package-release-windows.ps1](/Users/rob/Developer/aosc/scripts/package-release-windows.ps1)
 - `Build Playwright Report`
   - runs only on successful `push` to `main`
+  - stages downloaded blob archives with
+    [stage-playwright-blob-reports.sh](/Users/rob/Developer/aosc/scripts/stage-playwright-blob-reports.sh)
   - merges the Windows/macOS Playwright blob reports into one HTML report
 - `Deploy GitHub Pages`
   - runs only on successful `push` to `main`

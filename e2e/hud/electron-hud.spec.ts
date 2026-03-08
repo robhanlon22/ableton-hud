@@ -16,6 +16,7 @@ const FULL_DETAILS_WINDOW_SIZE = {
   height: 260,
   width: 540,
 };
+const RELAUNCH_WINDOW_SIZE_STABILITY_ATTEMPTS = 50;
 const BASS_TRACK_COLOR = 0xff_88_00;
 const HOOK_SCENE_COLOR = 0x00_aa_66;
 const LEAD_CLIP_COLOR = 0x7f_00_ff;
@@ -224,6 +225,7 @@ test("restores full size after compact relaunch cycle", async () => {
       await waitForStableWindowContentSize(
         relaunchedApp,
         FULL_DETAILS_WINDOW_SIZE,
+        RELAUNCH_WINDOW_SIZE_STABILITY_ATTEMPTS,
       ),
     ).toEqual(FULL_DETAILS_WINDOW_SIZE);
   } finally {

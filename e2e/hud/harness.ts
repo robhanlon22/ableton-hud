@@ -393,20 +393,18 @@ export async function waitForHudBootstrap(app: RunningHudApp): Promise<void> {
  * Waits until repeated BrowserWindow size reads stop changing.
  * @param app - Running app handles.
  * @param expectedSize - Optional target size that must also stabilize before returning.
+ * @param attemptLimit - Maximum number of size reads before timing out.
  * @returns The stabilized content width and height.
  */
 export async function waitForStableWindowContentSize(
   app: RunningHudApp,
   expectedSize?: WindowContentSize,
+  attemptLimit = WINDOW_SIZE_STABILITY_ATTEMPTS,
 ): Promise<WindowContentSize> {
   let previousSize: undefined | WindowContentSize;
   let stableMatchCount = 0;
 
-  for (
-    let attempt = 0;
-    attempt < WINDOW_SIZE_STABILITY_ATTEMPTS;
-    attempt += 1
-  ) {
+  for (let attempt = 0; attempt < attemptLimit; attempt += 1) {
     const nextSize = await readWindowContentSize(app);
     if (previousSize && sameWindowContentSize(previousSize, nextSize)) {
       stableMatchCount += 1;

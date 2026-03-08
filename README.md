@@ -142,8 +142,9 @@ expressions, method definitions, arrow functions, TypeScript interfaces and
 their members/signatures, and TypeScript type declarations. Start with
 `pnpm run lint:fix`, then write the missing docs that autofix cannot
 synthesize. The CI E2E job also captures HUD screenshots and uploads them,
-along with the Playwright HTML report, as workflow artifacts on every run so
-Windows and macOS executions can be inspected visually. Those artifacts now
+along with any traces or videos in `test-results/playwright`, as workflow
+artifacts on every run so Windows and macOS executions can be inspected
+visually. Those artifacts now
 include stable smoke renders for the known HUD states: playing, stopped,
 disconnected, remaining, and compact. On successful `main` pushes, the E2E
 workflow uploads mergeable Windows/macOS blob reports, merges them into a
@@ -191,8 +192,7 @@ CI workflow behavior:
 - `Lint` runs `pre-commit run --all-files` on macOS and Windows
 - `Test` runs `pnpm test` on macOS and Windows
 - `E2E` runs `pnpm run test:e2e` on macOS and Windows
-- `E2E` uploads HUD screenshots plus the Playwright HTML report as workflow
-  artifacts on every run
+- `E2E` uploads `test-results/playwright` as a workflow artifact on every run
 - Those E2E artifacts include stable smoke renders for the known HUD states:
   playing, stopped, disconnected, remaining, and compact
 - On successful `main` pushes, the downstream `Build Playwright Report` and
@@ -206,6 +206,8 @@ CI workflow behavior:
   [package-release-macos.sh](/Users/rob/Developer/aosc/scripts/package-release-macos.sh)
   and
   [package-release-windows.ps1](/Users/rob/Developer/aosc/scripts/package-release-windows.ps1)
+- The GitHub Pages report merge stages blob archives with
+  [stage-playwright-blob-reports.sh](/Users/rob/Developer/aosc/scripts/stage-playwright-blob-reports.sh)
 - `Release` runs only on `v*` tags
 - `Release` waits on successful `Lint`, `Test`, `E2E`, and `Build` jobs, then
   publishes the staged macOS and Windows artifacts as the immutable GitHub
