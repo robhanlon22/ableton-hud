@@ -45,7 +45,7 @@ jobs:
       - name: Stage Playwright blob reports
         run: |
           shopt -s nullglob
-          report_paths=(downloaded-blob-report/playwright-blob-report-*/report.zip)
+          report_paths=(downloaded-blob-report/playwright-blob-report-*/report-*.zip)
           test "${#report_paths[@]}" -gt 0
           mkdir -p merged-blob-report
           for report_path in "${report_paths[@]}"; do
