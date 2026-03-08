@@ -8,7 +8,23 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            playwright_cache_path: ~/.cache/ms-playwright
+            playwright_install_command: pnpm exec playwright install --with-deps chromium
+            upload_codecov: true
+          - os: windows-latest
+            playwright_cache_path: ~/AppData/Local/ms-playwright
+            playwright_install_command: pnpm exec playwright install chromium
+            upload_codecov: false
+          - os: macos-latest
+            playwright_cache_path: ~/Library/Caches/ms-playwright
+            playwright_install_command: pnpm exec playwright install chromium
+            upload_codecov: false
 
     steps:
       - name: Checkout
@@ -29,18 +45,19 @@ jobs:
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
-          path: ~/.cache/ms-playwright
+          path: ${{ matrix.playwright_cache_path }}
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
       - name: Install Playwright Chromium
-        run: pnpm exec playwright install chromium
+        run: ${{ matrix.playwright_install_command }}
 
       - name: Run tests
         run: pnpm test
 
       - name: Upload coverage reports to Codecov
+        if: matrix.upload_codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

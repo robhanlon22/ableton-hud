@@ -49,14 +49,17 @@ Use this file as the source of truth for validation routing and reporting.
 - `lint.yml`
   - runs `pre-commit run --all-files` with `SKIP=test-suite`
 - `test.yml`
-  - runs `pnpm test`
+  - runs `pnpm test` on `ubuntu-latest`, `windows-latest`, and `macos-latest`
 - `e2e.yml`
-  - runs `pnpm run test:e2e`
-  - on `main`, runs an `electron-builder` warm-up pass that populates the macOS
-    Electron binary cache used by tag releases
+  - runs `pnpm run test:e2e` on `ubuntu-latest`, `windows-latest`, and
+    `macos-latest`
+  - Linux legs run the Electron suite through `xvfb-run`
 - `release.yml`
-  - reuses the macOS Electron and Playwright caches warmed from `main` before
-    building release artifacts
+  - validates test, typecheck, Electron E2E, and release builds on
+    `ubuntu-latest`, `windows-latest`, and `macos-latest`
+  - runs on pull requests, `main`, tags, and manual dispatches
+  - tag publishes remain macOS-universal only until Linux/Windows release
+    artifacts are productized
 
 ## Evidence Expectations
 

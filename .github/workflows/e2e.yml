@@ -8,7 +8,26 @@ on:
 
 jobs:
   e2e:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            electron_cache_path: ~/.cache/electron
+            playwright_cache_path: ~/.cache/ms-playwright
+            playwright_install_command: pnpm exec playwright install --with-deps chromium
+            e2e_command: xvfb-run -a pnpm run test:e2e
+          - os: windows-latest
+            electron_cache_path: ~/AppData/Local/electron/Cache
+            playwright_cache_path: ~/AppData/Local/ms-playwright
+            playwright_install_command: pnpm exec playwright install chromium
+            e2e_command: pnpm run test:e2e
+          - os: macos-latest
+            electron_cache_path: ~/Library/Caches/electron
+            playwright_cache_path: ~/Library/Caches/ms-playwright
+            playwright_install_command: pnpm exec playwright install chromium
+            e2e_command: pnpm run test:e2e
 
     steps:
       - name: Checkout
@@ -27,8 +46,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/Library/Caches/electron
-            ~/Library/Caches/ms-playwright
+            ${{ matrix.electron_cache_path }}
+            ${{ matrix.playwright_cache_path }}
           key: >-
             e2e-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
@@ -37,18 +56,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run Playwright Electron E2E
-        run: pnpm run test:e2e
+      - name: Install xvfb on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb
 
-      - name: Warm electron-builder cache on main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: pnpm exec electron-builder --mac dir --universal --publish never
+      - name: Install Playwright Chromium
+        run: ${{ matrix.playwright_install_command }}
+
+      - name: Run Playwright Electron E2E
+        run: ${{ matrix.e2e_command }}
 
       - name: Upload Playwright artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts
+          name: playwright-artifacts-${{ matrix.os }}
           path: |
             test-results/playwright
             playwright-report

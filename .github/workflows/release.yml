@@ -1,16 +1,46 @@
 name: Release
 
 on:
+  pull_request:
   push:
+    branches:
+      - main
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  release-macos-universal:
-    runs-on: macos-latest
+  release-validate:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            electron_cache_path: ~/.cache/electron
+            electron_builder_cache_path: ~/.cache/electron-builder
+            playwright_cache_path: ~/.cache/ms-playwright
+            playwright_install_command: pnpm exec playwright install --with-deps chromium
+            e2e_command: xvfb-run -a pnpm run test:e2e
+            release_build_command: pnpm run build && pnpm exec electron-builder --linux dir --publish never
+          - os: windows-latest
+            electron_cache_path: ~/AppData/Local/electron/Cache
+            electron_builder_cache_path: ~/AppData/Local/electron-builder/Cache
+            playwright_cache_path: ~/AppData/Local/ms-playwright
+            playwright_install_command: pnpm exec playwright install chromium
+            e2e_command: pnpm run test:e2e
+            release_build_command: pnpm run build && pnpm exec electron-builder --win dir --publish never
+          - os: macos-latest
+            electron_cache_path: ~/Library/Caches/electron
+            electron_builder_cache_path: ~/Library/Caches/electron-builder
+            playwright_cache_path: ~/Library/Caches/ms-playwright
+            playwright_install_command: pnpm exec playwright install chromium
+            e2e_command: pnpm run test:e2e
+            release_build_command: pnpm run dist:mac
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,18 +58,23 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/Library/Caches/electron
-            ~/Library/Caches/ms-playwright
+            ${{ matrix.electron_cache_path }}
+            ${{ matrix.electron_builder_cache_path }}
+            ${{ matrix.playwright_cache_path }}
           key: >-
-            e2e-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+            release-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
-            e2e-binaries-${{ runner.os }}-
+            release-binaries-${{ runner.os }}-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install xvfb on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
       - name: Install Playwright Chromium
-        run: pnpm exec playwright install chromium
+        run: ${{ matrix.playwright_install_command }}
 
       - name: Run tests
         run: pnpm test
@@ -48,12 +83,57 @@ jobs:
         run: pnpm typecheck
 
       - name: Run Playwright Electron E2E
-        run: pnpm run test:e2e
+        run: ${{ matrix.e2e_command }}
+
+      - name: Build release validation target
+        run: ${{ matrix.release_build_command }}
+
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts-release-${{ matrix.os }}
+          path: |
+            test-results/playwright
+            playwright-report
+          if-no-files-found: ignore
+
+  publish-macos-universal:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: release-validate
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+          key: >-
+            release-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            release-binaries-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build macOS universal app
         run: pnpm dist:mac
 
       - name: Package release artifacts
+        shell: bash
         id: package
         run: |
           set -euo pipefail
@@ -75,6 +155,7 @@ jobs:
           echo "sha_path=${sha_path}" >> "${GITHUB_OUTPUT}"
 
       - name: Create immutable GitHub Release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.package.outputs.tag }}

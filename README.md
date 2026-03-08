@@ -156,12 +156,13 @@ git push origin v0.1.0
 
 Release workflow behavior:
 
-- Runs test, typecheck, and Electron E2E gates
-- Reuses macOS Electron and Playwright caches warmed from `main` CI before
-  packaging tag releases
-- `main` E2E CI runs an `electron-builder` warm-up pass so release tags can
-  reuse the downloaded universal Electron binaries
-- Builds universal macOS app
+- `test.yml` runs `pnpm test` on macOS, Linux, and Windows
+- `e2e.yml` runs `pnpm run test:e2e` on macOS, Linux, and Windows
+- `release.yml` validates test, typecheck, Electron E2E, and release builds on
+  macOS, Linux, and Windows for pull requests, `main`, tags, and manual runs
+- Tag releases still publish macOS universal assets only for now, after the
+  multi-OS validation matrix passes
+- Builds universal macOS app for the published release
 - Publishes:
   - `Ableton-HUD-vX.Y.Z-mac-universal.zip`
   - `Ableton-HUD-vX.Y.Z-mac-universal.zip.sha256`
