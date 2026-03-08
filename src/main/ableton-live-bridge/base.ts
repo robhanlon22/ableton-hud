@@ -28,6 +28,12 @@ import {
   RECONNECT_MAX_DELAY_MS,
 } from "./types";
 
+type RuntimeWebSocketCtor = typeof globalThis.WebSocket | typeof WebSocket;
+
+interface WebSocketRuntime {
+  WebSocket?: RuntimeWebSocketCtor;
+}
+
 /**
  * Shared connection and state-management behavior for the Ableton bridge.
  */
@@ -73,6 +79,13 @@ export abstract class AbletonLiveBridgeBase {
   protected trackObserverCleanups: ObserverCleanup[] = [];
   protected transitionInProgress = false;
 
+  /**
+   * Initializes shared bridge state and Live connection dependencies.
+   * @param mode - Initial HUD mode.
+   * @param onState - Callback for emitted HUD state snapshots.
+   * @param trackLocked - Whether track selection starts locked.
+   * @param deps - Dependency overrides for bridge construction.
+   */
   protected constructor(
     mode: HudMode,
     onState: (state: HudState) => void,
@@ -86,7 +99,7 @@ export abstract class AbletonLiveBridgeBase {
     );
     const websocketCtor = deps.websocketCtor ?? WebSocket;
     if (!Object.hasOwn(globalThis, "WebSocket")) {
-      Reflect.set(globalThis, "WebSocket", websocketCtor);
+      installGlobalWebSocket(globalThis, websocketCtor);
     }
 
     this.mode = mode;
@@ -105,11 +118,19 @@ export abstract class AbletonLiveBridgeBase {
     this.live.on("disconnect", this.handleDisconnect);
   }
 
+  /**
+   * Updates the HUD mode and emits the next state snapshot.
+   * @param mode - The next HUD mode.
+   */
   setMode(mode: HudMode): void {
     this.mode = mode;
     this.emit();
   }
 
+  /**
+   * Updates track-lock state and applies any deferred track selection.
+   * @param trackLocked - Whether track selection should stay locked.
+   */
   setTrackLocked(trackLocked: boolean): void {
     if (this.trackLocked === trackLocked) {
       return;
@@ -126,6 +147,9 @@ export abstract class AbletonLiveBridgeBase {
     this.emit();
   }
 
+  /**
+   * Starts the bridge connection lifecycle.
+   */
   start(): void {
     if (this.started) {
       return;
@@ -135,6 +159,9 @@ export abstract class AbletonLiveBridgeBase {
     void this.connect();
   }
 
+  /**
+   * Stops the bridge and tears down active subscriptions.
+   */
   stop(): void {
     this.started = false;
     this.connectionEpoch += 1;
@@ -146,15 +173,33 @@ export abstract class AbletonLiveBridgeBase {
     this.live.disconnect();
   }
 
+  /**
+   * Toggles track lock and returns the new state.
+   * @returns Whether track lock is enabled after toggling.
+   */
   toggleTrackLock(): boolean {
     this.setTrackLocked(!this.trackLocked);
     return this.trackLocked;
   }
 
+  /**
+   * Applies a selected track to bridge state and subscriptions.
+   * @param trackIndex - The selected Live track index.
+   * @returns A promise that settles after the selection is applied.
+   */
   protected abstract applySelectedTrack(trackIndex: number): Promise<void>;
 
+  /**
+   * Bootstraps subscriptions for the current connection epoch.
+   * @param epoch - Optional connection epoch guard.
+   * @returns A promise that settles after bootstrap completes.
+   */
   protected abstract bootstrap(epoch?: number): Promise<void>;
 
+  /**
+   * Clears clip observers and optionally preserves displayed clip metadata.
+   * @param preserveDisplay - Whether to retain current clip display fields.
+   */
   protected clearClipSubscription(preserveDisplay = false): void {
     this.clearObserverGroup(this.clipObserverCleanups);
     this.clearSceneSubscription(preserveDisplay);
@@ -169,12 +214,19 @@ export abstract class AbletonLiveBridgeBase {
     this.resetClipRunState();
   }
 
+  /**
+   * Runs and removes a group of observer cleanup callbacks.
+   * @param cleanups - Cleanup callbacks to invoke and clear.
+   */
   protected clearObserverGroup(cleanups: ObserverCleanup[]): void {
     for (const cleanup of cleanups.splice(0)) {
       void Promise.resolve(cleanup()).catch(ignoreObserverCleanupError);
     }
   }
 
+  /**
+   * Cancels any queued reconnect attempt.
+   */
   protected clearReconnectTimer(): void {
     if (this.reconnectTimer !== undefined) {
       clearTimeout(this.reconnectTimer);
@@ -182,6 +234,10 @@ export abstract class AbletonLiveBridgeBase {
     }
   }
 
+  /**
+   * Clears scene observers and optionally preserves displayed scene metadata.
+   * @param preserveDisplay - Whether to retain current scene display fields.
+   */
   protected clearSceneSubscription(preserveDisplay = false): void {
     this.clearObserverGroup(this.sceneObserverCleanups);
     this.activeScene = undefined;
@@ -192,15 +248,29 @@ export abstract class AbletonLiveBridgeBase {
     }
   }
 
+  /**
+   * Clears the current track subscription and any dependent clip state.
+   */
   protected clearTrackSubscription(): void {
     this.clearObserverGroup(this.trackObserverCleanups);
     this.clearClipSubscription();
   }
 
+  /**
+   * Connects to Live for the current bridge lifecycle.
+   * @returns A promise that settles after the connection attempt finishes.
+   */
   protected abstract connect(): Promise<void>;
 
+  /**
+   * Emits the current HUD state snapshot.
+   */
   protected abstract emit(): void;
 
+  /**
+   * Applies a selected track immediately or defers it while locked.
+   * @param trackIndex - The selected Live track index.
+   */
   protected handleSelectedTrack(trackIndex: number): void {
     if (trackIndex < 0) {
       return;
@@ -219,6 +289,10 @@ export abstract class AbletonLiveBridgeBase {
     void this.applySelectedTrack(trackIndex);
   }
 
+  /**
+   * Updates beat counters from the current Live song time.
+   * @param songTime - The current song time in beats.
+   */
   protected handleSongTime(songTime: number): void {
     const wholeBeat = Math.max(0, Math.floor(songTime + EPSILON));
 
@@ -237,14 +311,31 @@ export abstract class AbletonLiveBridgeBase {
     }
   }
 
+  /**
+   * Checks whether the active clip matches a track and clip index.
+   * @param track - Candidate track index.
+   * @param clip - Candidate clip index.
+   * @returns Whether the active clip matches the given location.
+   */
   protected isActiveClip(track: number, clip: number): boolean {
     return this.activeClip?.track === track && this.activeClip.clip === clip;
   }
 
+  /**
+   * Checks whether an epoch still matches the active connection.
+   * @param epoch - Connection epoch to validate.
+   * @returns Whether the epoch is still current.
+   */
   protected isCurrentEpoch(epoch: number): boolean {
     return this.started && epoch === this.connectionEpoch;
   }
 
+  /**
+   * Checks whether a position jump is a natural loop wrap.
+   * @param previousPosition - Previous clip position in beats.
+   * @param currentPosition - Current clip position in beats.
+   * @returns Whether the jump stays within the configured loop span.
+   */
   protected isNaturalLoopWrap(
     previousPosition: number,
     currentPosition: number,
@@ -266,6 +357,10 @@ export abstract class AbletonLiveBridgeBase {
     );
   }
 
+  /**
+   * Computes the next reconnect delay and advances backoff state.
+   * @returns The delay in milliseconds before the next reconnect attempt.
+   */
   protected nextReconnectDelayMs(): number {
     const delay = Math.min(
       RECONNECT_BASE_DELAY_MS * RECONNECT_BACKOFF_BASE ** this.reconnectAttempt,
@@ -275,6 +370,11 @@ export abstract class AbletonLiveBridgeBase {
     return delay;
   }
 
+  /**
+   * Stores an observer cleanup when one is available.
+   * @param cleanupGroup - Cleanup collection to append to.
+   * @param stop - Cleanup callback to register.
+   */
   protected registerCleanup(
     cleanupGroup: ObserverCleanup[],
     stop: ObserverCleanup | undefined,
@@ -284,6 +384,9 @@ export abstract class AbletonLiveBridgeBase {
     }
   }
 
+  /**
+   * Resets clip playback state used for elapsed and remaining counters.
+   */
   protected resetClipRunState(): void {
     this.launchPosition = undefined;
     this.currentPosition = undefined;
@@ -291,6 +394,9 @@ export abstract class AbletonLiveBridgeBase {
     this.loopWrapCount = 0;
   }
 
+  /**
+   * Schedules a reconnect attempt when the bridge should reconnect.
+   */
   protected scheduleReconnect(): void {
     if (!this.started || this.connected || this.connectInFlight) {
       return;
@@ -304,6 +410,9 @@ export abstract class AbletonLiveBridgeBase {
     }, delay);
   }
 
+  /**
+   * Handles a successful Live connection.
+   */
   private readonly handleConnect = (): void => {
     if (!this.started) {
       return;
@@ -317,6 +426,9 @@ export abstract class AbletonLiveBridgeBase {
     this.emit();
   };
 
+  /**
+   * Handles a Live disconnect and schedules reconnection.
+   */
   private readonly handleDisconnect = (): void => {
     if (!this.started) {
       return;
@@ -349,4 +461,16 @@ function cloneDefaultClipMeta(): ClipTimingMeta {
  */
 function ignoreObserverCleanupError(): void {
   return undefined;
+}
+
+/**
+ * Installs a WebSocket constructor on the global runtime when the host lacks one.
+ * @param runtime - Global runtime object that may expose WebSocket.
+ * @param websocketCtor - WebSocket constructor to install.
+ */
+function installGlobalWebSocket(
+  runtime: WebSocketRuntime,
+  websocketCtor: RuntimeWebSocketCtor,
+): void {
+  runtime.WebSocket = websocketCtor;
 }

@@ -11,6 +11,10 @@ const TRACK_PATH = "live_set tracks 7";
 const UNSET_PATH: string | undefined = undefined;
 const UNSET_PORT: string | undefined = undefined;
 
+/**
+ * Loads the normalizers module with a minimal mocked Live client.
+ * @returns The imported normalizers module.
+ */
 const loadNormalizersModule = async () => {
   vi.doMock("ableton-live", () => ({
     AbletonLive: vi.fn(() => ({
@@ -21,6 +25,28 @@ const loadNormalizersModule = async () => {
 
   return import("@main/ableton-live-bridge/normalizers");
 };
+
+/**
+ * Creates a mocked Live client with the required song surfaces.
+ * @returns The mocked Live client.
+ */
+function createCompleteLiveClient() {
+  return {
+    song: {},
+    songView: {},
+  };
+}
+
+/**
+ * Creates a mocked Live client without the required song surfaces.
+ * @returns The incomplete mocked Live client.
+ */
+function createIncompleteLiveClient() {
+  return {
+    song: undefined,
+    songView: undefined,
+  };
+}
 
 beforeEach(() => {
   vi.resetModules();
@@ -110,14 +136,8 @@ it("normalizes payload helper objects", async () => {
 
 it("creates a live client when the constructor exposes song surfaces", async () => {
   // arrange
-  const liveClient = {
-    song: {},
-    songView: {},
-  };
   vi.doMock("ableton-live", () => ({
-    AbletonLive: vi.fn(function ctor() {
-      return liveClient;
-    }),
+    AbletonLive: vi.fn(createCompleteLiveClient),
   }));
   const module = await import("@main/ableton-live-bridge/normalizers");
 
@@ -128,28 +148,27 @@ it("creates a live client when the constructor exposes song surfaces", async () 
   });
 
   // assert
-  expect(createdClient).toBe(liveClient);
+  expect(createdClient).toEqual(createCompleteLiveClient());
 });
 
 it("throws when the live client constructor omits song surfaces", async () => {
   // arrange
   vi.doMock("ableton-live", () => ({
-    AbletonLive: vi.fn(function ctor() {
-      return {
-        song: undefined,
-        songView: undefined,
-      };
-    }),
+    AbletonLive: vi.fn(createIncompleteLiveClient),
   }));
   const module = await import("@main/ableton-live-bridge/normalizers");
 
   // act
-  const createClient = (): unknown => {
+  /**
+   * Defers client creation so the test can assert on the thrown error.
+   * @returns The created client when construction succeeds.
+   */
+  function createClient(): unknown {
     return module.defaultLiveFactory.create({
       host: "127.0.0.1",
       port: CUSTOM_PORT,
     });
-  };
+  }
 
   // assert
   expect(createClient).toThrow(

@@ -32,7 +32,14 @@ interface ParsedWireMessage {
   uuid: string;
 }
 
+/**
+ * Serves a deterministic fake Ableton Live websocket surface for E2E tests.
+ */
 export class FakeAbletonLiveServer {
+  /**
+   * Returns the bound websocket port for the fake server.
+   * @returns Listening port for the active websocket server.
+   */
   get port(): number {
     const webSocketServer = this.wss;
     if (!webSocketServer) {
@@ -52,6 +59,11 @@ export class FakeAbletonLiveServer {
   private tickTimer?: NodeJS.Timeout;
   private wss?: WebSocketServer;
 
+  /**
+   * Starts a fake Ableton Live websocket server for tests.
+   * @param options - Server bootstrap options.
+   * @returns Started fake server instance.
+   */
   static async start(
     options: StartFakeServerOptions = {},
   ): Promise<FakeAbletonLiveServer> {
@@ -60,6 +72,9 @@ export class FakeAbletonLiveServer {
     return instance;
   }
 
+  /**
+   * Abruptly drops every connected websocket client.
+   */
   crashConnections(): void {
     for (const client of this.clients) {
       client.terminate();
@@ -68,32 +83,54 @@ export class FakeAbletonLiveServer {
     this.observers.clear();
   }
 
+  /**
+   * Applies clip overrides and broadcasts the resulting clip updates.
+   * @param next - Partial clip state to merge into the active clip.
+   */
   setClip(next: Partial<ClipState>): void {
     const clip = this.snapshot.tracks[TRACK_INDEX].clipSlots[SLOT_INDEX].clip;
     Object.assign(clip, next);
     this.emitTrackClipUpdates();
   }
 
+  /**
+   * Applies scene overrides and broadcasts the resulting scene updates.
+   * @param next - Partial scene state to merge into the active scene.
+   */
   setScene(next: Partial<SceneState>): void {
     Object.assign(this.snapshot.scenes[TRACK_INDEX], next);
     this.emitSceneUpdates();
   }
 
+  /**
+   * Applies song overrides and broadcasts the resulting song updates.
+   * @param next - Partial song state to merge into the fake song.
+   */
   setSong(next: Partial<SongState>): void {
     Object.assign(this.snapshot.song, next);
     this.emitSongUpdates();
   }
 
+  /**
+   * Applies track overrides and broadcasts the resulting track updates.
+   * @param next - Partial track state to merge into the active track.
+   */
   setTrack(next: Partial<TrackState>): void {
     const track = this.snapshot.tracks[TRACK_INDEX];
     Object.assign(track, next);
     this.emitTrackUpdates();
   }
 
+  /**
+   * Waits for async websocket traffic to settle after a state change.
+   */
   async stabilize(): Promise<void> {
     await wait(STABILIZE_DELAY_MS);
   }
 
+  /**
+   * Stops playback ticks, closes clients, and shuts down the websocket server.
+   */
   async stop(): Promise<void> {
     this.stopTicking();
     this.closeClients();
@@ -115,6 +152,9 @@ export class FakeAbletonLiveServer {
     this.wss = undefined;
   }
 
+  /**
+   * Advances the fake transport clock and emits playback observers.
+   */
   private advancePlayback(): void {
     if (!this.snapshot.song.isPlaying) {
       return;
@@ -143,6 +183,9 @@ export class FakeAbletonLiveServer {
     );
   }
 
+  /**
+   * Closes all connected websocket clients and clears observer state.
+   */
   private closeClients(): void {
     for (const client of this.clients) {
       client.close();
@@ -151,6 +194,12 @@ export class FakeAbletonLiveServer {
     this.observers.clear();
   }
 
+  /**
+   * Dispatches a parsed websocket action to the matching handler.
+   * @param socket - Client socket that sent the request.
+   * @param message - Parsed websocket request payload.
+   * @returns Whether the action was handled.
+   */
   private dispatchAction(
     socket: WebSocket,
     message: ParsedWireMessage,
@@ -184,6 +233,12 @@ export class FakeAbletonLiveServer {
     return false;
   }
 
+  /**
+   * Emits a property-change callback to matching observers.
+   * @param path - Observed Live object path.
+   * @param property - Observed property name.
+   * @param data - Serialized callback payload data.
+   */
   private emitProperty(path: string, property: string, data: unknown): void {
     for (const [socket, references] of this.observers.entries()) {
       const listeners = references
@@ -206,6 +261,9 @@ export class FakeAbletonLiveServer {
     }
   }
 
+  /**
+   * Broadcasts scene observer updates for the active scene.
+   */
   private emitSceneUpdates(): void {
     const scene = this.snapshot.scenes[TRACK_INDEX];
     const scenePath = "live_set scenes 0";
@@ -213,6 +271,9 @@ export class FakeAbletonLiveServer {
     this.emitProperty(scenePath, "color", scene.color);
   }
 
+  /**
+   * Broadcasts song observer updates for the fake transport.
+   */
   private emitSongUpdates(): void {
     const { song } = this.snapshot;
     this.emitProperty("live_set", "is_playing", song.isPlaying);
@@ -229,6 +290,9 @@ export class FakeAbletonLiveServer {
     this.emitProperty("live_set", "current_song_time", song.currentSongTime);
   }
 
+  /**
+   * Broadcasts clip observer updates for the active clip.
+   */
   private emitTrackClipUpdates(): void {
     const clip = this.snapshot.tracks[TRACK_INDEX].clipSlots[SLOT_INDEX].clip;
     const clipPath = buildClipPath(TRACK_INDEX, SLOT_INDEX);
@@ -241,6 +305,9 @@ export class FakeAbletonLiveServer {
     this.emitProperty(clipPath, "playing_position", clip.playingPosition);
   }
 
+  /**
+   * Broadcasts track observer updates for the active track.
+   */
   private emitTrackUpdates(): void {
     const track = this.snapshot.tracks[TRACK_INDEX];
     const trackPath = "live_set tracks 0";
@@ -249,6 +316,13 @@ export class FakeAbletonLiveServer {
     this.emitProperty(trackPath, "playing_slot_index", track.playingSlotIndex);
   }
 
+  /**
+   * Handles a `children` websocket request.
+   * @param socket - Client socket that sent the request.
+   * @param path - Requested Live object path.
+   * @param arguments_ - Raw request arguments.
+   * @param uuid - Request correlation id.
+   */
   private handleChildren(
     socket: WebSocket,
     path: string,
@@ -264,6 +338,13 @@ export class FakeAbletonLiveServer {
     );
   }
 
+  /**
+   * Handles a `get` websocket request.
+   * @param socket - Client socket that sent the request.
+   * @param path - Requested Live object path.
+   * @param arguments_ - Raw request arguments.
+   * @param uuid - Request correlation id.
+   */
   private handleGet(
     socket: WebSocket,
     path: string,
@@ -274,6 +355,11 @@ export class FakeAbletonLiveServer {
     this.sendSuccess(socket, uuid, resolveGet(this.snapshot, path, property));
   }
 
+  /**
+   * Parses and routes a raw websocket message from a client.
+   * @param socket - Client socket that sent the request.
+   * @param raw - Raw websocket payload string.
+   */
   private handleMessage(socket: WebSocket, raw: string): void {
     const {
       action,
@@ -294,6 +380,13 @@ export class FakeAbletonLiveServer {
     this.sendError(socket, uuid, parsedMessage.action);
   }
 
+  /**
+   * Handles an `observe` websocket request.
+   * @param socket - Client socket that sent the request.
+   * @param path - Requested Live object path.
+   * @param arguments_ - Raw request arguments.
+   * @param uuid - Request correlation id.
+   */
   private handleObserve(
     socket: WebSocket,
     path: string,
@@ -313,6 +406,12 @@ export class FakeAbletonLiveServer {
     );
   }
 
+  /**
+   * Handles a `removeObserver` websocket request.
+   * @param socket - Client socket that sent the request.
+   * @param arguments_ - Raw request arguments.
+   * @param uuid - Request correlation id.
+   */
   private handleRemoveObserver(
     socket: WebSocket,
     arguments_: Record<string, unknown>,
@@ -327,6 +426,12 @@ export class FakeAbletonLiveServer {
     this.sendSuccess(socket, uuid);
   }
 
+  /**
+   * Sends an unsupported-action error response to the client.
+   * @param socket - Client socket to reply to.
+   * @param uuid - Request correlation id.
+   * @param action - Unsupported action name.
+   */
   private sendError(
     socket: WebSocket,
     uuid: string,
@@ -341,6 +446,12 @@ export class FakeAbletonLiveServer {
     );
   }
 
+  /**
+   * Sends a success response to the client.
+   * @param socket - Client socket to reply to.
+   * @param uuid - Request correlation id.
+   * @param result - Optional serialized response payload.
+   */
   private sendSuccess(socket: WebSocket, uuid: string, result?: unknown): void {
     socket.send(
       JSON.stringify({
@@ -351,6 +462,10 @@ export class FakeAbletonLiveServer {
     );
   }
 
+  /**
+   * Starts the websocket server and playback tick loop.
+   * @param options - Server bootstrap options.
+   */
   private async startInternal(options: StartFakeServerOptions): Promise<void> {
     this.wss = new WebSocketServer({
       host: "127.0.0.1",
@@ -378,6 +493,9 @@ export class FakeAbletonLiveServer {
     }, PLAYBACK_TICK_INTERVAL_MS);
   }
 
+  /**
+   * Stops the fake playback tick loop when it is running.
+   */
   private stopTicking(): void {
     if (!this.tickTimer) {
       return;

@@ -7,6 +7,10 @@ import { defineConfig } from "vitest/config";
 const projectRootDirectory = fileURLToPath(new URL(".", import.meta.url));
 const defaultVitestSeed = Date.now();
 
+/**
+ * Resolves the active Vitest shuffle seed from the environment or clock.
+ * @returns The configured shuffle seed for this run.
+ */
 const resolveVitestSeed = (): number => {
   const candidateSeed = process.env.VITEST_SEQUENCE_SEED;
   if (candidateSeed === undefined) {

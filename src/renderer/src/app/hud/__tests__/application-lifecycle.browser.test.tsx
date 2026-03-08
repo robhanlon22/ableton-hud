@@ -12,6 +12,10 @@ import { page } from "vitest/browser";
 
 import { HudApp } from "..";
 
+/**
+ * Throws if a test forgets to capture the HUD state listener callback.
+ * @param state - The state that tried to update after the listener was lost.
+ */
 const unassignedHudStateListener = (state: HudState): void => {
   throw new Error(`Listener was not assigned for ${state.counterText}.`);
 };

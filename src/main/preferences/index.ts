@@ -36,15 +36,25 @@ const DEFAULT_PREFS: HudPreferences = {
 };
 const JSON_INDENT_SPACES = 2;
 
+/**
+ * Persists HUD window and mode preferences in the Electron user-data directory.
+ */
 export class PrefStore {
   private readonly path: string;
 
+  /**
+   * Creates a preference store scoped to the current app or E2E profile directory.
+   */
   constructor() {
     const endToEndUserDataPath = process.env.AOSC_E2E_USER_DATA;
     const basePath = endToEndUserDataPath ?? app.getPath("userData");
     this.path = path.join(basePath, "hud-preferences.json");
   }
 
+  /**
+   * Loads persisted HUD preferences or falls back to the default preference set.
+   * @returns Persisted HUD preferences when available, otherwise the defaults.
+   */
   async load(): Promise<HudPreferences> {
     try {
       const raw = await readFile(this.path, "utf8");
@@ -58,6 +68,10 @@ export class PrefStore {
     }
   }
 
+  /**
+   * Saves the next HUD preferences payload to disk.
+   * @param nextPrefs - The preference state to persist.
+   */
   async save(nextPrefs: HudPreferences): Promise<void> {
     await mkdir(path.dirname(this.path), { recursive: true });
     await writeFile(

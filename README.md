@@ -123,7 +123,12 @@ cleanup entry point used by pre-commit. `pnpm test` now shuffles file order and
 intra-file test order on every run and logs the shuffle seed at startup; rerun
 with `VITEST_SEQUENCE_SEED=<seed> pnpm test` to reproduce an order-dependent
 failure. Run `pnpm run test:e2e` manually or rely on the dedicated CI job when
-you need Electron end-to-end coverage.
+you need Electron end-to-end coverage. The lint gate also enforces authored
+JSDoc on class declarations and expressions, function declarations and
+expressions, method definitions, and arrow functions. Start with `pnpm run
+lint:fix`, then write the missing docs that autofix cannot synthesize. It also
+rejects `Reflect`; use explicit property access, assignment, or a typed
+adapter instead.
 
 Build local macOS app directory:
 

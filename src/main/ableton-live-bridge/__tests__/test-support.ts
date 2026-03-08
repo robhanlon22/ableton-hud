@@ -19,6 +19,10 @@ import { vi } from "vitest";
 
 let activeHarness: LiveHarness | undefined;
 
+/**
+ * Returns an explicit `undefined` value for noop test doubles.
+ * @returns An undefined payload.
+ */
 const noop = (): undefined => undefined;
 const BRIDGE_RUNTIME_METHOD_NAMES = [
   "applySelectedTrack",
@@ -46,9 +50,18 @@ const BRIDGE_RUNTIME_METHOD_NAMES = [
   "toggleTrackLock",
 ] as const;
 
+interface LiveClientOptions {
+  host: string;
+  port: number;
+}
+
+interface WebSocketRuntime {
+  WebSocket?: typeof WebSocket;
+}
+
 export const wsCtorMock = vi.fn(noop);
 
-const abletonLiveCtorMock = vi.fn((options: { host: string; port: number }) => {
+const abletonLiveCtorMock = vi.fn((options: LiveClientOptions) => {
   if (activeHarness === undefined) {
     throw new Error("Expected an active Live harness.");
   }
@@ -57,12 +70,19 @@ const abletonLiveCtorMock = vi.fn((options: { host: string; port: number }) => {
   return activeHarness.instance;
 });
 
-const abletonLiveMock = vi.fn(function ctor(
+/**
+ * Mocks the `ableton-live` constructor while preserving `new` semantics in tests.
+ * @param options - Host and port options passed to the client constructor.
+ * @returns The active mocked Live harness instance.
+ */
+function createAbletonLiveMock(
   this: unknown,
-  options: { host: string; port: number },
-) {
+  options: LiveClientOptions,
+): ReturnType<typeof abletonLiveCtorMock> {
   return abletonLiveCtorMock(options);
-});
+}
+
+const abletonLiveMock = vi.fn(createAbletonLiveMock);
 
 vi.mock("ws", () => ({ default: wsCtorMock }));
 vi.mock("ableton-live", () => ({ AbletonLive: abletonLiveMock }));
@@ -82,16 +102,16 @@ export async function createBridge(
   activeHarness = harness;
   const module = await import("@main/ableton-live-bridge");
   const onState = vi.fn<(state: HudState) => void>();
-  const BridgeConstructor = Reflect.get(module, "AbletonLiveBridge");
+  const BridgeConstructor = module.AbletonLiveBridge;
   if (typeof BridgeConstructor !== "function") {
     throw new TypeError("Expected AbletonLiveBridge constructor export.");
   }
 
-  const bridgeCandidate: unknown = Reflect.construct(BridgeConstructor, [
+  const bridgeCandidate: unknown = new BridgeConstructor(
     "elapsed",
     onState,
     false,
-  ]);
+  );
   const bridge = resolveBridgeRuntime(bridgeCandidate);
 
   return {
@@ -265,6 +285,34 @@ export function resolveHarnessEventHandler(
 }
 
 /**
+ * Removes the runtime `WebSocket` shim for tests that need it absent.
+ * @param runtime - Runtime whose `WebSocket` property should be cleared.
+ */
+function clearRuntimeWebSocket(runtime: WebSocketRuntime): void {
+  delete runtime.WebSocket;
+}
+
+/**
+ * Checks whether an object exposes a named method on itself or its prototype chain.
+ * @param value - Candidate object to inspect.
+ * @param methodName - Method name that must resolve to a function.
+ * @returns Whether the named method exists and is callable.
+ */
+function hasNamedMethod(value: object, methodName: string): boolean {
+  const ownDescriptor = Object.getOwnPropertyDescriptor(value, methodName);
+  if (typeof ownDescriptor?.value === "function") {
+    return true;
+  }
+
+  const prototypeCandidate: unknown = Object.getPrototypeOf(value);
+  if (prototypeCandidate === null || typeof prototypeCandidate !== "object") {
+    return false;
+  }
+
+  return hasNamedMethod(prototypeCandidate, methodName);
+}
+
+/**
  * Checks whether an unknown value exposes the bridge runtime members used by tests.
  * @param value - The candidate runtime value.
  * @returns Whether the runtime surface is present.
@@ -275,7 +323,7 @@ function isBridgeRuntime(value: unknown): value is BridgeRuntime {
   }
 
   return BRIDGE_RUNTIME_METHOD_NAMES.every((methodName) => {
-    return typeof Reflect.get(value, methodName) === "function";
+    return hasNamedMethod(value, methodName);
   });
 }
 
@@ -318,7 +366,7 @@ function setBridgeEnvironment(overrides: BridgeOverrides | undefined): void {
   }
 
   if (overrides?.websocketUndefined) {
-    Reflect.deleteProperty(globalThis, "WebSocket");
+    clearRuntimeWebSocket(globalThis);
   }
 }
 

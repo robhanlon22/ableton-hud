@@ -91,6 +91,12 @@ export function resolveGet(
   );
 }
 
+/**
+ * Resolves top-level `live_set` child collections.
+ * @param snapshot - Current fake Live state.
+ * @param child - Requested child collection.
+ * @returns Serialized top-level child objects.
+ */
 const resolveLiveSetChildren = (
   snapshot: FakeLiveSnapshot,
   child: string,
@@ -118,6 +124,13 @@ const resolveLiveSetChildren = (
   return [];
 };
 
+/**
+ * Resolves clip-slot children for a track path.
+ * @param snapshot - Current fake Live state.
+ * @param path - Requested track path.
+ * @param child - Requested child collection.
+ * @returns Serialized clip slots or `undefined` when the path does not match.
+ */
 const resolveClipSlotChildren = (
   snapshot: FakeLiveSnapshot,
   path: string,
@@ -143,6 +156,13 @@ const resolveClipSlotChildren = (
   });
 };
 
+/**
+ * Resolves clip children for a clip-slot path.
+ * @param snapshot - Current fake Live state.
+ * @param path - Requested clip-slot path.
+ * @param child - Requested child collection.
+ * @returns Serialized clip children or `undefined` when the path does not match.
+ */
 const resolveClipChildren = (
   snapshot: FakeLiveSnapshot,
   path: string,
@@ -162,6 +182,13 @@ const resolveClipChildren = (
   return [createRawClip(slot.clip, trackIndex, slotIndex)];
 };
 
+/**
+ * Resolves a track property from the fake Live snapshot.
+ * @param snapshot - Current fake Live state.
+ * @param path - Requested track path.
+ * @param property - Requested property name.
+ * @returns Serialized property value for the matched track.
+ */
 const resolveTrackProperty = (
   snapshot: FakeLiveSnapshot,
   path: string,
@@ -173,6 +200,13 @@ const resolveTrackProperty = (
   return track ? readTrackProperty(track, property) : undefined;
 };
 
+/**
+ * Resolves a scene property from the fake Live snapshot.
+ * @param snapshot - Current fake Live state.
+ * @param path - Requested scene path.
+ * @param property - Requested property name.
+ * @returns Serialized property value for the matched scene.
+ */
 const resolveSceneProperty = (
   snapshot: FakeLiveSnapshot,
   path: string,
@@ -184,6 +218,13 @@ const resolveSceneProperty = (
   return scene ? readSceneProperty(scene, property) : undefined;
 };
 
+/**
+ * Resolves clip-slot properties that the fake server exposes directly.
+ * @param snapshot - Current fake Live state.
+ * @param path - Requested clip-slot path.
+ * @param property - Requested property name.
+ * @returns Clip-slot property value for the matched path.
+ */
 const resolveClipSlotProperty = (
   snapshot: FakeLiveSnapshot,
   path: string,
@@ -200,6 +241,13 @@ const resolveClipSlotProperty = (
   );
 };
 
+/**
+ * Resolves a clip property from the fake Live snapshot.
+ * @param snapshot - Current fake Live state.
+ * @param path - Requested clip path.
+ * @param property - Requested property name.
+ * @returns Serialized property value for the matched clip.
+ */
 const resolveClipProperty = (
   snapshot: FakeLiveSnapshot,
   path: string,
@@ -214,6 +262,12 @@ const resolveClipProperty = (
   return clip ? readClipProperty(clip, property) : undefined;
 };
 
+/**
+ * Resolves a song property from the fake Live snapshot.
+ * @param song - Fake Live song state.
+ * @param property - Requested property name.
+ * @returns Serialized property value for the matched song property.
+ */
 const resolveSongProperty = (
   song: SongState,
   property: string,
@@ -227,6 +281,12 @@ const resolveSongProperty = (
   return propertyValues[property];
 };
 
+/**
+ * Reads a serialized track property value.
+ * @param track - Fake track state.
+ * @param property - Requested property name.
+ * @returns Serialized property value for the track.
+ */
 const readTrackProperty = (
   track: TrackState,
   property: string,
@@ -239,6 +299,12 @@ const readTrackProperty = (
   return propertyValues[property];
 };
 
+/**
+ * Reads a serialized scene property value.
+ * @param scene - Fake scene state.
+ * @param property - Requested property name.
+ * @returns Serialized property value for the scene.
+ */
 const readSceneProperty = (
   scene: SceneState,
   property: string,
@@ -250,6 +316,12 @@ const readSceneProperty = (
   return propertyValues[property];
 };
 
+/**
+ * Reads a serialized clip property value.
+ * @param clip - Fake clip state.
+ * @param property - Requested property name.
+ * @returns Serialized property value for the clip.
+ */
 const readClipProperty = (clip: ClipState, property: string): LiveProperty => {
   const propertyValues: Record<string, LiveProperty> = {
     color: clip.color,
@@ -263,21 +335,52 @@ const readClipProperty = (clip: ClipState, property: string): LiveProperty => {
   return propertyValues[property];
 };
 
+/**
+ * Parses a track index from a full track path.
+ * @param path - Candidate Live object path.
+ * @returns Parsed track index when present.
+ */
 const parseTrackIndex = (path: string): number | undefined =>
   parseSingleIndex(TRACK_PATH_PATTERN, path);
 
+/**
+ * Parses a track index from a track-path prefix.
+ * @param path - Candidate Live object path.
+ * @returns Parsed track index when present.
+ */
 const parseTrackPrefixIndex = (path: string): number | undefined =>
   parseSingleIndex(TRACK_PREFIX_PATTERN, path);
 
+/**
+ * Parses a scene index from a scene path.
+ * @param path - Candidate Live object path.
+ * @returns Parsed scene index when present.
+ */
 const parseSceneIndex = (path: string): number | undefined =>
   parseSingleIndex(SCENE_PATH_PATTERN, path);
 
+/**
+ * Parses track and slot indexes from a clip-slot path.
+ * @param path - Candidate Live object path.
+ * @returns Parsed track and slot indexes when present.
+ */
 const parseClipSlotIndexes = (path: string): PathIndexes | undefined =>
   parsePathIndexes(CLIP_SLOT_PATH_PATTERN, path);
 
+/**
+ * Parses track and slot indexes from a clip path.
+ * @param path - Candidate Live object path.
+ * @returns Parsed track and slot indexes when present.
+ */
 const parseClipIndexes = (path: string): PathIndexes | undefined =>
   parsePathIndexes(CLIP_PATH_PATTERN, path);
 
+/**
+ * Parses a single numeric index from a path.
+ * @param pattern - Pattern used to capture the index.
+ * @param path - Candidate Live object path.
+ * @returns Parsed index when the path matches.
+ */
 const parseSingleIndex = (
   pattern: RegExp,
   path: string,
@@ -291,6 +394,12 @@ const parseSingleIndex = (
   return Number(indexText);
 };
 
+/**
+ * Parses track and slot indexes from a path with two captures.
+ * @param pattern - Pattern used to capture the indexes.
+ * @param path - Candidate Live object path.
+ * @returns Parsed track and slot indexes when the path matches.
+ */
 const parsePathIndexes = (
   pattern: RegExp,
   path: string,
@@ -307,6 +416,12 @@ const parsePathIndexes = (
   };
 };
 
+/**
+ * Selects a single serialized child by index when requested.
+ * @param items - Candidate child objects.
+ * @param index - Optional child index filter.
+ * @returns The original list or a single-item slice.
+ */
 const selectByIndex = <T>(items: T[], index?: number): T[] => {
   if (index === undefined) {
     return items;
@@ -314,6 +429,13 @@ const selectByIndex = <T>(items: T[], index?: number): T[] => {
   return items.slice(index, index + 1);
 };
 
+/**
+ * Serializes a fake clip into the websocket child-object shape.
+ * @param clip - Fake clip state.
+ * @param trackIndex - Track index containing the clip.
+ * @param slotIndex - Clip-slot index containing the clip.
+ * @returns Serialized clip child object.
+ */
 const createRawClip = (
   clip: ClipState,
   trackIndex: number,

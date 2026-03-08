@@ -186,6 +186,25 @@ export default defineConfig([
     },
     rules: {
       complexity: ["error", MAX_COMPLEXITY],
+      "jsdoc/require-jsdoc": [
+        "error",
+        {
+          checkAllFunctionExpressions: true,
+          checkConstructors: true,
+          checkGetters: true,
+          checkSetters: true,
+          exemptEmptyConstructors: false,
+          exemptEmptyFunctions: false,
+          require: {
+            ArrowFunctionExpression: true,
+            ClassDeclaration: true,
+            ClassExpression: true,
+            FunctionDeclaration: true,
+            FunctionExpression: true,
+            MethodDefinition: true,
+          },
+        },
+      ],
       "max-depth": ["error", MAX_DEPTH],
       "max-lines": [
         "error",
@@ -216,6 +235,14 @@ export default defineConfig([
                 "Use @main, @preload, @renderer, or @shared aliases instead of deep relative imports.",
             },
           ],
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          message:
+            "Do not use Reflect; prefer explicit property access, direct assignment, deletion, or typed adapters.",
+          selector: "MemberExpression[object.name='Reflect']",
         },
       ],
       "no-warning-comments": "error",

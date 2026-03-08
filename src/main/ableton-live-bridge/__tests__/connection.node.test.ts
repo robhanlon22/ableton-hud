@@ -19,10 +19,17 @@ const OVERRIDDEN_LIVE_PORT = 9999;
 const PENDING_TRACK_INDEX = 8;
 const STALE_EPOCH = -1;
 
+/**
+ * Fails fast when a test tries to reject an unset connect promise.
+ * @param error - The connection error that would have been rejected.
+ */
 const throwUnsetConnectRejector = (error: Error): never => {
   throw new TypeError(`Expected a connect rejector before "${error.message}".`);
 };
 
+/**
+ * Fails fast when a test tries to resolve an unset connect promise.
+ */
 const throwUnsetConnectResolver = (): never => {
   throw new TypeError("Expected a connect resolver to be assigned.");
 };

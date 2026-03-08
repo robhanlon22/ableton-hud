@@ -71,6 +71,11 @@ interface StatusBadgeProperties {
   state: HudState;
 }
 
+/**
+ * Renders the HUD shell around the current transport and metadata state.
+ * @param properties - HUD callbacks, refs, and state.
+ * @returns The HUD surface.
+ */
 export const HudSurface = (
   properties: Readonly<HudSurfaceProperties>,
 ): React.JSX.Element => {
@@ -151,6 +156,11 @@ export const HudSurface = (
   );
 };
 
+/**
+ * Renders the counter panel for compact and expanded HUD layouts.
+ * @param properties - Counter panel state and compact-mode controls.
+ * @returns The counter panel.
+ */
 const CounterPanel = (
   properties: Readonly<CounterPanelProperties>,
 ): React.JSX.Element => {
@@ -192,6 +202,11 @@ const CounterPanel = (
   );
 };
 
+/**
+ * Renders the footer controls for mode, track lock, and topmost state.
+ * @param properties - Control callbacks and the current HUD state.
+ * @returns The HUD footer controls.
+ */
 const HudControls = (
   properties: Readonly<HudControlsProperties>,
 ): React.JSX.Element => {
@@ -255,6 +270,11 @@ const HudControls = (
   );
 };
 
+/**
+ * Renders a metadata pill for clip, track, or scene details.
+ * @param properties - Metadata label, color, and test identifier.
+ * @returns The metadata pill.
+ */
 const MetadataPill = (
   properties: Readonly<MetadataPillProperties>,
 ): React.JSX.Element => {
@@ -278,6 +298,11 @@ const MetadataPill = (
   );
 };
 
+/**
+ * Renders the current playback and connection status badge.
+ * @param properties - The HUD state used to derive badge status.
+ * @returns The status badge.
+ */
 const StatusBadge = (
   properties: Readonly<StatusBadgeProperties>,
 ): React.JSX.Element => {
@@ -305,6 +330,11 @@ const StatusBadge = (
   );
 };
 
+/**
+ * Resolves the icon for the current status badge variant.
+ * @param status - The derived HUD status kind.
+ * @returns The matching status icon.
+ */
 const statusIcon = (status: StatusKind): React.JSX.Element => {
   if (status === "playing") {
     return <Play aria-hidden className="h-3.5 w-3.5 fill-current" />;

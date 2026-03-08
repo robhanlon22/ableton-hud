@@ -18,7 +18,7 @@ export interface HudApi {
  * @returns The typed renderer bridge API.
  */
 export function getHudApi(): HudApi {
-  const hudApi: unknown = Reflect.get(globalThis, "hudApi");
+  const hudApi = readRuntimeHudApi(globalThis);
 
   if (!isHudApi(hudApi)) {
     throw new Error("hudApi is unavailable in the renderer context.");
@@ -45,4 +45,15 @@ function isHudApi(candidate: unknown): candidate is HudApi {
     "toggleTopmost" in candidate &&
     "toggleTrackLock" in candidate
   );
+}
+
+/**
+ * Reads the preload HUD bridge from a runtime that may expose `hudApi`.
+ * @param runtime - Runtime object that may carry the preload API.
+ * @returns The raw runtime `hudApi` value, when present.
+ */
+function readRuntimeHudApi(
+  runtime: typeof globalThis & { hudApi?: unknown },
+): unknown {
+  return runtime.hudApi;
 }

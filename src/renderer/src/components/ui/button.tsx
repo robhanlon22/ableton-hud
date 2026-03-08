@@ -35,22 +35,28 @@ export interface ButtonProperties
   asChild?: boolean;
 }
 
-const Button = ({
-  asChild = false,
-  className,
-  ref,
-  size,
-  variant,
-  ...properties
-}: Readonly<
-  ButtonProperties & { ref?: Ref<HTMLButtonElement> }
->): React.JSX.Element => {
+/**
+ * Renders the shared button primitive with HUD-specific styling.
+ * @param properties - Button props plus variant configuration.
+ * @returns The styled button element.
+ */
+const Button = (
+  properties: Readonly<ButtonProperties & { ref?: Ref<HTMLButtonElement> }>,
+): React.JSX.Element => {
+  const {
+    asChild = false,
+    className,
+    ref,
+    size,
+    variant,
+    ...buttonProperties
+  } = properties;
   const Comp = asChild ? Slot : "button";
   return (
     <Comp
       className={cn(buttonVariants({ className, size, variant }))}
       ref={ref}
-      {...properties}
+      {...buttonProperties}
     />
   );
 };

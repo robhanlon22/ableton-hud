@@ -24,6 +24,10 @@ interface HudAppState {
   state: HudState;
 }
 
+/**
+ * Builds the renderer-side HUD state model and toggle handlers.
+ * @returns The current HUD state and UI callbacks.
+ */
 export const useHudAppState = (): HudAppState => {
   // eslint-disable-next-line unicorn/prevent-abbreviations -- React ref identifiers should end in `Ref`.
   const compactPanelElementRef = useRef<HTMLDivElement>(null);
@@ -44,6 +48,9 @@ export const useHudAppState = (): HudAppState => {
   );
   useHudStateSubscription(setHudState, setIsCompactView);
 
+  /**
+   * Toggles compact mode and requests the matching window resize.
+   */
   const onToggleCompactView = (): void => {
     if (isCompactView) {
       disableCompactView(setIsCompactView);
@@ -54,6 +61,9 @@ export const useHudAppState = (): HudAppState => {
     setIsCompactView(true);
   };
 
+  /**
+   * Switches the counter between elapsed and remaining time modes.
+   */
   const onToggleMode = (): void => {
     const nextMode: HudMode =
       hudState.mode === "elapsed" ? "remaining" : "elapsed";
@@ -252,6 +262,11 @@ const useHudStateSubscription = (
   useEffect(() => {
     const hudApi = getHudApi();
     let isMounted = true;
+
+    /**
+     * Applies pushed HUD state only while the subscription is mounted.
+     * @param nextState - The next HUD state snapshot from preload.
+     */
     const updateState = (nextState: HudState): void => {
       if (!isMounted) {
         return;

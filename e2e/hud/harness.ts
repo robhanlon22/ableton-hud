@@ -54,6 +54,12 @@ export interface WindowOverlayState {
   visibleOnAllWorkspaces: boolean;
 }
 
+/**
+ * Builds the Electron launch environment for an isolated E2E app instance.
+ * @param temporaryHome - Temporary user-data directory for the launch.
+ * @param livePort - Fake Ableton Live websocket port.
+ * @returns Environment variables for the Electron launch.
+ */
 const createLaunchEnvironment = (
   temporaryHome: string,
   livePort: number,
@@ -157,6 +163,12 @@ export async function readWindowContentSize(
   });
 }
 
+/**
+ * Compares two window sizes for exact width and height equality.
+ * @param left - First content size to compare.
+ * @param right - Second content size to compare.
+ * @returns Whether both content sizes are identical.
+ */
 const sameWindowContentSize = (
   left: WindowContentSize,
   right: WindowContentSize,

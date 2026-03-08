@@ -52,10 +52,15 @@ export function createFsModuleMock(runtime: IndexMainRuntime) {
  * @returns The mocked `PrefStore` export.
  */
 export function createPrefsModuleMock(runtime: IndexMainRuntime) {
+  /**
+   * Mirrors the preference store API with runtime-owned spies.
+   */
+  class PrefStoreMock {
+    readonly load = runtime.prefLoadMock;
+    readonly save = runtime.prefSaveMock;
+  }
+
   return {
-    PrefStore: class PrefStoreMock {
-      readonly load = runtime.prefLoadMock;
-      readonly save = runtime.prefSaveMock;
-    },
+    PrefStore: PrefStoreMock,
   };
 }

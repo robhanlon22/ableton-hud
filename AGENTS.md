@@ -26,6 +26,13 @@
 ## Non-Negotiables
 
 - Keep TypeScript strict and preserve explicit types where contracts are non-obvious.
+- Keep the strict JSDoc gate intact:
+  - document class declarations and expressions
+  - document function declarations and expressions
+  - document method definitions
+  - document arrow functions
+- Do not use `Reflect`; prefer explicit property access, direct assignment, or
+  a typed adapter.
 - Keep IPC schema-first:
   - channels and schemas live in `src/shared/ipc/index.ts`
   - validate inbound IPC payloads in main/preload

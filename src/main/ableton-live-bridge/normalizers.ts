@@ -18,6 +18,11 @@ import {
 
 const TRACK_PATH_PATTERN = /tracks\s+(\d+)/u;
 
+interface DefaultLiveFactoryOptions {
+  host: string;
+  port: number;
+}
+
 /**
  * Parses a zero-based track index from a Live track path string.
  * @param path - Track path value such as `live_set tracks 2`.
@@ -247,6 +252,17 @@ export const defaultPayloadNormalizers: PayloadNormalizers = {
 };
 
 /**
+ * Creates a Live client from factory options.
+ * @param options - Host and port configuration for the Live bridge.
+ * @returns The constructed Live client.
+ */
+function createDefaultLiveClient(
+  options: DefaultLiveFactoryOptions,
+): LiveClient {
+  return createLiveClient(options.host, options.port);
+}
+
+/**
  * Creates a typed Ableton Live client wrapper.
  * @param host - Connection host for the Live websocket bridge.
  * @param port - Connection port for the Live websocket bridge.
@@ -262,5 +278,5 @@ function createLiveClient(host: string, port: number): LiveClient {
 }
 
 export const defaultLiveFactory: LiveFactory = {
-  create: ({ host, port }) => createLiveClient(host, port),
+  create: createDefaultLiveClient,
 };

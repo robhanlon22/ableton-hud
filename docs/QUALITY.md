@@ -39,8 +39,14 @@ Use this file as the source of truth for validation routing and reporting.
 
 - `pnpm run lint`
   - zero-warning strict lint gate for local verification and CI parity
+  - includes authored JSDoc coverage for class declarations and expressions,
+    function declarations and expressions, method definitions, and arrow
+    functions
+  - rejects `Reflect`; use explicit property access, direct assignment, or a
+    typed adapter instead
 - `pnpm run lint:fix`
   - autofix-first entry point used by pre-commit before typecheck and tests
+  - start here, then fix any remaining authored-doc failures by hand
 - `pnpm test`
   - coverage gate with randomized order and a logged shuffle seed
 

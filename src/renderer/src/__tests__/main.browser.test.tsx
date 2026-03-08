@@ -1,8 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 
+/**
+ * Renders the mocked HUD app used by the renderer entry tests.
+ * @returns The mocked HUD root element.
+ */
+function MockHudApp() {
+  return <div data-testid="mock-hud-app" />;
+}
+
 vi.mock("../app/hud", () => ({
-  HudApp: () => <div data-testid="mock-hud-app" />,
+  HudApp: MockHudApp,
 }));
 
 describe("renderer entry", () => {

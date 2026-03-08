@@ -126,10 +126,19 @@ function reportStatementPlacement(context, body, comments) {
 }
 
 const rule = {
+  /**
+   * Creates the arrange/act/assert rule visitor set.
+   * @param context - ESLint rule context for the current file.
+   * @returns Visitors that validate test callback structure.
+   */
   create(context) {
     const sourceCode = context.sourceCode;
 
     return {
+      /**
+       * Checks each test call for ordered arrange/act/assert sections.
+       * @param node - Candidate call expression.
+       */
       CallExpression(node) {
         if (!isTestCallee(node.callee)) {
           return;
