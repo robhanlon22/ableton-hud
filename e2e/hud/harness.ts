@@ -1,7 +1,9 @@
 import { expect, type TestInfo } from "@playwright/test";
+import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import {
   _electron as electron,
   type ElectronApplication,
@@ -21,9 +23,11 @@ const WINDOW_SIZE_STABILITY_ATTEMPTS = 25;
 const WINDOW_SIZE_STABILITY_REQUIRED_MATCHES = 2;
 const WINDOW_SIZE_STABILITY_WAIT_MS = 100;
 const CI_ARTIFACT_SCREENSHOTS_ENABLED = Boolean(process.env.CI);
+const MACOS_SCREENSHOT_BINARY = "/usr/sbin/screencapture";
 
 const ignoreLaunchCleanupError = String;
 const ignoreScreenshotError = String;
+const execFileAsync = promisify(execFile);
 
 const persistedPrefsSchema = z.object({
   alwaysOnTop: z.boolean().optional(),
@@ -264,14 +268,82 @@ async function attachHudScreenshot(
   const screenshotPath = testInfo.outputPath(
     `${String(artifactIndex).padStart(SCREENSHOT_ARTIFACT_INDEX_WIDTH, "0")}-${slugifyArtifactLabel(attachmentLabel)}.png`,
   );
-  await app.page.screenshot({
-    animations: "disabled",
-    path: screenshotPath,
-  });
+  await captureHudScreenshot(app, screenshotPath);
   await testInfo.attach(attachmentLabel, {
     contentType: "image/png",
     path: screenshotPath,
   });
+}
+
+/**
+ * Captures the HUD screenshot artifact, preferring the full native window frame.
+ * @param app - Running app handles produced by {@link launchHudApp}.
+ * @param screenshotPath - Destination path for the screenshot artifact.
+ */
+async function captureHudScreenshot(
+  app: RunningHudApp,
+  screenshotPath: string,
+): Promise<void> {
+  try {
+    const capturedWindow = await captureMacOsWindowScreenshot(
+      app,
+      screenshotPath,
+    );
+    if (capturedWindow) {
+      return;
+    }
+  } catch {
+    // Fall back to the renderer-only screenshot path when the platform cannot
+    // provide a full native-window capture.
+  }
+
+  await app.page.screenshot({
+    animations: "disabled",
+    path: screenshotPath,
+  });
+}
+
+/**
+ * Captures the current macOS HUD window via `screencapture` so native frame
+ * chrome is included in the screenshot artifact.
+ * @param app - Running app handles produced by {@link launchHudApp}.
+ * @param screenshotPath - Destination path for the screenshot artifact.
+ * @returns Whether a native-window screenshot was captured.
+ */
+async function captureMacOsWindowScreenshot(
+  app: RunningHudApp,
+  screenshotPath: string,
+): Promise<boolean> {
+  if (process.platform !== "darwin") {
+    return false;
+  }
+
+  const mediaSourceId = await app.electronApp.evaluate(({ BrowserWindow }) => {
+    const mainWindow = BrowserWindow.getAllWindows().at(0);
+    return mainWindow?.isDestroyed()
+      ? undefined
+      : mainWindow?.getMediaSourceId();
+  });
+  if (
+    typeof mediaSourceId !== "string" ||
+    !mediaSourceId.startsWith("window:")
+  ) {
+    return false;
+  }
+
+  const [, windowId] = mediaSourceId.split(":");
+  if (typeof windowId !== "string" || windowId.length === 0) {
+    return false;
+  }
+
+  await execFileAsync(MACOS_SCREENSHOT_BINARY, [
+    "-x",
+    "-o",
+    "-l",
+    windowId,
+    screenshotPath,
+  ]);
+  return true;
 }
 
 /**

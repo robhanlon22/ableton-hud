@@ -122,6 +122,11 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm exec playwright install chromium
 
+      - name: Grant macOS screen capture permissions for CI screenshots
+        if: runner.os == 'macOS'
+        shell: bash
+        run: ./scripts/grant-macos-screen-capture-ci.sh
+
       - name: Run Playwright Electron E2E
         env:
           CI_ENVIRONMENT_NAME: ${{ matrix.report_tag }}
