@@ -1,0 +1,39 @@
+name: Setup CI
+description: Set up pnpm, Node.js, optional Python, and install dependencies.
+
+inputs:
+  node_version:
+    description: Node.js version to install.
+    required: false
+    default: "22"
+  python_version:
+    description: Python version to install. Leave empty to skip Python setup.
+    required: false
+    default: ""
+  install_dependencies:
+    description: Whether to run pnpm install --frozen-lockfile.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node_version }}
+        cache: pnpm
+
+    - name: Setup Python
+      if: ${{ inputs.python_version != '' }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Install dependencies
+      if: ${{ inputs.install_dependencies == 'true' }}
+      shell: bash
+      run: pnpm install --frozen-lockfile

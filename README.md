@@ -186,6 +186,8 @@ git push origin v0.1.0
 CI workflow behavior:
 
 - `ci.yml` runs on pull requests, `main`, and `v*` tags
+- `ci.yml` uses the shared [setup-ci](/Users/rob/Developer/aosc/.github/actions/setup-ci/action.yml)
+  composite action for the repeated Node/pnpm dependency bootstrap
 - `Lint` runs `pre-commit run --all-files` on macOS and Windows
 - `Test` runs `pnpm test` on macOS and Windows
 - `E2E` runs `pnpm run test:e2e` on macOS and Windows
@@ -200,6 +202,10 @@ CI workflow behavior:
   requests, `main`, and `v*` tags
 - On `v*` tags, `Build` stages the published macOS and Windows zips plus
   checksums as same-run workflow artifacts
+- Those tagged release archives are assembled by
+  [package-release-macos.sh](/Users/rob/Developer/aosc/scripts/package-release-macos.sh)
+  and
+  [package-release-windows.ps1](/Users/rob/Developer/aosc/scripts/package-release-windows.ps1)
 - `Release` runs only on `v*` tags
 - `Release` waits on successful `Lint`, `Test`, `E2E`, and `Build` jobs, then
   publishes the staged macOS and Windows artifacts as the immutable GitHub

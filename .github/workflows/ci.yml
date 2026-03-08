@@ -26,22 +26,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+      - name: Setup CI
+        uses: ./.github/actions/setup-ci
         with:
-          node-version: "22"
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Setup Python 3
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+          python_version: "3.12"
 
       - name: Cache pre-commit environments
         uses: actions/cache@v4
@@ -64,50 +52,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - windows-latest
-          - macos-latest
+        include:
+          - os: windows-latest
+            playwright_cache_path: ~/AppData/Local/ms-playwright
+          - os: macos-latest
+            playwright_cache_path: ~/Library/Caches/ms-playwright
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup CI
+        uses: ./.github/actions/setup-ci
 
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Cache Playwright browsers on Windows
-        if: runner.os == 'Windows'
+      - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
-          path: ~/AppData/Local/ms-playwright
+          path: ${{ matrix.playwright_cache_path }}
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
-      - name: Cache Playwright browsers on macOS
-        if: runner.os == 'macOS'
-        uses: actions/cache@v4
-        with:
-          path: ~/Library/Caches/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-
-
-      - name: Install Playwright Chromium on Windows
-        if: runner.os == 'Windows'
-        run: pnpm exec playwright install chromium
-
-      - name: Install Playwright Chromium on macOS
-        if: runner.os == 'macOS'
+      - name: Install Playwright Chromium
         run: pnpm exec playwright install chromium
 
       - name: Run tests
@@ -128,48 +94,30 @@ jobs:
         include:
           - os: windows-latest
             report_tag: windows
+            electron_cache_path: ~/AppData/Local/electron/Cache
+            playwright_cache_path: ~/AppData/Local/ms-playwright
           - os: macos-latest
             report_tag: macos
+            electron_cache_path: ~/Library/Caches/electron
+            playwright_cache_path: ~/Library/Caches/ms-playwright
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup CI
+        uses: ./.github/actions/setup-ci
 
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: pnpm
-
-      - name: Cache Electron and Playwright binaries on Windows
-        if: runner.os == 'Windows'
+      - name: Cache Electron and Playwright binaries
         uses: actions/cache@v4
         with:
           path: |
-            ~/AppData/Local/electron/Cache
-            ~/AppData/Local/ms-playwright
+            ${{ matrix.electron_cache_path }}
+            ${{ matrix.playwright_cache_path }}
           key: >-
             e2e-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             e2e-binaries-${{ runner.os }}-
-
-      - name: Cache Electron and Playwright binaries on macOS
-        if: runner.os == 'macOS'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/electron
-            ~/Library/Caches/ms-playwright
-          key: >-
-            e2e-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            e2e-binaries-${{ runner.os }}-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
 
       - name: Install Playwright Chromium
         run: pnpm exec playwright install chromium
@@ -203,49 +151,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - windows-latest
-          - macos-latest
+        include:
+          - os: windows-latest
+            electron_cache_path: ~/AppData/Local/electron/Cache
+            electron_builder_cache_path: ~/AppData/Local/electron-builder/Cache
+          - os: macos-latest
+            electron_cache_path: ~/Library/Caches/electron
+            electron_builder_cache_path: ~/Library/Caches/electron-builder
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup CI
+        uses: ./.github/actions/setup-ci
 
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: pnpm
-
-      - name: Cache Electron and Playwright binaries on Windows
-        if: runner.os == 'Windows'
+      - name: Cache Electron build binaries
         uses: actions/cache@v4
         with:
           path: |
-            ~/AppData/Local/electron/Cache
-            ~/AppData/Local/electron-builder/Cache
+            ${{ matrix.electron_cache_path }}
+            ${{ matrix.electron_builder_cache_path }}
           key: >-
             release-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             release-binaries-${{ runner.os }}-
-
-      - name: Cache Electron and Playwright binaries on macOS
-        if: runner.os == 'macOS'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/electron
-            ~/Library/Caches/electron-builder
-          key: >-
-            release-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            release-binaries-${{ runner.os }}-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
 
       - name: Build release validation target on Windows
         if: runner.os == 'Windows'
@@ -254,30 +184,7 @@ jobs:
       - name: Stage tagged Windows release assets
         if: runner.os == 'Windows' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $tag = $env:GITHUB_REF_NAME
-          $appPath = "dist/win-unpacked"
-          $stagingDir = "dist/Ableton HUD-windows-x64"
-          $zipPath = "dist/Ableton-HUD-$tag-windows-x64.zip"
-          $shaPath = "$zipPath.sha256"
-
-          if (-not (Test-Path $appPath -PathType Container)) {
-            Write-Error "Missing app bundle at $appPath"
-          }
-
-          if (Test-Path $stagingDir) {
-            Remove-Item -Recurse -Force $stagingDir
-          }
-
-          if (Test-Path $zipPath) {
-            Remove-Item -Force $zipPath
-          }
-
-          Copy-Item $appPath $stagingDir -Recurse
-          Compress-Archive -Path $stagingDir -DestinationPath $zipPath -CompressionLevel Optimal
-          $hash = (Get-FileHash -Algorithm SHA256 $zipPath).Hash.ToLowerInvariant()
-          "{0}  {1}" -f $hash, (Split-Path -Leaf $zipPath) | Out-File -FilePath $shaPath -Encoding ascii -NoNewline
+        run: ./scripts/package-release-windows.ps1 -Tag $env:GITHUB_REF_NAME
 
       - name: Upload tagged Windows release assets
         if: runner.os == 'Windows' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -296,21 +203,7 @@ jobs:
       - name: Stage tagged macOS release assets
         if: runner.os == 'macOS' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         shell: bash
-        run: |
-          set -euo pipefail
-          tag="${GITHUB_REF_NAME}"
-          app_path="dist/mac-universal/Ableton HUD.app"
-          zip_path="dist/Ableton-HUD-${tag}-mac-universal.zip"
-          sha_path="${zip_path}.sha256"
-
-          if [ ! -d "${app_path}" ]; then
-            echo "Missing app bundle at ${app_path}" >&2
-            exit 1
-          fi
-
-          ditto -c -k --sequesterRsrc --keepParent "${app_path}" "${zip_path}"
-          hash="$(shasum -a 256 "${zip_path}" | awk '{print $1}')"
-          printf '%s  %s\n' "${hash}" "$(basename "${zip_path}")" > "${sha_path}"
+        run: bash ./scripts/package-release-macos.sh "${GITHUB_REF_NAME}"
 
       - name: Upload tagged macOS release assets
         if: runner.os == 'macOS' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -334,16 +227,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup CI
+        uses: ./.github/actions/setup-ci
 
       - name: Download Playwright blob reports
         uses: actions/download-artifact@v4

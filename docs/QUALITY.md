@@ -55,6 +55,8 @@ Use this file as the source of truth for validation routing and reporting.
 
 - `ci.yml`
   - runs on pull requests, `main`, and `v*` tags
+  - uses the shared [setup-ci](/Users/rob/Developer/aosc/.github/actions/setup-ci/action.yml)
+    composite action for repeated dependency bootstrap
 - `Lint`
   - runs `pre-commit run --all-files` with `SKIP=test-suite`
   - runs on `windows-latest` and `macos-latest`
@@ -73,6 +75,10 @@ Use this file as the source of truth for validation routing and reporting.
   - runs on pull requests, `main`, and `v*` tags
   - on `v*` tags, stages the macOS and Windows release zips plus checksums as
     same-run workflow artifacts
+  - tagged release archives are assembled by
+    [package-release-macos.sh](/Users/rob/Developer/aosc/scripts/package-release-macos.sh)
+    and
+    [package-release-windows.ps1](/Users/rob/Developer/aosc/scripts/package-release-windows.ps1)
 - `Build Playwright Report`
   - runs only on successful `push` to `main`
   - merges the Windows/macOS Playwright blob reports into one HTML report
