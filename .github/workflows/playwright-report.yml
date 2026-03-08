@@ -37,11 +37,21 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           github-token: ${{ github.token }}
-          merge-multiple: true
-          path: merged-blob-report
+          path: downloaded-blob-report
           pattern: playwright-blob-report-*
           repository: ${{ github.repository }}
           run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Stage Playwright blob reports
+        run: |
+          shopt -s nullglob
+          report_paths=(downloaded-blob-report/playwright-blob-report-*/report.zip)
+          test "${#report_paths[@]}" -gt 0
+          mkdir -p merged-blob-report
+          for report_path in "${report_paths[@]}"; do
+            report_name="$(basename "$(dirname "$report_path")")"
+            cp "$report_path" "merged-blob-report/${report_name}.zip"
+          done
 
       - name: Merge Playwright reports
         run: pnpm exec playwright merge-reports --config=playwright.merge.config.ts merged-blob-report
