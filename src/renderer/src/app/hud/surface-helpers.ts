@@ -103,7 +103,7 @@ export function frameClassName(
 ): string {
   const status = statusKind(state);
   return cn(
-    "h-full w-full overflow-hidden bg-ableton-bg text-ableton-text",
+    "h-full w-full overflow-hidden bg-ableton-bg font-ui text-ableton-text",
     isCompactView ? "border border-transparent" : "border border-[#4c525c]",
     "bg-[linear-gradient(180deg,#2b3038_0%,#232830_20%,#1a1e26_100%)]",
     status === "disconnected" &&

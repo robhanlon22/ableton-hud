@@ -1,6 +1,51 @@
 @import "tailwindcss";
 @config "../../../tailwind.config.ts";
 
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/AtkinsonHyperlegibleNext-Regular.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/fonts/AtkinsonHyperlegibleNext-Medium.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./assets/fonts/AtkinsonHyperlegibleNext-SemiBold.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/AtkinsonHyperlegibleMono-Regular.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./assets/fonts/AtkinsonHyperlegibleMono-SemiBold.woff2")
+    format("woff2");
+}
+
 :root {
   color-scheme: dark;
 }
@@ -22,5 +67,7 @@ body {
   margin: 0;
   background-color: #1c1f26;
   color: #d4d9df;
-  font-family: "Avenir Next", "Helvetica Neue", "Segoe UI", sans-serif;
+  font-family:
+    "Atkinson Hyperlegible Next", "Avenir Next", "Helvetica Neue", "Segoe UI",
+    sans-serif;
 }

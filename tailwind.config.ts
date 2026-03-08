@@ -29,8 +29,20 @@ const config: Config = {
         },
       },
       fontFamily: {
-        mono: ["SF Mono", "IBM Plex Mono", "Menlo", "monospace"],
-        ui: ["Avenir Next", "Helvetica Neue", "Segoe UI", "sans-serif"],
+        mono: [
+          "Atkinson Hyperlegible Mono",
+          "SF Mono",
+          "IBM Plex Mono",
+          "Menlo",
+          "monospace",
+        ],
+        ui: [
+          "Atkinson Hyperlegible Next",
+          "Avenir Next",
+          "Helvetica Neue",
+          "Segoe UI",
+          "sans-serif",
+        ],
       },
     },
   },
