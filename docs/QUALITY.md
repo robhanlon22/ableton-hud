@@ -69,7 +69,7 @@ Use this file as the source of truth for validation routing and reporting.
   - on Windows CI, uses a native `PrintWindow` helper and forces the app into
     dark appearance so smoke artifacts can include dark HUD window chrome
   - manual `workflow_dispatch` runs can enable `debug_windows_e2e` to open a
-    `tmate` session after a failed Windows E2E job for runner-side debugging
+    `tmate` session during the Windows E2E job for runner-side debugging
   - on macOS CI, grants Screen Recording to the screenshot tools before the
     Playwright run and forces the app into dark appearance so smoke artifacts
     can include dark native window chrome

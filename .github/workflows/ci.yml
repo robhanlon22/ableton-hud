@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       debug_windows_e2e:
-        description: Open a tmate session after a failed Windows E2E run
+        description: Open a tmate session during the Windows E2E job
         required: false
         default: false
         type: boolean
@@ -142,8 +142,8 @@ jobs:
           CI_ENVIRONMENT_NAME: ${{ matrix.report_tag }}
         run: pnpm run test:e2e
 
-      - name: Debug failed Windows E2E runner with tmate
-        if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug_windows_e2e && matrix.report_tag == 'windows' }}
+      - name: Debug Windows E2E runner with tmate
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_windows_e2e && matrix.report_tag == 'windows' }}
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 30
         with:
