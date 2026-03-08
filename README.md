@@ -149,7 +149,7 @@ disconnected, remaining, and compact. On successful `main` pushes, the E2E
 workflow uploads mergeable Windows/macOS blob reports, merges them into a
 single Playwright HTML report, and publishes that report to the repo GitHub
 Pages site. GitHub Pages must use `GitHub Actions` as the publishing source
-for that deployment path. The merged report now labels runs by platform so
+for that deployment path. The merged report now uses plain platform tags so
 Windows and macOS results do not collapse into a single anonymous list. It
 also rejects `Reflect`; use explicit property access, assignment, or a typed
 adapter instead.

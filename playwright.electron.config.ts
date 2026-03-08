@@ -1,26 +1,6 @@
 import { defineConfig } from "@playwright/test";
 
 const ciEnvironmentName = process.env.CI_ENVIRONMENT_NAME;
-const ciProjectName = resolveCiProjectName(ciEnvironmentName);
-
-/**
- * Maps CI environment names to human-readable Playwright project names.
- * @param environmentName - Platform label injected by the CI matrix.
- * @returns A stable project name for HTML report disambiguation.
- */
-function resolveCiProjectName(
-  environmentName: string | undefined,
-): string | undefined {
-  if (environmentName === "macos") {
-    return "macOS";
-  }
-
-  if (environmentName === "windows") {
-    return "Windows";
-  }
-
-  return environmentName;
-}
 
 export default defineConfig({
   expect: {
@@ -28,7 +8,6 @@ export default defineConfig({
   },
   fullyParallel: false,
   outputDir: "test-results/playwright",
-  ...(ciProjectName ? { projects: [{ name: ciProjectName }] } : {}),
   ...(ciEnvironmentName ? { tag: `@${ciEnvironmentName}` } : {}),
   reporter: process.env.CI
     ? [
