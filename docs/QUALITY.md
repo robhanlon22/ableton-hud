@@ -72,6 +72,7 @@ Use this file as the source of truth for validation routing and reporting.
     - triggers after successful `E2E` workflow runs on `main`
     - merges the Windows/macOS blob reports into a single Playwright HTML
       report and deploys it to the repo GitHub Pages site
+    - keeps Windows/macOS runs visibly disambiguated in the merged report
 - `release.yml`
   - waits for successful `Lint`, `Test`, and `E2E` workflow runs on the current
     commit before running release-specific validation
