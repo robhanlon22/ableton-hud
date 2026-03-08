@@ -86,6 +86,7 @@ export async function resetIndexMainTestEnvironment(
   await flushIndexMainStartup();
   runtime.reset();
   vi.resetModules();
+  delete process.env.AOSC_E2E_USER_DATA;
   delete process.env.AOSC_RENDERER_DEBUG_PORT;
   delete process.env.ELECTRON_RENDERER_URL;
   delete process.env.VITE_DEV_SERVER_URL;

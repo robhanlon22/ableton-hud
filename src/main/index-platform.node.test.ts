@@ -27,6 +27,7 @@ const MACOS_WINDOW_HEIGHT = 333;
 const MACOS_WINDOW_WIDTH = 444;
 const MACOS_WINDOW_X = 8;
 const MACOS_WINDOW_Y = 9;
+const RENDERER_INDEX_FILE_PATTERN = /renderer[/\\]index\.html$/u;
 const SINGLE_WINDOW_COUNT = 1;
 
 let runtime: IndexMainRuntime;
@@ -70,7 +71,7 @@ it("uses the loadFile fallback on darwin and ignores invalid bridge snapshots", 
   const windowInstance = resolveWindowInstance(runtime);
   emitDidFinishLoad(windowInstance);
   expect(windowInstance.loadFile).toHaveBeenCalledWith(
-    expect.stringContaining("renderer/index.html"),
+    expect.stringMatching(RENDERER_INDEX_FILE_PATTERN),
   );
   expect(windowInstance.options.resizable).toBe(false);
   expect(windowInstance.webContents.send).toHaveBeenCalledWith(

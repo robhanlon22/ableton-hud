@@ -18,6 +18,7 @@ import {
   setProcessPlatform,
 } from "@main/__tests__/index-test-utilities";
 import { createDefaultHudState, HUD_CHANNELS } from "@shared/ipc";
+import path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const COMPACT_HEIGHT = 130;
@@ -25,6 +26,7 @@ const COMPACT_WIDTH = 300;
 const DEBUG_PORT = "9222";
 const PERSISTED_MOVE_SAVE_COUNT = 1;
 const RENDERER_URL = "http://127.0.0.1:5173";
+const SESSION_DATA_DIRECTORY_NAME = "session-data";
 const SECOND_WINDOW_COUNT = 2;
 const WINDOW_HEIGHT = 250;
 const WINDOW_WIDTH = 420;
@@ -84,6 +86,28 @@ it("boots app side effects and registers core IPC handlers", async () => {
   expect(windowInstance.webContents.send).toHaveBeenCalledWith(
     HUD_CHANNELS.state,
     createDefaultHudState("remaining", false, false, true),
+  );
+});
+
+it("redirects Electron profile storage for e2e launches", async () => {
+  // arrange
+  const endToEndUserDataPath = path.resolve(
+    "test-results",
+    "aosc-e2e-user-data",
+  );
+  process.env.AOSC_E2E_USER_DATA = endToEndUserDataPath;
+
+  // act
+  await bootIndexMainModule(runtime);
+
+  // assert
+  expect(runtime.appSetPathMock).toHaveBeenCalledWith(
+    "userData",
+    endToEndUserDataPath,
+  );
+  expect(runtime.appSetPathMock).toHaveBeenCalledWith(
+    "sessionData",
+    path.join(endToEndUserDataPath, SESSION_DATA_DIRECTORY_NAME),
   );
 });
 

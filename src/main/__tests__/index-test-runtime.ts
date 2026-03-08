@@ -283,6 +283,7 @@ const createRuntimeReset = ({
   appListeners,
   appOnMock,
   appQuitMock,
+  appSetPathMock,
   appWhenReadyMock,
   bridgeInstances,
   BrowserWindowMock,
@@ -298,6 +299,7 @@ const createRuntimeReset = ({
   appListeners: Map<string, Listener[]>;
   appOnMock: ReturnType<typeof vi.fn>;
   appQuitMock: ReturnType<typeof vi.fn>;
+  appSetPathMock: ReturnType<typeof vi.fn>;
   appWhenReadyMock: ReturnType<typeof vi.fn>;
   bridgeInstances: AbletonLiveBridgeLike[];
   BrowserWindowMock: BrowserWindowMockConstructor;
@@ -319,6 +321,7 @@ const createRuntimeReset = ({
     appOnMock.mockReset();
     appOnMock.mockImplementation(createAppOnHandler(appListeners));
     appQuitMock.mockReset();
+    appSetPathMock.mockReset();
     appWhenReadyMock.mockReset();
     appWhenReadyMock.mockReturnValue(whenReadyPromise);
     existsSyncMock.mockReset();
@@ -356,6 +359,7 @@ export function createIndexMainRuntime(): IndexMainRuntime {
   const appendSwitchMock = vi.fn();
   const appOnMock = vi.fn(createAppOnHandler(appListeners));
   const appQuitMock = vi.fn();
+  const appSetPathMock = vi.fn();
   const appWhenReadyMock = vi.fn(() => whenReadyPromise);
   const existsSyncMock = vi.fn(createExistsSyncHandler);
   const ipcHandleMock = vi.fn(createIpcHandleHandler(ipcHandlers));
@@ -377,6 +381,7 @@ export function createIndexMainRuntime(): IndexMainRuntime {
     appListeners,
     appOnMock,
     appQuitMock,
+    appSetPathMock,
     appWhenReadyMock,
     bridgeInstances: runtimeCollections.bridgeInstances,
     BrowserWindowMock,
@@ -397,6 +402,7 @@ export function createIndexMainRuntime(): IndexMainRuntime {
     appListeners,
     appOnMock,
     appQuitMock,
+    appSetPathMock,
     appWhenReadyMock,
     bridgeInstances: runtimeCollections.bridgeInstances,
     BrowserWindowMock,

@@ -24,6 +24,7 @@ export function createElectronModuleMock(runtime: IndexMainRuntime) {
       },
       on: runtime.appOnMock,
       quit: runtime.appQuitMock,
+      setPath: runtime.appSetPathMock,
       whenReady: runtime.appWhenReadyMock,
     },
     BrowserWindow: runtime.BrowserWindowMock,

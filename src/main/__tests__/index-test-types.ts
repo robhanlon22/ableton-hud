@@ -69,6 +69,7 @@ export interface IndexMainRuntime {
   appListeners: Map<string, Listener[]>;
   appOnMock: ReturnType<typeof vi.fn>;
   appQuitMock: ReturnType<typeof vi.fn>;
+  appSetPathMock: ReturnType<typeof vi.fn>;
   appWhenReadyMock: ReturnType<typeof vi.fn>;
   bridgeInstances: AbletonLiveBridgeLike[];
   BrowserWindowMock: BrowserWindowMockConstructor;

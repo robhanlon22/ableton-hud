@@ -1,3 +1,4 @@
+import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mkdirMock = vi.fn(() => Promise.resolve());
@@ -141,7 +142,7 @@ describe("PrefStore save", () => {
     expect(getPathMock.mock.calls.length).toBe(getPathCallCountBeforeSave);
     expect(mkdirMock).toHaveBeenCalled();
     expect(writeFileMock).toHaveBeenCalledWith(
-      "/Users/test/e2e-home/hud-preferences.json",
+      path.join(TEST_E2E_HOME, "hud-preferences.json"),
       expect.stringContaining('"mode": "remaining"'),
       "utf8",
     );

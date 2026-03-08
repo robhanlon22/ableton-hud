@@ -17,6 +17,7 @@ import { PrefStore } from "./prefs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const E2E_SESSION_DATA_DIRECTORY_NAME = "session-data";
 const MAX_PORT_NUMBER = 65_535;
 interface CompactWindowBounds {
   contentHeight: number;
@@ -53,6 +54,7 @@ const WINDOW_CONTENT_HEIGHT = 180;
 const COMPACT_CONTENT_WIDTH = 320;
 const COMPACT_CONTENT_HEIGHT = 138;
 
+configureAppPaths();
 const prefStore = new PrefStore();
 const rendererDebugPort = process.env.AOSC_RENDERER_DEBUG_PORT;
 
@@ -100,6 +102,22 @@ function buildDefaultState(): HudState {
     resolveAlwaysOnTop(),
     isCompactView,
     trackLocked,
+  );
+}
+
+/**
+ * Redirects Electron profile storage during end-to-end runs.
+ */
+function configureAppPaths(): void {
+  const endToEndUserDataPath = process.env.AOSC_E2E_USER_DATA;
+  if (!endToEndUserDataPath) {
+    return;
+  }
+
+  app.setPath("userData", endToEndUserDataPath);
+  app.setPath(
+    "sessionData",
+    path.join(endToEndUserDataPath, E2E_SESSION_DATA_DIRECTORY_NAME),
   );
 }
 

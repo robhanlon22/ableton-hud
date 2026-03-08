@@ -54,6 +54,25 @@ export interface WindowOverlayState {
   visibleOnAllWorkspaces: boolean;
 }
 
+const createLaunchEnvironment = (
+  temporaryHome: string,
+  livePort: number,
+): Record<string, string> => {
+  const launchEnvironment: Record<string, string> = {
+    AOSC_E2E_USER_DATA: temporaryHome,
+    AOSC_LIVE_HOST: "127.0.0.1",
+    AOSC_LIVE_PORT: String(livePort),
+  };
+
+  for (const [key, value] of Object.entries(process.env)) {
+    if (typeof value === "string") {
+      launchEnvironment[key] = value;
+    }
+  }
+
+  return launchEnvironment;
+};
+
 /**
  * Closes the Electron app and removes temporary profile state.
  * @param app - Running app handles produced by {@link launchHudApp}.
@@ -89,17 +108,7 @@ export async function launchHudApp(
   try {
     electronApp = await electron.launch({
       args: [MAIN_ENTRY],
-      env: {
-        ...process.env,
-        AOSC_E2E_USER_DATA: temporaryHome,
-        AOSC_LIVE_HOST: "127.0.0.1",
-        AOSC_LIVE_PORT: String(livePort),
-        HOME: temporaryHome,
-        USERPROFILE: temporaryHome,
-        XDG_CACHE_HOME: path.join(temporaryHome, ".cache"),
-        XDG_CONFIG_HOME: path.join(temporaryHome, ".config"),
-        XDG_DATA_HOME: path.join(temporaryHome, ".local/share"),
-      },
+      env: createLaunchEnvironment(temporaryHome, livePort),
     });
 
     return {
@@ -199,10 +208,12 @@ export async function waitForHudBootstrap(app: RunningHudApp): Promise<void> {
 /**
  * Waits until repeated BrowserWindow size reads stop changing.
  * @param app - Running app handles.
+ * @param expectedSize - Optional target size that must also stabilize before returning.
  * @returns The stabilized content width and height.
  */
 export async function waitForStableWindowContentSize(
   app: RunningHudApp,
+  expectedSize?: WindowContentSize,
 ): Promise<WindowContentSize> {
   let previousSize: undefined | WindowContentSize;
   let stableMatchCount = 0;
@@ -215,7 +226,11 @@ export async function waitForStableWindowContentSize(
     const nextSize = await readWindowContentSize(app);
     if (previousSize && sameWindowContentSize(previousSize, nextSize)) {
       stableMatchCount += 1;
-      if (stableMatchCount >= WINDOW_SIZE_STABILITY_REQUIRED_MATCHES) {
+      if (
+        stableMatchCount >= WINDOW_SIZE_STABILITY_REQUIRED_MATCHES &&
+        (expectedSize === undefined ||
+          sameWindowContentSize(nextSize, expectedSize))
+      ) {
         return nextSize;
       }
     } else {
@@ -226,5 +241,9 @@ export async function waitForStableWindowContentSize(
     await app.page.waitForTimeout(WINDOW_SIZE_STABILITY_WAIT_MS);
   }
 
-  throw new Error("Timed out waiting for the HUD window size to stabilize.");
+  throw new Error(
+    expectedSize
+      ? `Timed out waiting for the HUD window size to stabilize at ${String(expectedSize.width)}x${String(expectedSize.height)}.`
+      : "Timed out waiting for the HUD window size to stabilize.",
+  );
 }

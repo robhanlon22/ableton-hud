@@ -195,9 +195,12 @@ test("restores full size after compact relaunch cycle", async () => {
     await compactToggle.click();
     await expect(compactToggle).toHaveAttribute("title", "COLLAPSE DETAILS");
     await expect(relaunchedApp.page.getByTestId("mode-toggle")).toBeVisible();
-    expect(await waitForStableWindowContentSize(relaunchedApp)).toEqual(
-      FULL_DETAILS_WINDOW_SIZE,
-    );
+    expect(
+      await waitForStableWindowContentSize(
+        relaunchedApp,
+        FULL_DETAILS_WINDOW_SIZE,
+      ),
+    ).toEqual(FULL_DETAILS_WINDOW_SIZE);
   } finally {
     await closeHudApp(relaunchedApp);
   }
