@@ -107,6 +107,6 @@ Use this file as the source of truth for validation routing and reporting.
 ## Harness Docs
 
 - The agent-facing contract spans `AGENTS.md`, `README.md`, `ARCHITECTURE.md`,
-  `docs/QUALITY.md`, `docs/product-specs/*`, and `docs/exec-plans/*`.
+  `docs/QUALITY.md`, and `docs/product-specs/*`.
 - When this contract changes, update the relevant docs in the same patch and
   rerun `pre-commit run --all-files`.

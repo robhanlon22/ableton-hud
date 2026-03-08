@@ -75,9 +75,3 @@ any local Ableton instance.
 - Run `pre-commit run --all-files`
 - Then run the explicit release commands you actually need, such as
   `pnpm run dist:mac`.
-
-## Plan Artifacts
-
-Use `docs/exec-plans/active/` for in-progress multi-step work and move finished
-plans into `docs/exec-plans/completed/`. Track follow-up gaps in
-`docs/exec-plans/tech-debt-tracker.md`.

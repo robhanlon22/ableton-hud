@@ -2,9 +2,8 @@
 
 ## Product Scope
 
-Ableton HUD is a macOS desktop companion for Ableton Live. It presents clip
-timing in a compact Electron window that can remain visible while Live is in
-use.
+Ableton HUD is a desktop companion for Ableton Live. It presents clip timing in
+a compact Electron window that can remain visible while Live is in use.
 
 Primary user outcomes:
 

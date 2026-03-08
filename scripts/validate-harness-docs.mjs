@@ -32,25 +32,6 @@ const artifactGroups = [
     label: "product specs index",
     type: "file",
   },
-  {
-    aliases: [
-      "docs/exec-plans/README.md",
-      "docs/exec-plans.md",
-      "docs/PLANS.md",
-    ],
-    label: "execution plans index",
-    type: "file",
-  },
-  {
-    aliases: ["docs/exec-plans/active", "docs/exec-plans/in-progress"],
-    label: "active execution plans directory",
-    type: "directory",
-  },
-  {
-    aliases: ["docs/exec-plans/completed", "docs/exec-plans/archive"],
-    label: "completed execution plans directory",
-    type: "directory",
-  },
 ];
 
 const linkExpectations = [
@@ -60,11 +41,6 @@ const linkExpectations = [
     requiredIn: "AGENTS.md",
   },
   {
-    aliases: ["docs/exec-plans", "docs/exec-plans.md", "docs/PLANS.md"],
-    label: "execution plans docs",
-    requiredIn: "AGENTS.md",
-  },
-  {
     aliases: ["docs/QUALITY.md"],
     label: "quality guide",
     requiredIn: "AGENTS.md",
@@ -88,17 +64,6 @@ const linkExpectations = [
     aliases: ["docs/product-specs", "docs/product-specs/README.md"],
     label: "product specs index",
     requiredIn: "README.md",
-  },
-];
-
-const indexLinkExpectations = [
-  {
-    aliases: ["docs/exec-plans/active", "docs/exec-plans/in-progress"],
-    label: "active execution plans directory",
-  },
-  {
-    aliases: ["docs/exec-plans/completed", "docs/exec-plans/archive"],
-    label: "completed execution plans directory",
   },
 ];
 
@@ -192,18 +157,6 @@ for (const expectation of linkExpectations) {
     issues.push(
       `${expectation.requiredIn} does not reference the ${expectation.label}.`,
     );
-  }
-}
-
-const executionPlansIndex = resolvedArtifacts.get("execution plans index");
-if (executionPlansIndex) {
-  const indexContent = await readText(executionPlansIndex);
-  for (const expectation of indexLinkExpectations) {
-    if (!referencesAny(indexContent, expectation.aliases)) {
-      issues.push(
-        `${executionPlansIndex} does not reference the ${expectation.label}.`,
-      );
-    }
   }
 }
 

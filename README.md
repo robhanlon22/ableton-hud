@@ -1,223 +1,223 @@
 # Ableton HUD
 
-A desktop HUD for Ableton Live that shows clip timing (`Bar:Beat:16th`) in a compact always-on-top window.
+A small desktop HUD for Ableton Live that shows the current clip position in
+`Bar:Beat:16th` and stays readable in an always-on-top window.
 
-> Release builds are currently unsigned. macOS may require Finder `Control-click -> Open`, and Windows may show a SmartScreen warning before launch.
+> [!IMPORTANT]
+> Ableton HUD depends on the upstream `ableton-live` Max device.
+> The upstream bridge README lists `Ableton Live 11` and `Max 4 Live` as
+> requirements, and it requires you to load `external/LiveAPI.amxd` in Live
+> before the HUD can connect.
 
-## What You Get
+> [!NOTE]
+> Release builds are currently unsigned. On macOS you may need
+> `Control-click -> Open`. On Windows you may see a SmartScreen warning before
+> launch.
 
-- Fast musical counter in `Bar:Beat:16th`
-- `Elapsed` and `Remaining` timing modes
-- Last-bar visual warning behavior
-- Beat flash with downbeat emphasis
-- Clip, track, and scene chips with Live colors
-- Floating/normal window toggle
-- Track lock toggle
-- Compact mode for counter-only view
-- Persisted window position, size, mode, and UI preferences
+<p align="center">
+  <img
+    src="docs/screenshots/hud-connected-elapsed.png"
+    alt="Connected HUD in Elapsed mode"
+    width="48%"
+  />
+  <img
+    src="docs/screenshots/hud-connected-remaining.png"
+    alt="Connected HUD in Remaining mode"
+    width="48%"
+  />
+</p>
+<p align="center">
+  <img
+    src="docs/screenshots/hud-compact.png"
+    alt="Compact counter view"
+    width="38%"
+  />
+</p>
 
-## Screenshots
+## Table of contents
 
-![Connected HUD in Elapsed mode](docs/screenshots/hud-connected-elapsed.png)
-![Connected HUD in Remaining mode](docs/screenshots/hud-connected-remaining.png)
-![Compact counter view](docs/screenshots/hud-compact.png)
+- [What it does](#what-it-does)
+- [Quick start](#quick-start)
+- [Install the Ableton bridge](#install-the-ableton-bridge)
+- [Controls](#controls)
+- [Troubleshooting](#troubleshooting)
+- [Develop locally](#develop-locally)
+- [Project docs](#project-docs)
+- [License](#license)
 
-## Quick Start (Release Consumer)
+## What it does
 
-1. Download the latest release assets for your platform from GitHub Releases:
+- shows the musical counter as `Bar:Beat:16th`
+- switches between `Elapsed` and `Remaining` timing
+- flashes the counter on beats, with a stronger downbeat flash
+- shows clip, track, and scene labels with Live colors
+- floats above other windows when needed
+- remembers window size, position, timing mode, compact mode, and window state
 
-- `Ableton-HUD-vX.Y.Z-mac-universal.zip`
-- `Ableton-HUD-vX.Y.Z-mac-universal.zip.sha256`
-- `Ableton-HUD-vX.Y.Z-windows-x64-installer.exe`
-- `Ableton-HUD-vX.Y.Z-windows-x64-installer.exe.sha256`
+## Quick start
 
-2. Verify the checksum for the asset you downloaded:
+### 1. Download and launch the app
+
+Grab the latest release from GitHub Releases:
+
+- macOS:
+  `Ableton-HUD-vX.Y.Z-mac-universal.zip`
+- Windows:
+  `Ableton-HUD-vX.Y.Z-windows-x64-installer.exe`
+
+Optional checksum verification:
 
 ```bash
 shasum -a 256 -c Ableton-HUD-vX.Y.Z-mac-universal.zip.sha256
 ```
-
-PowerShell example:
 
 ```powershell
 Get-FileHash .\Ableton-HUD-vX.Y.Z-windows-x64-installer.exe -Algorithm SHA256
 Get-Content .\Ableton-HUD-vX.Y.Z-windows-x64-installer.exe.sha256
 ```
 
-3. Open the release artifact for your platform:
+Then launch the app:
 
-- macOS: unzip the archive, then launch `Ableton HUD.app`
-- Windows: run `Ableton-HUD-vX.Y.Z-windows-x64-installer.exe`, then launch `Ableton HUD`
+- macOS: unzip the archive and open `Ableton HUD.app`
+- Windows: run the installer, then launch `Ableton HUD`
 
-4. In Ableton Live, install/run the `ableton-live` Max device so the HUD can connect.
+### 2. Install the Ableton bridge
 
-Expected behavior:
+Ableton HUD does not talk to Live directly. It connects through the upstream
+`ableton-live` bridge device: `LiveAPI.amxd`.
 
-- Connected + transport running: counter advances and chips populate.
-- Disconnected transport: HUD stays up with disconnected status.
+The upstream setup is simple:
 
-## Ableton / Transport Prerequisites
+1. Get `LiveAPI.amxd`.
+   - If you are using the app as a release download, fetch
+     [`external/LiveAPI.amxd`](https://github.com/ricardomatias/ableton-live/tree/master/external)
+     from the upstream repository.
+   - If you are working from this repo after `pnpm install`, the file already
+     exists at `node_modules/ableton-live/external/LiveAPI.amxd`.
+2. Open Ableton Live.
+3. Drag `LiveAPI.amxd` onto any track.
+   - The upstream README explicitly says any track is fine.
+   - Putting it on the Master Track is a simple default.
+4. Leave the device loaded while using the HUD.
 
-- Ableton Live running
-- `ableton-live` Max device installed and active
-- Default bridge endpoint: `ws://127.0.0.1:9001/ableton-live`
+By default the HUD expects the bridge at:
 
-Optional overrides:
+- host: `127.0.0.1`
+- port: `9001`
+- path: `/ableton-live`
+- full endpoint: `ws://127.0.0.1:9001/ableton-live`
 
-- `AOSC_LIVE_HOST` (default `127.0.0.1`)
-- `AOSC_LIVE_PORT` (default `9001`)
+You can override host and port with:
+
+- `AOSC_LIVE_HOST`
+- `AOSC_LIVE_PORT`
+
+### 3. Verify the connection
+
+With Ableton Live open and `LiveAPI.amxd` loaded:
+
+1. Start Ableton HUD.
+2. Start playback in Live.
+3. Confirm the counter advances and the clip/track/scene chips populate.
+
+If the HUD launches but shows a disconnected state, jump to
+[Troubleshooting](#troubleshooting).
 
 ## Controls
 
 - `Elapsed` / `Remaining`: switch counter direction
 - `FLOAT` / `NORMAL`: toggle always-on-top behavior
-- `UNLOCKED` / `LOCKED`: follow selected track or keep current track pinned
-- `COLLAPSE DETAILS` / `EXPAND DETAILS`: switch full vs compact layout
+- `UNLOCKED` / `LOCKED`: follow the selected track or keep the current track
+  pinned
+- `COLLAPSE DETAILS` / `EXPAND DETAILS`: switch between the full HUD and the
+  compact counter-only view
 
 ## Troubleshooting
 
-| Symptom                                | What to check                                                                                                                                       |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Counter stays `0:0:0`                  | Confirm Ableton Live transport is running and `ableton-live` device is connected on the same host/port as HUD.                                      |
-| Status shows disconnected              | Verify Live + device are running and endpoint is reachable at `AOSC_LIVE_HOST:AOSC_LIVE_PORT`.                                                      |
-| Scene chip with no color appears black | Current behavior should render no-color scene as unfilled/outline style; update to latest build if you still see black fill.                        |
-| App opens in compact mode unexpectedly | Preferences are persisted. Toggle `EXPAND DETAILS` once; next launch should keep the chosen mode.                                                   |
-| Debug port conflict in dev debug mode  | `pnpm run dev:debug` auto-selects the next free ports from `AOSC_MAIN_DEBUG_PORT` (default `9230`) and `AOSC_RENDERER_DEBUG_PORT` (default `9222`). |
+| Symptom                           | What to check                                                                                                               |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Counter stays `0:0:0`             | Make sure Ableton Live is playing and `LiveAPI.amxd` is loaded in the current Live set.                                     |
+| Status shows disconnected         | Confirm the bridge device is running at `127.0.0.1:9001` or update `AOSC_LIVE_HOST` / `AOSC_LIVE_PORT` to match your setup. |
+| The app launches but stays tiny   | Preferences are persisted. Click `EXPAND DETAILS` once and the next launch should keep the larger layout.                   |
+| The bridge still will not connect | Reopen the Live set, reload `LiveAPI.amxd`, and confirm no other process is occupying the same bridge port.                 |
 
-## Developer Workflow
+## Develop locally
 
-Requirements:
+### Requirements
 
 - Node.js 22+
 - pnpm 10+
-- macOS for Electron/macOS packaging workflows
+- Ableton Live plus Max for Live if you want to test against a real Live
+  session
 
-Install:
+### Install
 
 ```bash
 pnpm install
 ```
 
-Run app in dev:
+### Run the app
 
 ```bash
 pnpm run dev
 ```
 
-Run app in debug dev mode (auto-select free inspector/CDP ports):
+Debug mode with auto-selected inspector ports:
 
 ```bash
 pnpm run dev:debug
 ```
 
-Lint:
+### Quality gates
+
+Start with the autofix pass:
 
 ```bash
-pnpm run lint
 pnpm run lint:fix
 ```
 
-Validate:
+Then use the stricter checks as needed:
 
 ```bash
-pre-commit run --all-files
 pnpm run lint
 pnpm test
 pnpm run typecheck
 pnpm run build
 pnpm run test:e2e
+pre-commit run --all-files
 ```
 
-`pre-commit run --all-files` now includes the docs validator, `tsc --noEmit`,
-`pnpm run lint:fix`, and `pnpm test`. The CI lint job skips that test hook via
-`SKIP` because the dedicated `test` workflow already covers it. `pnpm run lint`
-is the strict zero-warning check, while `pnpm run lint:fix` is the mechanical
-cleanup entry point used by pre-commit. `pnpm test` now shuffles file order and
-intra-file test order on every run and logs the shuffle seed at startup; rerun
-with `VITEST_SEQUENCE_SEED=<seed> pnpm test` to reproduce an order-dependent
-failure. Run `pnpm run test:e2e` manually or rely on the dedicated CI job when
-you need Electron end-to-end coverage. The lint gate also enforces authored
-JSDoc on class declarations and expressions, function declarations and
-expressions, method definitions, arrow functions, TypeScript interfaces and
-their members/signatures, and TypeScript type declarations. Start with
-`pnpm run lint:fix`, then write the missing docs that autofix cannot
-synthesize. The CI E2E job also captures HUD screenshots and uploads them,
-along with any traces or videos in `test-results/playwright`, as workflow
-artifacts on every run so Windows and macOS executions can be inspected
-visually. Those artifacts now
-include stable smoke renders for the known HUD states: playing, stopped,
-disconnected, remaining, and compact. On successful `main` pushes, the E2E
-workflow uploads mergeable Windows/macOS blob reports, merges them into a
-single Playwright HTML report, and publishes that report to the repo GitHub
-Pages site. GitHub Pages must use `GitHub Actions` as the publishing source
-for that deployment path. The merged report now uses plain platform project names so
-Windows and macOS results do not collapse into a single anonymous list. It
-also rejects `Reflect`; use explicit property access, assignment, or a typed
-adapter instead.
+Useful notes:
 
-Build local macOS app directory:
+- `pnpm run lint` is the zero-warning lint gate.
+- `pnpm test` randomizes file order and in-file test order.
+- Reproduce a shuffled Vitest run with
+  `VITEST_SEQUENCE_SEED=<seed> pnpm test`.
+- `pnpm run test:e2e` builds first, then runs the Playwright Electron suite.
+
+### Build release targets locally
 
 ```bash
 pnpm run dist:mac
+pnpm run dist:win
 ```
 
-Output example: `dist/mac-universal/Ableton HUD.app`
+## Project docs
 
-## Harness Docs
+- [ARCHITECTURE.md](ARCHITECTURE.md): runtime map and source-of-truth file
+  layout
+- [docs/QUALITY.md](docs/QUALITY.md): local gates, CI jobs, and reporting
+  expectations
+- [docs/product-specs/README.md](docs/product-specs/README.md): user-facing
+  behavior contracts
 
-This repo now keeps agent-facing source of truth in versioned files:
+CI summary:
 
-- `ARCHITECTURE.md`
-- `docs/QUALITY.md`
-- `docs/product-specs/`
-- `docs/exec-plans/`
-
-The docs lint runs as a pre-commit hook locally and through the existing CI
-`Lint` job's `pre-commit run --all-files`.
-
-## Releases
-
-Tag and push to trigger the release workflow:
-
-```bash
-git tag -a v0.1.0 -m "v0.1.0"
-git push origin v0.1.0
-```
-
-CI workflow behavior:
-
-- `ci.yml` runs on pull requests, `main`, and `v*` tags
-- `ci.yml` uses the shared [setup-ci](/Users/rob/Developer/aosc/.github/actions/setup-ci/action.yml)
-  composite action for the repeated Node/pnpm dependency bootstrap
-- `Lint` runs `pre-commit run --all-files` on macOS and Windows
-- `Test` runs `pnpm test` on macOS and Windows
-- `E2E` runs `pnpm run test:e2e` on macOS and Windows
-- `E2E` uploads `test-results/playwright` as a workflow artifact on every run
-- Those E2E artifacts include stable smoke renders for the known HUD states:
-  playing, stopped, disconnected, remaining, and compact
-- On successful `main` pushes, the downstream `Build Playwright Report` and
-  `Deploy GitHub Pages` jobs merge the Windows/macOS blob reports and publish
-  that HTML report to the repo GitHub Pages site
-- `Build` runs release validation builds on macOS and Windows for pull
-  requests, `main`, and `v*` tags
-- On `v*` tags, `Build` stages the published macOS zip and Windows installer,
-  plus checksums, as same-run workflow artifacts
-- Those tagged release archives are assembled by
-  [package-release-macos.sh](/Users/rob/Developer/aosc/scripts/package-release-macos.sh)
-  and
-  [package-release-windows.ps1](/Users/rob/Developer/aosc/scripts/package-release-windows.ps1)
-- The GitHub Pages report merge stages blob archives with
-  [stage-playwright-blob-reports.sh](/Users/rob/Developer/aosc/scripts/stage-playwright-blob-reports.sh)
-- `Release` runs only on `v*` tags
-- `Release` waits on successful `Lint`, `Test`, `E2E`, and `Build` jobs, then
-  publishes the staged macOS and Windows artifacts as the immutable GitHub
-  Release
-- Publishes:
-  - `Ableton-HUD-vX.Y.Z-mac-universal.zip`
-  - `Ableton-HUD-vX.Y.Z-mac-universal.zip.sha256`
-  - `Ableton-HUD-vX.Y.Z-windows-x64-installer.exe`
-  - `Ableton-HUD-vX.Y.Z-windows-x64-installer.exe.sha256`
-- Enforces immutable releases (existing tag release is not modified)
+- pull requests and `main` run lint, unit tests, E2E, and build validation on
+  macOS and Windows
+- successful `main` pushes publish a merged Playwright report to GitHub Pages
+- `v*` tags publish the macOS zip and Windows installer as immutable release
+  assets
 
 ## License
 

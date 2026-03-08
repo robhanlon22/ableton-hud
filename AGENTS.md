@@ -2,11 +2,10 @@
 
 ## Start Here
 
-- [`README.md`](README.md): product overview, developer commands, release workflow
+- [`README.md`](README.md): product overview, beginner setup, developer quick start, release/CI summary
 - [`ARCHITECTURE.md`](ARCHITECTURE.md): runtime map, data flow, test harness surfaces
 - [`docs/product-specs/README.md`](docs/product-specs/README.md): user-visible product contract
 - [`docs/QUALITY.md`](docs/QUALITY.md): validation matrix, evidence requirements, mechanical gates
-- [`docs/exec-plans/README.md`](docs/exec-plans/README.md): execution-plan format and lifecycle
 
 ## Purpose
 
@@ -21,7 +20,7 @@
 - `src/renderer/src/`: React HUD UI and browser tests
 - `src/shared/`: shared IPC schemas, runtime types, cross-process contracts
 - `e2e/`: Playwright Electron tests plus fake Ableton Live websocket server
-- `docs/`: quality gates, execution plans, screenshots, harness documentation
+- `docs/`: quality gates, product specs, screenshots, and harness documentation
 
 ## Non-Negotiables
 
@@ -64,6 +63,20 @@
 - Report exact commands run, what passed, and what was intentionally not run.
 - For visible UI changes, include screenshot or GIF evidence in the PR/report.
 
+## README Guidance
+
+- Keep `README.md` beginner-friendly and task-oriented.
+- Start with what the app does, what the user needs, and how to get connected quickly.
+- Spell out the upstream Ableton bridge requirement clearly:
+  - the HUD depends on `ableton-live`
+  - `LiveAPI.amxd` lives at `external/LiveAPI.amxd` in the upstream repo
+  - if this repo has been installed locally, the same file exists at
+    `node_modules/ableton-live/external/LiveAPI.amxd`
+- Keep release-user setup, Ableton bridge setup, troubleshooting, and core developer commands in the README.
+- Push detailed CI matrices, lint policy, and validation routing into `docs/QUALITY.md` instead of dumping them into the README.
+- When README screenshots are updated, make sure the layout reads cleanly on GitHub instead of stacking mismatched images awkwardly.
+- Keep README workflow and release notes aligned with the real `ci.yml` job graph and current artifact names.
+
 ## Harness Docs
 
 - Treat these files as part of the product surface:
@@ -72,6 +85,5 @@
   - `ARCHITECTURE.md`
 - `docs/QUALITY.md`
 - `docs/product-specs/*`
-- `docs/exec-plans/*`
 - When workflow, scripts, architecture, or test contracts change, update the affected docs in the same patch.
 - `pre-commit run --all-files` must pass after doc/process changes.
