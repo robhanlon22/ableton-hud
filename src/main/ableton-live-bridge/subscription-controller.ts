@@ -18,76 +18,269 @@ import {
   syncTrackState as syncTrackStateSnapshot,
 } from "./subscriptions";
 
+/**
+ * Dependencies required by the subscription controller to observe and sync bridge state.
+ */
 export interface BridgeSubscriptionControllerDeps {
+  /**
+   * Mutable clip timing metadata owned by the bridge.
+   */
   clipMeta: {
+    /**
+     * Total clip length in beats.
+     */
     length: number;
+    /**
+     * Loop end position in beats.
+     */
     loopEnd: number;
+    /**
+     * Whether the clip is currently looping.
+     */
     looping: boolean;
+    /**
+     * Loop start position in beats.
+     */
     loopStart: number;
   };
+  /**
+   * Cleanup callbacks for the active clip observers.
+   */
   clipObserverCleanups: ObserverCleanup[];
+  /**
+   * Emits the latest HUD state to renderer listeners.
+   */
   emit: () => void;
+  /**
+   * Reads the currently active scene index from bridge state.
+   * @returns The active scene index, when one is selected.
+   */
   getActiveScene: () => number | undefined;
+  /**
+   * Reads the currently selected track index from bridge state.
+   * @returns The selected track index, when one is selected.
+   */
   getSelectedTrack: () => number | undefined;
+  /**
+   * Reads the current selected-track token used to guard async work.
+   * @returns The current selected-track token.
+   */
   getSelectedTrackToken: () => number;
+  /**
+   * Applies an updated playing position to bridge state.
+   * @param position - Playing position in beats.
+   */
   handlePlayingPosition: (position: number) => void;
+  /**
+   * Applies an updated playing slot to bridge state.
+   * @param slotIndex - Zero-based playing slot index, or the inactive sentinel.
+   * @returns A promise that settles after the slot update is handled.
+   */
   handlePlayingSlot: (slotIndex: number) => Promise<void>;
+  /**
+   * Checks whether a clip is still the active clip after async work completes.
+   * @param track - Zero-based track index to compare.
+   * @param clip - Zero-based clip-slot index to compare.
+   * @returns Whether the clip is still active.
+   */
   isActiveClip: (track: number, clip: number) => boolean;
+  /**
+   * Payload normalizers shared with the bridge runtime.
+   */
   normalizers: PayloadNormalizers;
+  /**
+   * Stores a cleanup callback in the target cleanup group.
+   * @param cleanupGroup - Cleanup collection that owns the callback.
+   * @param stop - Cleanup callback returned by an observer registration.
+   */
   registerCleanup: (
     cleanupGroup: ObserverCleanup[],
     stop: ObserverCleanup | undefined,
   ) => void;
+  /**
+   * Reads a clip property with guarded Live error handling.
+   * @param clip - Clip to query.
+   * @param property - Clip property to read.
+   * @returns The raw Live payload when available.
+   */
   safeClipGet: (clip: LiveClip, property: ClipProperty) => Promise<unknown>;
+  /**
+   * Observes a clip property with guarded Live error handling.
+   * @param clip - Clip to observe.
+   * @param property - Clip property to observe.
+   * @param listener - Listener invoked with raw Live payloads.
+   * @returns A cleanup callback when observation succeeds.
+   */
   safeClipObserve: (
     clip: LiveClip,
     property: ClipProperty,
     listener: (value: unknown) => void,
   ) => Promise<ObserverCleanup | undefined>;
+  /**
+   * Reads a scene property with guarded Live error handling.
+   * @param scene - Scene to query.
+   * @param property - Scene property to read.
+   * @returns The raw Live payload when available.
+   */
   safeSceneGet: (scene: LiveScene, property: SceneProperty) => Promise<unknown>;
+  /**
+   * Observes a scene property with guarded Live error handling.
+   * @param scene - Scene to observe.
+   * @param property - Scene property to observe.
+   * @param listener - Listener invoked with raw Live payloads.
+   * @returns A cleanup callback when observation succeeds.
+   */
   safeSceneObserve: (
     scene: LiveScene,
     property: SceneProperty,
     listener: (value: unknown) => void,
   ) => Promise<ObserverCleanup | undefined>;
+  /**
+   * Resolves a scene child from the Live song.
+   * @param sceneIndex - Zero-based scene index to resolve.
+   * @returns The resolved scene, when available.
+   */
   safeSongSceneChild: (sceneIndex: number) => Promise<LiveScene | undefined>;
+  /**
+   * Reads a track property with guarded Live error handling.
+   * @param track - Track to query.
+   * @param property - Track property to read.
+   * @returns The raw Live payload when available.
+   */
   safeTrackGet: (track: LiveTrack, property: TrackProperty) => Promise<unknown>;
+  /**
+   * Observes a track property with guarded Live error handling.
+   * @param track - Track to observe.
+   * @param property - Track property to observe.
+   * @param listener - Listener invoked with raw Live payloads.
+   * @returns A cleanup callback when observation succeeds.
+   */
   safeTrackObserve: (
     track: LiveTrack,
     property: TrackProperty,
     listener: (value: unknown) => void,
   ) => Promise<ObserverCleanup | undefined>;
+  /**
+   * Cleanup callbacks for the active scene observers.
+   */
   sceneObserverCleanups: ObserverCleanup[];
+  /**
+   * Stores the normalized clip color in bridge state.
+   * @param color - Normalized clip color, when available.
+   */
   setClipColor: (color: number | undefined) => void;
+  /**
+   * Stores the current clip name in bridge state.
+   * @param name - Clip name emitted by Live.
+   */
   setClipName: (name: string) => void;
+  /**
+   * Stores the normalized scene color in bridge state.
+   * @param color - Normalized scene color, when available.
+   */
   setSceneColor: (color: number | undefined) => void;
+  /**
+   * Stores the current scene name in bridge state.
+   * @param name - Scene name emitted by Live.
+   */
   setSceneName: (name: string) => void;
+  /**
+   * Stores the normalized selected-track color in bridge state.
+   * @param color - Normalized track color, when available.
+   */
   setTrackColor: (color: number | undefined) => void;
+  /**
+   * Stores the current selected-track name in bridge state.
+   * @param name - Track name emitted by Live.
+   */
   setTrackName: (name: string) => void;
+  /**
+   * Cleanup callbacks for the active track observers.
+   */
   trackObserverCleanups: ObserverCleanup[];
+  /**
+   * Sentinel value used when the selected track has no playing clip.
+   */
   unplayedSlotIndex: number;
 }
 
+/**
+ * Mutable bridge state required to build subscription controller dependencies.
+ */
 export interface LiveBridgeSubscriptionStateOptions {
+  /**
+   * Live access layer used to talk to Ableton Live safely.
+   */
   access: LiveBridgeAccess;
+  /**
+   * Bridge callbacks exposing mutable snapshot state.
+   */
   bridge: LiveBridgeSnapshotHost;
+  /**
+   * Mutable clip timing metadata owned by the bridge.
+   */
   clipMeta: {
+    /**
+     * Total clip length in beats.
+     */
     length: number;
+    /**
+     * Loop end position in beats.
+     */
     loopEnd: number;
+    /**
+     * Whether the clip is currently looping.
+     */
     looping: boolean;
+    /**
+     * Loop start position in beats.
+     */
     loopStart: number;
   };
+  /**
+   * Cleanup callbacks for the active clip observers.
+   */
   clipObserverCleanups: ObserverCleanup[];
+  /**
+   * Emits the latest HUD state to renderer listeners.
+   */
   emit: () => void;
+  /**
+   * Applies an updated playing position to bridge state.
+   * @param position - Playing position in beats.
+   */
   handlePlayingPosition: (position: number) => void;
+  /**
+   * Checks whether a clip is still the active clip after async work completes.
+   * @param track - Zero-based track index to compare.
+   * @param clip - Zero-based clip-slot index to compare.
+   * @returns Whether the clip is still active.
+   */
   isActiveClip: (track: number, clip: number) => boolean;
+  /**
+   * Payload normalizers shared with the bridge runtime.
+   */
   normalizers: PayloadNormalizers;
+  /**
+   * Stores a cleanup callback in the target cleanup group.
+   * @param cleanupGroup - Cleanup collection that owns the callback.
+   * @param stop - Cleanup callback returned by an observer registration.
+   */
   registerCleanup: (
     cleanupGroup: ObserverCleanup[],
     stop: ObserverCleanup | undefined,
   ) => void;
+  /**
+   * Cleanup callbacks for the active scene observers.
+   */
   sceneObserverCleanups: ObserverCleanup[];
+  /**
+   * Cleanup callbacks for the active track observers.
+   */
   trackObserverCleanups: ObserverCleanup[];
+  /**
+   * Sentinel value used when the selected track has no playing clip.
+   */
   unplayedSlotIndex: number;
 }
 
@@ -95,28 +288,91 @@ export interface LiveBridgeSubscriptionStateOptions {
  * Bridge callbacks required to expose mutable snapshot state to the controller.
  */
 interface LiveBridgeSnapshotHost {
+  /**
+   * Reads the active scene index from bridge state.
+   * @returns The active scene index, when one is selected.
+   */
   getActiveScene(): number | undefined;
+  /**
+   * Reads the selected track index from bridge state.
+   * @returns The selected track index, when one is selected.
+   */
   getSelectedTrack(): number | undefined;
+  /**
+   * Reads the selected-track token used to guard async work.
+   * @returns The current selected-track token.
+   */
   getSelectedTrackToken(): number;
+  /**
+   * Applies an updated playing slot to bridge state.
+   * @param slotIndex - Zero-based playing slot index, or the inactive sentinel.
+   * @returns A promise that settles after the slot update is handled.
+   */
   handlePlayingSlot(slotIndex: number): Promise<void>;
+  /**
+   * Stores the normalized clip color in bridge state.
+   * @param color - Normalized clip color, when available.
+   */
   setClipColor(color: number | undefined): void;
+  /**
+   * Stores the current clip name in bridge state.
+   * @param name - Clip name emitted by Live.
+   */
   setClipName(name: string): void;
+  /**
+   * Stores the normalized scene color in bridge state.
+   * @param color - Normalized scene color, when available.
+   */
   setSceneColor(color: number | undefined): void;
+  /**
+   * Stores the current scene name in bridge state.
+   * @param name - Scene name emitted by Live.
+   */
   setSceneName(name: string): void;
+  /**
+   * Stores the normalized selected-track color in bridge state.
+   * @param color - Normalized track color, when available.
+   */
   setTrackColor(color: number | undefined): void;
+  /**
+   * Stores the current selected-track name in bridge state.
+   * @param name - Track name emitted by Live.
+   */
   setTrackName(name: string): void;
 }
 
+/**
+ * Static clip-observer descriptor merged with the current clip target.
+ */
 type ObserveCurrentClipPropertyDescriptor = Omit<
   ObserveCurrentClipPropertyOptions,
   "clip" | "slotIndex" | "trackIndex"
 >;
 
+/**
+ * Parameters required to observe one property on the current active clip.
+ */
 interface ObserveCurrentClipPropertyOptions {
+  /**
+   * Applies the normalized property value to bridge state.
+   * @param value - Raw Live payload to normalize and store.
+   */
   applyValue: (value: unknown) => void;
+  /**
+   * Active clip to observe.
+   */
   clip: LiveClip;
+  /**
+   * Clip property to observe.
+   */
   property: ClipProperty;
+  /**
+   * Zero-based active clip-slot index.
+   */
   slotIndex: number;
+  /**
+   * Zero-based track index containing the active clip.
+   */
   trackIndex: number;
 }
 

@@ -18,24 +18,46 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const E2E_SESSION_DATA_DIRECTORY_NAME = "session-data";
 const MAX_PORT_NUMBER = 65_535;
+
+/**
+ * Stores the content-size bounds to restore after leaving compact mode.
+ */
 interface CompactWindowBounds {
+  /** Restored content height in pixels. */
   contentHeight: number;
+  /** Restored content width in pixels. */
   contentWidth: number;
+  /** Restored window x-position in screen coordinates. */
   x: number;
+  /** Restored window y-position in screen coordinates. */
   y: number;
 }
 
+/**
+ * Describes the initial content bounds used when creating the HUD window.
+ */
 interface InitialWindowBounds {
+  /** Initial content height in pixels. */
   height: number;
+  /** Initial content width in pixels. */
   width: number;
+  /** Optional initial window x-position in screen coordinates. */
   x?: number;
+  /** Optional initial window y-position in screen coordinates. */
   y?: number;
 }
 
+/**
+ * Persists a concrete window rectangle for the HUD window.
+ */
 interface StoredWindowBounds {
+  /** Stored content height in pixels. */
   height: number;
+  /** Stored content width in pixels. */
   width: number;
+  /** Stored window x-position in screen coordinates. */
   x: number;
+  /** Stored window y-position in screen coordinates. */
   y: number;
 }
 
@@ -338,7 +360,7 @@ function persistUnlessSuppressed(): void {
 }
 
 /**
- *
+ * Registers or refreshes all main-process IPC handlers exposed to preload.
  */
 function registerIpcHandlers(): void {
   ipcMain.removeHandler(HUD_CHANNELS.getInitialState);

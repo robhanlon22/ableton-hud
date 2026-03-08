@@ -35,39 +35,75 @@ import {
   statusVariant,
 } from "./surface-helpers";
 
+/**
+ * Props for the top-level HUD surface component.
+ */
 export interface HudSurfaceProperties {
+  /** Ref used to measure the compact counter panel. */
   compactPanelRef: RefObject<HTMLDivElement | null>;
+  /** Whether the HUD is currently rendering its compact layout. */
   isCompactView: boolean;
+  /** Whether the beat flash accent should be active. */
   isFlashActive: boolean;
+  /** Toggles compact mode. */
   onToggleCompactView: () => void;
+  /** Toggles between elapsed and remaining counter modes. */
   onToggleMode: () => void;
+  /** Toggles the always-on-top preference. */
   onToggleTopmost: () => void;
+  /** Toggles track-lock state. */
   onToggleTrackLock: () => void;
+  /** Current validated HUD state. */
   state: HudState;
 }
 
+/**
+ * Props for the counter panel rendered in full and compact layouts.
+ */
 interface CounterPanelProperties {
+  /** Ref used to measure the compact counter panel. */
   compactPanelRef: RefObject<HTMLDivElement | null>;
+  /** Whether the HUD is currently rendering its compact layout. */
   isCompactView: boolean;
+  /** Whether the beat flash accent should be active. */
   isFlashActive: boolean;
+  /** Toggles compact mode. */
   onToggleCompactView: () => void;
+  /** Current validated HUD state. */
   state: HudState;
 }
 
+/**
+ * Props for the HUD control button row.
+ */
 interface HudControlsProperties {
+  /** Toggles between elapsed and remaining counter modes. */
   onToggleMode: () => void;
+  /** Toggles the always-on-top preference. */
   onToggleTopmost: () => void;
+  /** Toggles track-lock state. */
   onToggleTrackLock: () => void;
+  /** Current validated HUD state. */
   state: HudState;
 }
 
+/**
+ * Props for a metadata pill showing clip, track, or scene information.
+ */
 interface MetadataPillProperties {
+  /** Color swatch rendered beside the metadata label. */
   color: HudState["clipColor"];
+  /** Text label rendered inside the pill. */
   label: HudState["clipName"];
+  /** Test id used to target the pill in browser tests. */
   testId: string;
 }
 
+/**
+ * Props for the transport-status badge rendered in the HUD header.
+ */
 interface StatusBadgeProperties {
+  /** Current validated HUD state. */
   state: HudState;
 }
 

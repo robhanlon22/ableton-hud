@@ -31,6 +31,8 @@
   - document function declarations and expressions
   - document method definitions
   - document arrow functions
+  - document TypeScript interfaces and their members/signatures
+  - document TypeScript type declarations
 - Do not use `Reflect`; prefer explicit property access, direct assignment, or
   a typed adapter.
 - Keep IPC schema-first:

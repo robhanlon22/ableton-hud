@@ -4,24 +4,69 @@ import type { HudState } from "@shared/types";
 import { createDefaultHudState } from "@shared/ipc";
 import { vi } from "vitest";
 
+/**
+ *
+ */
 export interface HudApiController {
+  /**
+   *
+   */
   emit: (state: HudState) => void;
+  /**
+   *
+   */
   listenerCount: () => number;
+  /**
+   *
+   */
   setCompactView: SetCompactViewSpy;
+  /**
+   *
+   */
   setMode: SetModeSpy;
+  /**
+   *
+   */
   toggleTopmost: ToggleTopmostSpy;
+  /**
+   *
+   */
   toggleTrackLock: ToggleTrackLockSpy;
 }
+/**
+ *
+ */
 interface Deferred<TValue> {
+  /**
+   *
+   */
   promise: Promise<TValue>;
+  /**
+   *
+   */
   reject: (reason?: unknown) => void;
+  /**
+   *
+   */
   resolve: (value: TValue) => void;
 }
+/**
+ *
+ */
 type SetCompactViewSpy = ReturnType<typeof vi.fn<HudApi["setCompactView"]>>;
+/**
+ *
+ */
 type SetModeSpy = ReturnType<typeof vi.fn<HudApi["setMode"]>>;
 
+/**
+ *
+ */
 type ToggleTopmostSpy = ReturnType<typeof vi.fn<HudApi["toggleTopmost"]>>;
 
+/**
+ *
+ */
 type ToggleTrackLockSpy = ReturnType<typeof vi.fn<HudApi["toggleTrackLock"]>>;
 
 /**

@@ -19,40 +19,133 @@ import {
 
 import type { BridgeClipReference } from "./types";
 
+/**
+ * Immutable bridge fields needed to derive the current HUD state.
+ */
 interface BridgeStateSnapshot {
+  /**
+   * Currently active clip reference, when one is selected and playing.
+   */
   activeClip: BridgeClipReference | undefined;
+  /**
+   * One-based beat counter tracked by the bridge runtime.
+   */
   beatCounter: number;
+  /**
+   * Monotonic token used to trigger beat-flash animations.
+   */
   beatFlashToken: number;
+  /**
+   * Active clip color currently shown in the HUD.
+   */
   clipColor: number | undefined;
+  /**
+   * Loop and length metadata for the active clip.
+   */
   clipMeta: ClipTimingMeta;
+  /**
+   * Active clip name currently shown in the HUD.
+   */
   clipName: string | undefined;
+  /**
+   * Whether the bridge is connected to Ableton Live.
+   */
   connected: boolean;
+  /**
+   * Current playback position reported by Live in beats.
+   */
   currentPosition: number | undefined;
+  /**
+   * Whether Live is currently playing.
+   */
   isPlaying: boolean;
+  /**
+   * Playback position at clip launch time, when known.
+   */
   launchPosition: number | undefined;
+  /**
+   * Number of detected loop wraps since the clip started.
+   */
   loopWrapCount: number;
+  /**
+   * Counter mode currently selected for the HUD.
+   */
   mode: HudMode;
+  /**
+   * Active scene color currently shown in the HUD.
+   */
   sceneColor: number | undefined;
+  /**
+   * Active scene name currently shown in the HUD.
+   */
   sceneName: string | undefined;
+  /**
+   * Currently selected track index, when one is available.
+   */
   selectedTrack: number | undefined;
+  /**
+   * Live time-signature denominator.
+   */
   signatureDenominator: number;
+  /**
+   * Live time-signature numerator.
+   */
   signatureNumerator: number;
+  /**
+   * Selected-track color currently shown in the HUD.
+   */
   trackColor: number | undefined;
+  /**
+   * Whether track selection is pinned instead of following Live.
+   */
   trackLocked: boolean;
+  /**
+   * Selected-track name currently shown in the HUD.
+   */
   trackName: string | undefined;
 }
 
+/**
+ * Counter rendering state derived from the bridge snapshot.
+ */
 interface CounterState {
+  /**
+   * Formatted bar/beat/sixteenth counter parts.
+   */
   counterParts: CounterParts;
+  /**
+   * Whether the transport is currently within the final bar of the target span.
+   */
   isLastBar: boolean;
+  /**
+   * Source used to determine last-bar status.
+   */
   lastBarSource: LastBarSource | undefined;
 }
 
+/**
+ * Inputs required to compute elapsed beats in a loop-aware clip.
+ */
 interface ElapsedLoopBeatsOptions {
+  /**
+   * Current playback position in beats.
+   */
   currentPosition: number;
+  /**
+   * Whether playback started before the loop start point.
+   */
   hasLoopIntro: boolean;
+  /**
+   * Whether playback has entered the looped section.
+   */
   inLoopSection: boolean;
+  /**
+   * Playback position at clip launch time.
+   */
   launchPosition: number;
+  /**
+   * Bridge snapshot used to resolve loop boundaries.
+   */
   snapshot: BridgeStateSnapshot;
 }
 
@@ -203,7 +296,12 @@ function resolveElapsedLoopBeats(
  * @returns The loop-aware counter state.
  */
 function resolveLoopCounterState(
-  snapshot: BridgeStateSnapshot & { currentPosition: number },
+  snapshot: BridgeStateSnapshot & {
+    /**
+     *
+     */
+    currentPosition: number;
+  },
   beatsPerBar: number,
   launchPosition: number,
 ): CounterState {

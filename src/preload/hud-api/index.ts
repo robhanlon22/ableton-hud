@@ -8,16 +8,33 @@ import {
 } from "@shared/ipc";
 import { contextBridge, ipcRenderer } from "electron";
 
+/**
+ * Describes the compact-mode resize request sent through preload IPC.
+ */
+export interface CompactViewRequest {
+  /** Whether compact mode should be enabled. */
+  enabled: boolean;
+  /** Optional compact content height in pixels. */
+  height?: number;
+  /** Optional compact content width in pixels. */
+  width?: number;
+}
+
+/**
+ * Defines the renderer-facing preload API exposed on `window.hudApi`.
+ */
 export interface HudApi {
+  /** Fetches the initial validated HUD state snapshot. */
   getInitialState: () => Promise<HudState>;
+  /** Registers for validated HUD state pushes and returns an unsubscribe handle. */
   onHudState: (callback: (state: HudState) => void) => () => void;
-  setCompactView: (request: {
-    enabled: boolean;
-    height?: number;
-    width?: number;
-  }) => Promise<void>;
+  /** Sends a validated compact-mode resize request to the main process. */
+  setCompactView: (request: CompactViewRequest) => Promise<void>;
+  /** Sends a validated counter-mode change to the main process. */
   setMode: (mode: HudMode) => Promise<void>;
+  /** Toggles the always-on-top preference in the main process. */
   toggleTopmost: () => Promise<void>;
+  /** Toggles track-lock state in the main process. */
   toggleTrackLock: () => Promise<void>;
 }
 

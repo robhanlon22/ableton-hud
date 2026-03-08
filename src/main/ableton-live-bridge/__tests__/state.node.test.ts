@@ -13,13 +13,33 @@ const REMAINING_POSITION = 5;
 const SIGNATURE_DENOMINATOR = 4;
 const SIGNATURE_NUMERATOR = 4;
 
+/**
+ * Describes an active clip reference override for snapshot fixtures.
+ */
+interface SnapshotActiveClip {
+  /** Zero-based clip index. */
+  clip: number;
+  /** Zero-based track index. */
+  track: number;
+}
+
+/**
+ * Overrides selected bridge-state fields for snapshot fixtures.
+ */
 interface SnapshotOverrides {
-  activeClip?: { clip: number; track: number };
+  /** Active clip reference override. */
+  activeClip?: SnapshotActiveClip;
+  /** Clip timing metadata override. */
   clipMeta?: ClipTimingMeta;
+  /** Current transport position override. */
   currentPosition?: number;
+  /** Launch position override for intro timing. */
   launchPosition?: number;
+  /** Loop-wrap counter override. */
   loopWrapCount?: number;
+  /** Counter mode override. */
   mode?: HudMode;
+  /** Scene color override. */
   sceneColor?: number;
 }
 

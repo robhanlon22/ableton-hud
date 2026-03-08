@@ -193,6 +193,15 @@ export default defineConfig([
           checkConstructors: true,
           checkGetters: true,
           checkSetters: true,
+          contexts: [
+            "TSCallSignatureDeclaration",
+            "TSConstructSignatureDeclaration",
+            "TSIndexSignature",
+            "TSInterfaceDeclaration",
+            "TSMethodSignature",
+            "TSPropertySignature",
+            "TSTypeAliasDeclaration",
+          ],
           exemptEmptyConstructors: false,
           exemptEmptyFunctions: false,
           require: {

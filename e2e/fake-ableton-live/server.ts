@@ -25,10 +25,28 @@ const PLAYBACK_TICK_BEATS = 0.25;
 const TRACK_INDEX = 0;
 const SLOT_INDEX = 0;
 
+/**
+ * Represents a normalized websocket request sent to the fake Live server.
+ */
 interface ParsedWireMessage {
+  /**
+   * Requested Live websocket action name.
+   */
   action: string | undefined;
+
+  /**
+   * Raw action arguments from the websocket payload.
+   */
   arguments_: Record<string, unknown>;
+
+  /**
+   * Live object path targeted by the request.
+   */
   path: string;
+
+  /**
+   * Request identifier echoed back in the response.
+   */
   uuid: string;
 }
 

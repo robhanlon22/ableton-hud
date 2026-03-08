@@ -28,10 +28,14 @@ const buttonVariants = cva(
   },
 );
 
+/**
+ * Props for the shared button primitive, including variant and slot behavior.
+ */
 export interface ButtonProperties
   extends
     ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
+  /** Whether the button should render through `Slot` instead of `button`. */
   asChild?: boolean;
 }
 
@@ -41,7 +45,12 @@ export interface ButtonProperties
  * @returns The styled button element.
  */
 const Button = (
-  properties: Readonly<ButtonProperties & { ref?: Ref<HTMLButtonElement> }>,
+  properties: Readonly<
+    ButtonProperties & {
+      /** Forwarded button ref used by consumers of the primitive. */
+      ref?: Ref<HTMLButtonElement>;
+    }
+  >,
 ): React.JSX.Element => {
   const {
     asChild = false,

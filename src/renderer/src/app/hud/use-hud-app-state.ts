@@ -13,14 +13,25 @@ const COMPACT_MAX_WIDTH = 370;
 const COMPACT_MIN_WIDTH = 320;
 const COUNTER_CHARACTER_WIDTH = 52;
 
+/**
+ * Aggregates renderer HUD state, refs, and UI event handlers for the app shell.
+ */
 interface HudAppState {
+  /** Ref for measuring the compact counter panel. */
   compactPanelRef: RefObject<HTMLDivElement | null>;
+  /** Whether the HUD is currently rendering its compact layout. */
   isCompactView: boolean;
+  /** Whether the transient beat flash is active. */
   isFlashActive: boolean;
+  /** Toggles compact mode and requests the matching resize. */
   onToggleCompactView: () => void;
+  /** Switches between elapsed and remaining counter modes. */
   onToggleMode: () => void;
+  /** Toggles the always-on-top window preference. */
   onToggleTopmost: () => void;
+  /** Toggles track-lock state for the selected track. */
   onToggleTrackLock: () => void;
+  /** Current validated HUD state. */
   state: HudState;
 }
 

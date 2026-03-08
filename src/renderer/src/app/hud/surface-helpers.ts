@@ -23,6 +23,9 @@ const SRGB_LINEAR_DIVISOR = 12.92;
 const SRGB_LINEAR_THRESHOLD = 0.040_45;
 const WHITE_TEXT_COLOR = "#ffffff";
 
+/**
+ *
+ */
 export type StatusKind = "disconnected" | "playing" | "stopped";
 
 /**

@@ -50,12 +50,21 @@ const BRIDGE_RUNTIME_METHOD_NAMES = [
   "toggleTrackLock",
 ] as const;
 
+/**
+ * Describes the host and port passed to the mocked Live client constructor.
+ */
 interface LiveClientOptions {
+  /** Live websocket host. */
   host: string;
+  /** Live websocket port. */
   port: number;
 }
 
+/**
+ * Describes a runtime that may expose a mutable `WebSocket` shim.
+ */
 interface WebSocketRuntime {
+  /** Optional runtime WebSocket constructor shim. */
   WebSocket?: typeof WebSocket;
 }
 

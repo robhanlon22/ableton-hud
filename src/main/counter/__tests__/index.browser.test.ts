@@ -16,6 +16,7 @@ const COMMON_NUMERATOR = 4;
 const COMPOUND_DENOMINATOR = 8;
 const COMPOUND_NUMERATOR = 7;
 const DOUBLE_BAR_COUNT = 2;
+const EPSILON = 1e-4;
 const FOURTH_SIXTEENTH = 0.25;
 const FULL_BAR = 4;
 const HALF_BEAT = 0.5;
@@ -110,6 +111,7 @@ describe("counter timing helpers", () => {
     // act
     const remainingParts = [
       toRemainingCounterParts(0, grid),
+      toRemainingCounterParts(EPSILON / DOUBLE_BAR_COUNT, grid),
       toRemainingCounterParts(NEAR_FULL_BAR, grid),
       toRemainingCounterParts(FULL_BAR, grid),
     ];
@@ -117,13 +119,14 @@ describe("counter timing helpers", () => {
     // assert
     expect(remainingParts.map((parts) => formatCounterParts(parts))).toEqual([
       "0:0:0",
+      "0:0:0",
       "1:4:4",
       "2:1:1",
     ]);
   });
 });
 
-describe("counter edge cases", () => {
+describe("counter edge cases: loop span validity", () => {
   it("detects loop span validity", () => {
     // arrange
     const validLoopMeta: Parameters<typeof hasValidLoopSpan>[0] = {
@@ -155,7 +158,9 @@ describe("counter edge cases", () => {
     expect(zeroSpanResult).toBe(false);
     expect(nonLoopingResult).toBe(false);
   });
+});
 
+describe("counter edge cases: remaining-bar detection", () => {
   it("detects last bar from remaining beats", () => {
     // arrange
     const remainingValues = [
@@ -174,7 +179,9 @@ describe("counter edge cases", () => {
     // assert
     expect(results).toEqual([true, true, false, false]);
   });
+});
 
+describe("counter defensive branches", () => {
   it("falls back to common time when signature inputs are invalid", () => {
     // arrange
     const signatures: [number, number][] = [
@@ -213,6 +220,22 @@ describe("counter edge cases", () => {
     // assert
     expect(parts).toEqual({
       bar: 0,
+      beat: 1,
+      sixteenth: 1,
+    });
+  });
+
+  it("clamps negative within-bar drift at a bar boundary", () => {
+    // arrange
+    const grid = createTimingGrid(COMMON_NUMERATOR, COMMON_DENOMINATOR);
+    const justBeforeNextBar = FULL_BAR - EPSILON / DOUBLE_BAR_COUNT;
+
+    // act
+    const parts = toElapsedCounterParts(justBeforeNextBar, grid);
+
+    // assert
+    expect(parts).toEqual({
+      bar: DOUBLE_BAR_COUNT,
       beat: 1,
       sixteenth: 1,
     });

@@ -19,6 +19,9 @@ const badgeVariants = cva(
   },
 );
 
+/**
+ * Props for the shared badge primitive.
+ */
 export interface BadgeProperties
   extends
     React.HTMLAttributes<HTMLDivElement>,

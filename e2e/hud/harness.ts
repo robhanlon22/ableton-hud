@@ -31,26 +31,73 @@ const persistedPrefsSchema = z.object({
     .optional(),
 });
 
+/**
+ * Configures how the Electron HUD app should be launched for E2E tests.
+ */
 export interface LaunchHudAppOptions {
+  /**
+   * Existing temporary home directory to reuse across relaunches.
+   */
   existingTempHome?: string;
+
+  /**
+   * Fake Ableton Live websocket port to inject into the app.
+   */
   livePort: number;
 }
 
+/**
+ *
+ */
 export type PersistedPrefs = z.infer<typeof persistedPrefsSchema>;
 
+/**
+ * Groups the running Electron app handles used by the E2E suite.
+ */
 export interface RunningHudApp {
+  /**
+   * Playwright Electron application wrapper.
+   */
   electronApp: ElectronApplication;
+
+  /**
+   * First renderer window exposed by the app.
+   */
   page: Page;
+
+  /**
+   * Temporary profile directory assigned to this app instance.
+   */
   tempHome: string;
 }
 
+/**
+ * Captures the content size of the active HUD window.
+ */
 export interface WindowContentSize {
+  /**
+   * Content height in pixels.
+   */
   height: number;
+
+  /**
+   * Content width in pixels.
+   */
   width: number;
 }
 
+/**
+ * Captures the overlay and workspace visibility state of the HUD window.
+ */
 export interface WindowOverlayState {
+  /**
+   * Whether the window stays above normal windows.
+   */
   alwaysOnTop: boolean;
+
+  /**
+   * Whether the window is visible across all workspaces.
+   */
   visibleOnAllWorkspaces: boolean;
 }
 

@@ -20,11 +20,19 @@ const PrefsSchema = z.object({
   windowBounds: BoundsSchema.optional(),
 });
 
+/**
+ * Captures the persisted HUD window and mode preferences.
+ */
 export interface HudPreferences {
+  /** Whether the HUD window should float above normal windows. */
   alwaysOnTop: boolean;
+  /** Whether the HUD should launch in compact mode. */
   compactMode: boolean;
+  /** The persisted counter mode shown in the HUD. */
   mode: HudMode;
+  /** Whether selected-track changes should stay pinned. */
   trackLocked: boolean;
+  /** Optional persisted window rectangle for the expanded HUD window. */
   windowBounds?: Rectangle;
 }
 

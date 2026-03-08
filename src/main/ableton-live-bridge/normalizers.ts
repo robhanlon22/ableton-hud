@@ -18,8 +18,17 @@ import {
 
 const TRACK_PATH_PATTERN = /tracks\s+(\d+)/u;
 
+/**
+ * Connection options forwarded to the Ableton Live client factory.
+ */
 interface DefaultLiveFactoryOptions {
+  /**
+   * Hostname or IP address of the Live bridge server.
+   */
   host: string;
+  /**
+   * TCP port exposed by the Live bridge server.
+   */
   port: number;
 }
 

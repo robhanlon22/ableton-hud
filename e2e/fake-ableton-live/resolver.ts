@@ -29,12 +29,29 @@ const SCENE_PATH_PATTERN = /^live_set scenes (\d+)$/u;
 const CLIP_SLOT_PATH_PATTERN = /^live_set tracks (\d+) clip_slots (\d+)$/u;
 const CLIP_PATH_PATTERN = /^live_set tracks (\d+) clip_slots (\d+) clip$/u;
 
+/**
+ *
+ */
 type LiveProperty = boolean | number | string | undefined;
+
+/**
+ * Captures the track and clip-slot indexes parsed from a Live object path.
+ */
 interface PathIndexes {
+  /**
+   * Zero-based clip-slot index parsed from the path.
+   */
   slotIndex: number;
+
+  /**
+   * Zero-based track index parsed from the path.
+   */
   trackIndex: number;
 }
 
+/**
+ *
+ */
 type SerializedLiveObject = Record<string, unknown>;
 
 /**

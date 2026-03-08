@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { HudApi } from "../index";
 
+/**
+ *
+ */
 type HudStateListener = (_event: unknown, state: unknown) => void;
 
 const exposeInMainWorldMock = vi.fn<(key: string, value: unknown) => void>();

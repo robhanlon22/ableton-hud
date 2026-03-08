@@ -27,11 +27,19 @@ beforeEach(() => {
   resetBridgeTestEnvironment();
 });
 
+/**
+ * Bundles invalid Live surfaces for guarded bridge-access assertions.
+ */
 interface RejectedAccessOptions {
+  /** Guarded bridge access runtime under test. */
   access: BridgeAccessRuntime;
+  /** Invalid clip surface used to probe guard behavior. */
   invalidClip: ReturnType<typeof createLiveClip>;
+  /** Invalid clip-slot surface used to probe guard behavior. */
   invalidClipSlot: ReturnType<typeof createLiveClipSlot>;
+  /** Invalid scene surface used to probe guard behavior. */
   invalidScene: ReturnType<typeof createLiveScene>;
+  /** Invalid track surface used to probe guard behavior. */
   invalidTrack: ReturnType<typeof createLiveTrack>;
 }
 

@@ -14,6 +14,9 @@ import {
 const Separator = (
   properties: Readonly<
     ComponentPropsWithoutRef<typeof Root> & {
+      /**
+       *
+       */
       ref?: Ref<ComponentRef<typeof Root>>;
     }
   >,

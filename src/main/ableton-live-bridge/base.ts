@@ -28,9 +28,18 @@ import {
   RECONNECT_MAX_DELAY_MS,
 } from "./types";
 
+/**
+ * WebSocket constructor shape accepted by the bridge in browser and Node runtimes.
+ */
 type RuntimeWebSocketCtor = typeof globalThis.WebSocket | typeof WebSocket;
 
+/**
+ * Mutable global runtime fields needed to install a WebSocket shim in tests and Node.
+ */
 interface WebSocketRuntime {
+  /**
+   * WebSocket constructor exposed by the current runtime, when present.
+   */
   WebSocket?: RuntimeWebSocketCtor;
 }
 

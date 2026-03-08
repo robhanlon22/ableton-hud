@@ -37,8 +37,9 @@ any local Ableton instance.
 - Vitest unit coverage runs with shuffled file and in-file test order; use
   `VITEST_SEQUENCE_SEED` when you need to reproduce a specific order locally.
 - The lint contract is intentionally strict: class declarations and
-  expressions, function declarations and expressions, method definitions, and
-  arrow functions all require authored JSDoc.
+  expressions, function declarations and expressions, method definitions,
+  arrow functions, TypeScript interfaces and their members/signatures, and
+  TypeScript type declarations all require authored JSDoc.
 - The same lint contract bans `Reflect`; prefer explicit property access,
   direct assignment, or typed adapters at module seams.
 - User-visible behavior changes should update the product spec in the same PR.

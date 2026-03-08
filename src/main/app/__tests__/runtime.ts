@@ -20,21 +20,39 @@ const DEFAULT_WINDOW_X = 10;
 const DEFAULT_WINDOW_Y = 20;
 const READY_PROMISE_FLUSH_COUNT = 8;
 
+/**
+ * Collects the mutable mocks that must be reset between main-process tests.
+ */
 interface RuntimeResetDependencies {
+  /** Mock for `app.commandLine.appendSwitch`. */
   appendSwitchMock: ReturnType<typeof vi.fn>;
+  /** Registered app listeners keyed by event name. */
   appListeners: Map<string, Listener[]>;
+  /** Mock for `app.on`. */
   appOnMock: ReturnType<typeof vi.fn>;
+  /** Mock for `app.quit`. */
   appQuitMock: ReturnType<typeof vi.fn>;
+  /** Mock for `app.setPath`. */
   appSetPathMock: ReturnType<typeof vi.fn>;
+  /** Mock for `app.whenReady`. */
   appWhenReadyMock: ReturnType<typeof vi.fn>;
+  /** Tracked bridge instances created during the test. */
   bridgeInstances: AbletonLiveBridgeLike[];
+  /** Mock `BrowserWindow` constructor class. */
   BrowserWindowMock: BrowserWindowMockConstructor;
+  /** Mock for `existsSync`. */
   existsSyncMock: ReturnType<typeof vi.fn>;
+  /** Mock for `ipcMain.handle`. */
   ipcHandleMock: ReturnType<typeof vi.fn>;
+  /** Registered IPC handlers keyed by channel. */
   ipcHandlers: Map<string, IpcHandler>;
+  /** Mock for `ipcMain.removeHandler`. */
   ipcRemoveHandlerMock: ReturnType<typeof vi.fn>;
+  /** Mock for loading persisted preferences. */
   prefLoadMock: ReturnType<typeof vi.fn<() => Promise<PrefsValue>>>;
+  /** Mock for saving persisted preferences. */
   prefSaveMock: ReturnType<typeof vi.fn<() => Promise<void>>>;
+  /** Resets the pending `whenReady` promise machinery. */
   resetWhenReady: () => Promise<void>;
 }
 

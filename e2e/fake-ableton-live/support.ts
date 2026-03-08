@@ -15,61 +15,204 @@ const wireMessageSchema = z.object({
   uuid: z.string().optional(),
 });
 
+/**
+ * Describes a clip slot exposed by the fake Live snapshot.
+ */
 export interface ClipSlotState {
+  /**
+   * Clip payload stored in the slot.
+   */
   clip: ClipState;
+
+  /**
+   * Whether the slot currently contains a clip.
+   */
   hasClip: boolean;
+
+  /**
+   * Stable fake Live object identifier for the clip slot.
+   */
   id: number;
 }
 
+/**
+ * Describes the clip state exposed by the fake Live websocket surface.
+ */
 export interface ClipState {
+  /**
+   * Live clip color value.
+   */
   color: number;
+
+  /**
+   * Clip length in beats.
+   */
   length: number;
+
+  /**
+   * Loop end position in beats.
+   */
   loopEnd: number;
+
+  /**
+   * Whether the clip loops when it reaches the end.
+   */
   looping: boolean;
+
+  /**
+   * Loop start position in beats.
+   */
   loopStart: number;
+
+  /**
+   * Display name shown for the clip.
+   */
   name: string;
+
+  /**
+   * Current playback head position in beats.
+   */
   playingPosition: number;
 }
 
+/**
+ * Captures the full fake Live snapshot served to the Electron E2E harness.
+ */
 export interface FakeLiveSnapshot {
+  /**
+   * Ordered scene state list.
+   */
   scenes: SceneState[];
+
+  /**
+   * Object id for the currently selected track.
+   */
   selectedTrackId: number;
+
+  /**
+   * Global transport state.
+   */
   song: SongState;
+
+  /**
+   * Ordered track state list.
+   */
   tracks: TrackState[];
 }
 
+/**
+ * Identifies an active observer registered against the fake Live server.
+ */
 export interface ObserverReference {
+  /**
+   * Listener id returned to the client.
+   */
   eventId: string;
+
+  /**
+   * Live object path being observed.
+   */
   path: string;
+
+  /**
+   * Property name being observed on the path.
+   */
   property: string;
 }
 
+/**
+ * Describes a scene exposed by the fake Live snapshot.
+ */
 export interface SceneState {
+  /**
+   * Live scene color value.
+   */
   color: number;
+
+  /**
+   * Stable fake Live object identifier for the scene.
+   */
   id: number;
+
+  /**
+   * Display name shown for the scene.
+   */
   name: string;
 }
 
+/**
+ * Describes global transport state in the fake Live snapshot.
+ */
 export interface SongState {
+  /**
+   * Current song time in beats.
+   */
   currentSongTime: number;
+
+  /**
+   * Whether the transport is currently running.
+   */
   isPlaying: boolean;
+
+  /**
+   * Time-signature denominator for the song.
+   */
   signatureDenominator: number;
+
+  /**
+   * Time-signature numerator for the song.
+   */
   signatureNumerator: number;
 }
 
+/**
+ * Configures how the fake Live websocket server should start.
+ */
 export interface StartFakeServerOptions {
+  /**
+   * Explicit websocket port override for the fake server.
+   */
   port?: number;
 }
 
+/**
+ * Describes a track exposed by the fake Live snapshot.
+ */
 export interface TrackState {
+  /**
+   * Clip slots owned by the track.
+   */
   clipSlots: ClipSlotState[];
+
+  /**
+   * Live track color value.
+   */
   color: number;
+
+  /**
+   * Whether the track advertises an audio input.
+   */
   hasAudioInput: boolean;
+
+  /**
+   * Stable fake Live object identifier for the track.
+   */
   id: number;
+
+  /**
+   * Display name shown for the track.
+   */
   name: string;
+
+  /**
+   * Zero-based playing clip-slot index.
+   */
   playingSlotIndex: number;
 }
 
+/**
+ *
+ */
 export type WireMessage = z.infer<typeof wireMessageSchema>;
 
 export const DEFAULT_SNAPSHOT: FakeLiveSnapshot = {
