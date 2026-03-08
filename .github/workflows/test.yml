@@ -12,19 +12,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            playwright_cache_path: ~/.cache/ms-playwright
-            playwright_install_command: pnpm exec playwright install --with-deps chromium
-            upload_codecov: true
-          - os: windows-latest
-            playwright_cache_path: ~/AppData/Local/ms-playwright
-            playwright_install_command: pnpm exec playwright install chromium
-            upload_codecov: false
-          - os: macos-latest
-            playwright_cache_path: ~/Library/Caches/ms-playwright
-            playwright_install_command: pnpm exec playwright install chromium
-            upload_codecov: false
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
 
     steps:
       - name: Checkout
@@ -42,22 +33,50 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Cache Playwright browsers
+      - name: Cache Playwright browsers on Linux
+        if: runner.os == 'Linux'
         uses: actions/cache@v4
         with:
-          path: ${{ matrix.playwright_cache_path }}
+          path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
-      - name: Install Playwright Chromium
-        run: ${{ matrix.playwright_install_command }}
+      - name: Cache Playwright browsers on Windows
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: ~/AppData/Local/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Cache Playwright browsers on macOS
+        if: runner.os == 'macOS'
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install Playwright Chromium on Linux
+        if: runner.os == 'Linux'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Playwright Chromium on Windows
+        if: runner.os == 'Windows'
+        run: pnpm exec playwright install chromium
+
+      - name: Install Playwright Chromium on macOS
+        if: runner.os == 'macOS'
+        run: pnpm exec playwright install chromium
 
       - name: Run tests
         run: pnpm test
 
       - name: Upload coverage reports to Codecov
-        if: matrix.upload_codecov
+        if: runner.os == 'Linux'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

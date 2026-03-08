@@ -18,28 +18,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            electron_cache_path: ~/.cache/electron
-            electron_builder_cache_path: ~/.cache/electron-builder
-            playwright_cache_path: ~/.cache/ms-playwright
-            playwright_install_command: pnpm exec playwright install --with-deps chromium
-            e2e_command: xvfb-run -a pnpm run test:e2e
-            release_build_command: pnpm run build && pnpm exec electron-builder --linux dir --publish never
-          - os: windows-latest
-            electron_cache_path: ~/AppData/Local/electron/Cache
-            electron_builder_cache_path: ~/AppData/Local/electron-builder/Cache
-            playwright_cache_path: ~/AppData/Local/ms-playwright
-            playwright_install_command: pnpm exec playwright install chromium
-            e2e_command: pnpm run test:e2e
-            release_build_command: pnpm run build && pnpm exec electron-builder --win dir --publish never
-          - os: macos-latest
-            electron_cache_path: ~/Library/Caches/electron
-            electron_builder_cache_path: ~/Library/Caches/electron-builder
-            playwright_cache_path: ~/Library/Caches/ms-playwright
-            playwright_install_command: pnpm exec playwright install chromium
-            e2e_command: pnpm run test:e2e
-            release_build_command: pnpm run dist:mac
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
 
     steps:
       - name: Checkout
@@ -54,13 +36,40 @@ jobs:
           node-version: "22"
           cache: pnpm
 
-      - name: Cache Electron and Playwright binaries
+      - name: Cache Electron and Playwright binaries on Linux
+        if: runner.os == 'Linux'
         uses: actions/cache@v4
         with:
           path: |
-            ${{ matrix.electron_cache_path }}
-            ${{ matrix.electron_builder_cache_path }}
-            ${{ matrix.playwright_cache_path }}
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ~/.cache/ms-playwright
+          key: >-
+            release-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            release-binaries-${{ runner.os }}-
+
+      - name: Cache Electron and Playwright binaries on Windows
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+            ~/AppData/Local/ms-playwright
+          key: >-
+            release-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            release-binaries-${{ runner.os }}-
+
+      - name: Cache Electron and Playwright binaries on macOS
+        if: runner.os == 'macOS'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+            ~/Library/Caches/ms-playwright
           key: >-
             release-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
@@ -73,8 +82,17 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
-      - name: Install Playwright Chromium
-        run: ${{ matrix.playwright_install_command }}
+      - name: Install Playwright Chromium on Linux
+        if: runner.os == 'Linux'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Playwright Chromium on Windows
+        if: runner.os == 'Windows'
+        run: pnpm exec playwright install chromium
+
+      - name: Install Playwright Chromium on macOS
+        if: runner.os == 'macOS'
+        run: pnpm exec playwright install chromium
 
       - name: Run tests
         run: pnpm test
@@ -82,17 +100,35 @@ jobs:
       - name: Run typecheck
         run: pnpm typecheck
 
-      - name: Run Playwright Electron E2E
-        run: ${{ matrix.e2e_command }}
+      - name: Run Playwright Electron E2E on Linux
+        if: runner.os == 'Linux'
+        run: xvfb-run -a pnpm run test:e2e
 
-      - name: Build release validation target
-        run: ${{ matrix.release_build_command }}
+      - name: Run Playwright Electron E2E on Windows
+        if: runner.os == 'Windows'
+        run: pnpm run test:e2e
+
+      - name: Run Playwright Electron E2E on macOS
+        if: runner.os == 'macOS'
+        run: pnpm run test:e2e
+
+      - name: Build release validation target on Linux
+        if: runner.os == 'Linux'
+        run: pnpm run build && pnpm exec electron-builder --linux dir --publish never
+
+      - name: Build release validation target on Windows
+        if: runner.os == 'Windows'
+        run: pnpm run build && pnpm exec electron-builder --win dir --publish never
+
+      - name: Build release validation target on macOS
+        if: runner.os == 'macOS'
+        run: pnpm run dist:mac
 
       - name: Upload Playwright artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts-release-${{ matrix.os }}
+          name: playwright-artifacts-release-${{ runner.os }}
           path: |
             test-results/playwright
             playwright-report
