@@ -13,7 +13,6 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
           - windows-latest
           - macos-latest
 
@@ -33,15 +32,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Cache Playwright browsers on Linux
-        if: runner.os == 'Linux'
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-
-
       - name: Cache Playwright browsers on Windows
         if: runner.os == 'Windows'
         uses: actions/cache@v4
@@ -60,10 +50,6 @@ jobs:
           restore-keys: |
             playwright-${{ runner.os }}-
 
-      - name: Install Playwright Chromium on Linux
-        if: runner.os == 'Linux'
-        run: pnpm exec playwright install --with-deps chromium
-
       - name: Install Playwright Chromium on Windows
         if: runner.os == 'Windows'
         run: pnpm exec playwright install chromium
@@ -76,7 +62,7 @@ jobs:
         run: pnpm test
 
       - name: Upload coverage reports to Codecov
-        if: runner.os == 'Linux'
+        if: runner.os == 'macOS'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

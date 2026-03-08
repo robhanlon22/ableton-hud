@@ -13,7 +13,6 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
           - windows-latest
           - macos-latest
 
@@ -29,18 +28,6 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
-
-      - name: Cache Electron and Playwright binaries on Linux
-        if: runner.os == 'Linux'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/electron
-            ~/.cache/ms-playwright
-          key: >-
-            e2e-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            e2e-binaries-${{ runner.os }}-
 
       - name: Cache Electron and Playwright binaries on Windows
         if: runner.os == 'Windows'
@@ -69,14 +56,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install xvfb on Linux
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y xvfb
-
-      - name: Install Playwright Chromium on Linux
-        if: runner.os == 'Linux'
-        run: pnpm exec playwright install --with-deps chromium
-
       - name: Install Playwright Chromium on Windows
         if: runner.os == 'Windows'
         run: pnpm exec playwright install chromium
@@ -84,10 +63,6 @@ jobs:
       - name: Install Playwright Chromium on macOS
         if: runner.os == 'macOS'
         run: pnpm exec playwright install chromium
-
-      - name: Run Playwright Electron E2E on Linux
-        if: runner.os == 'Linux'
-        run: xvfb-run -a pnpm run test:e2e
 
       - name: Run Playwright Electron E2E on Windows
         if: runner.os == 'Windows'

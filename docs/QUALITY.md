@@ -49,14 +49,12 @@ Use this file as the source of truth for validation routing and reporting.
 - `lint.yml`
   - runs `pre-commit run --all-files` with `SKIP=test-suite`
 - `test.yml`
-  - runs `pnpm test` on `ubuntu-latest`, `windows-latest`, and `macos-latest`
+  - runs `pnpm test` on `windows-latest` and `macos-latest`
 - `e2e.yml`
-  - runs `pnpm run test:e2e` on `ubuntu-latest`, `windows-latest`, and
-    `macos-latest`
-  - Linux legs run the Electron suite through `xvfb-run`
+  - runs `pnpm run test:e2e` on `windows-latest` and `macos-latest`
 - `release.yml`
   - validates test, typecheck, Electron E2E, and release builds on
-    `ubuntu-latest`, `windows-latest`, and `macos-latest`
+    `windows-latest` and `macos-latest`
   - runs on pull requests, `main`, tags, and manual dispatches
   - on tag runs, the matrix stages the published macOS release assets as
     workflow artifacts, then a non-matrix publish job creates the GitHub
