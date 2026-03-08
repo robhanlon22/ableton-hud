@@ -130,9 +130,10 @@ their members/signatures, and TypeScript type declarations. Start with
 `pnpm run lint:fix`, then write the missing docs that autofix cannot
 synthesize. The CI E2E job also captures HUD screenshots and uploads them,
 along with the Playwright HTML report, as workflow artifacts on every run so
-Windows and macOS executions can be inspected visually. It also rejects
-`Reflect`; use explicit property access, assignment, or a typed adapter
-instead.
+Windows and macOS executions can be inspected visually. Those artifacts now
+include stable smoke renders for the known HUD states: playing, stopped,
+disconnected, remaining, and compact. It also rejects `Reflect`; use explicit
+property access, assignment, or a typed adapter instead.
 
 Build local macOS app directory:
 
@@ -172,6 +173,8 @@ Release workflow behavior:
   `main`, and `v*` tags
 - `e2e.yml` uploads HUD screenshots plus the Playwright HTML report as
   workflow artifacts on every run
+- Those E2E artifacts include stable smoke renders for the known HUD states:
+  playing, stopped, disconnected, remaining, and compact
 - `release.yml` runs on pull requests, `main`, tags, and manual runs
 - `release.yml` waits for successful `Lint`, `Test`, and `E2E` workflow runs on
   the same commit before it runs release-specific `typecheck` and packaging jobs

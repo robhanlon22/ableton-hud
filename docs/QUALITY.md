@@ -64,6 +64,8 @@ Use this file as the source of truth for validation routing and reporting.
   - runs on pull requests, `main`, and `v*` tags
   - captures HUD screenshots on CI and uploads them, along with the Playwright
     HTML report, as workflow artifacts on every run
+  - those artifacts include stable smoke renders for the known HUD states:
+    playing, stopped, disconnected, remaining, and compact
 - `release.yml`
   - waits for successful `Lint`, `Test`, and `E2E` workflow runs on the current
     commit before running release-specific validation
@@ -84,7 +86,8 @@ Use this file as the source of truth for validation routing and reporting.
 - For Electron end-to-end coverage, keep the fake Ableton websocket server as
   the transport source.
 - When CI E2E coverage is relevant, check the uploaded screenshot and
-  Playwright report artifacts for visual confirmation of the Windows/macOS runs.
+  Playwright report artifacts for visual confirmation of the Windows/macOS
+  runs, including the stable smoke renders for the known HUD states.
 
 ## Harness Docs
 

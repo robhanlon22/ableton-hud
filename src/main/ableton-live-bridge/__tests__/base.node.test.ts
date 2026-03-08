@@ -26,3 +26,19 @@ it("swallows rejected cleanup callbacks while clearing observer groups", async (
   expect(failingCleanup).toHaveBeenCalledTimes(1);
   expect(cleanups).toEqual([]);
 });
+
+it("swallows live disconnect failures during stop", async () => {
+  // arrange
+  const { bridge, harness } = await createBridge();
+  const disconnectError = new Error("not-connected");
+  harness.instance.disconnect.mockImplementation(() => {
+    throw disconnectError;
+  });
+
+  // act
+  const stopBridge = bridge.stop.bind(bridge);
+
+  // assert
+  expect(stopBridge).not.toThrow();
+  expect(harness.instance.disconnect).toHaveBeenCalledTimes(1);
+});

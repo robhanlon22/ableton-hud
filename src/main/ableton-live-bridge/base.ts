@@ -179,7 +179,7 @@ export abstract class AbletonLiveBridgeBase {
     this.clearTrackSubscription();
     this.connectInFlight = false;
     this.connected = false;
-    this.live.disconnect();
+    disconnectLiveClient(this.live);
   }
 
   /**
@@ -462,6 +462,18 @@ export abstract class AbletonLiveBridgeBase {
  */
 function cloneDefaultClipMeta(): ClipTimingMeta {
   return { ...DEFAULT_CLIP_META };
+}
+
+/**
+ * Best-effort disconnect for the Live client during app teardown.
+ * @param liveClient - Live client facade to disconnect.
+ */
+function disconnectLiveClient(liveClient: LiveClient): void {
+  try {
+    liveClient.disconnect();
+  } catch {
+    return;
+  }
 }
 
 /**
