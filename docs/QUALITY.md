@@ -58,6 +58,9 @@ Use this file as the source of truth for validation routing and reporting.
   - validates test, typecheck, Electron E2E, and release builds on
     `ubuntu-latest`, `windows-latest`, and `macos-latest`
   - runs on pull requests, `main`, tags, and manual dispatches
+  - on tag runs, the matrix stages the published macOS release assets as
+    workflow artifacts, then a non-matrix publish job creates the GitHub
+    Release in a single step with every staged asset
   - tag publishes remain macOS-universal only until Linux/Windows release
     artifacts are productized
 

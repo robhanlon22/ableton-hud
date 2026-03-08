@@ -160,8 +160,11 @@ Release workflow behavior:
 - `e2e.yml` runs `pnpm run test:e2e` on macOS, Linux, and Windows
 - `release.yml` validates test, typecheck, Electron E2E, and release builds on
   macOS, Linux, and Windows for pull requests, `main`, tags, and manual runs
-- Tag releases still publish macOS universal assets only for now, after the
-  multi-OS validation matrix passes
+- On tags, the release validation matrix stages the published macOS assets as
+  workflow artifacts first, and a single follow-up publish job creates the
+  immutable GitHub Release once with every staged asset
+- Public tag releases still publish macOS universal assets only for now, after
+  the multi-OS validation matrix passes
 - Builds universal macOS app for the published release
 - Publishes:
   - `Ableton-HUD-vX.Y.Z-mac-universal.zip`
