@@ -172,7 +172,8 @@ git push origin v0.1.0
 
 Release workflow behavior:
 
-- `lint.yml` runs on pull requests, `main`, and `v*` tags
+- `lint.yml` runs `pre-commit run --all-files` on macOS and Windows for pull
+  requests, `main`, and `v*` tags
 - `test.yml` runs `pnpm test` on macOS and Windows for pull requests, `main`,
   and `v*` tags
 - `e2e.yml` runs `pnpm run test:e2e` on macOS and Windows for pull requests,
@@ -184,14 +185,14 @@ Release workflow behavior:
 - On successful `main` pushes, `e2e.yml` uploads Windows/macOS Playwright blob
   reports, merges them into a single HTML report, and deploys that report to
   the repo GitHub Pages site
-- `release.yml` runs on pull requests, `main`, tags, and manual runs
-- `release.yml` waits for successful `Lint`, `Test`, and `E2E` workflow runs on
-  the same commit before it runs release-specific `typecheck` and packaging jobs
-- On tags, the release build matrix stages the published macOS assets as
-  workflow artifacts first, and a single follow-up publish job creates the
-  immutable GitHub Release once with every staged asset
+- `build.yml` runs release validation builds on macOS and Windows for pull
+  requests and `main`
+- `release.yml` runs only on `v*` tags
+- `release.yml` waits for successful `Lint`, `Test`, and `E2E` workflow runs
+  on the same commit before it builds the published macOS assets and creates
+  the immutable GitHub Release in one path
 - Public tag releases still publish macOS universal assets only for now, after
-  the multi-OS validation matrix passes
+  the tag-gated validation workflows pass
 - Builds universal macOS app for the published release
 - Publishes:
   - `Ableton-HUD-vX.Y.Z-mac-universal.zip`

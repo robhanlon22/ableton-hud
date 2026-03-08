@@ -1,13 +1,9 @@
 name: Release
 
 on:
-  pull_request:
   push:
-    branches:
-      - main
     tags:
       - "v*"
-  workflow_dispatch:
 
 permissions:
   actions: read
@@ -22,8 +18,6 @@ jobs:
         env:
           HEAD_SHA: ${{ github.sha }}
           REF_NAME: ${{ github.ref_name }}
-          REF_TYPE: ${{ github.ref_type }}
-          TRIGGER_EVENT: ${{ github.event_name }}
         with:
           script: |
             const POLL_INTERVAL_MS = 15_000;
@@ -31,8 +25,6 @@ jobs:
             const REQUIRED_WORKFLOWS = ["Lint", "Test", "E2E"];
             const headSha = process.env.HEAD_SHA;
             const refName = process.env.REF_NAME;
-            const refType = process.env.REF_TYPE;
-            const triggerEvent = process.env.TRIGGER_EVENT;
             const startedAt = Date.now();
             const owner = context.repo.owner;
             const repo = context.repo.repo;
@@ -42,20 +34,12 @@ jobs:
                 return false;
               }
 
-              if (triggerEvent === "pull_request") {
-                return run.event === "pull_request";
-              }
-
-              if (refType === "tag") {
-                return (
-                  run.event === "push" &&
-                  (run.head_branch === refName ||
-                    run.head_branch === null ||
-                    run.head_branch === "")
-                );
-              }
-
-              return run.event === "push" && run.head_branch === refName;
+              return (
+                run.event === "push" &&
+                (run.head_branch === refName ||
+                  run.head_branch === null ||
+                  run.head_branch === "")
+              );
             };
 
             while (Date.now() - startedAt < TIMEOUT_MS) {
@@ -86,7 +70,9 @@ jobs:
               });
 
               if (pendingWorkflowNames.length > 0) {
-                core.info(`Waiting on workflows for ${headSha}: ${pendingWorkflowNames.join(", ")}`);
+                core.info(
+                  `Waiting on workflows for ${headSha}: ${pendingWorkflowNames.join(", ")}`,
+                );
                 await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
                 continue;
               }
@@ -116,10 +102,9 @@ jobs:
               `Timed out waiting for Lint, Test, and E2E workflows for ${headSha}.`,
             );
 
-  typecheck:
+  release:
     needs: await-upstream-checks
-    runs-on: ubuntu-latest
-
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -132,52 +117,8 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run typecheck
-        run: pnpm typecheck
-
-  release-build:
-    needs:
-      - await-upstream-checks
-      - typecheck
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - windows-latest
-          - macos-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: pnpm
-
-      - name: Cache Electron and Playwright binaries on Windows
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/AppData/Local/electron/Cache
-            ~/AppData/Local/electron-builder/Cache
-          key: >-
-            release-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            release-binaries-${{ runner.os }}-
 
       - name: Cache Electron and Playwright binaries on macOS
-        if: runner.os == 'macOS'
         uses: actions/cache@v4
         with:
           path: |
@@ -191,16 +132,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build release validation target on Windows
-        if: runner.os == 'Windows'
-        run: pnpm run build && pnpm exec electron-builder --win dir --publish never
-
-      - name: Build release validation target on macOS
-        if: runner.os == 'macOS'
-        run: pnpm run dist:mac
-
-      - name: Package staged release assets on macOS
-        if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/')
+      - name: Build final release assets
         shell: bash
         run: |
           set -euo pipefail
@@ -208,6 +140,8 @@ jobs:
           app_path="dist/mac-universal/Ableton HUD.app"
           zip_path="dist/Ableton-HUD-${tag}-mac-universal.zip"
           sha_path="${zip_path}.sha256"
+
+          pnpm run dist:mac
 
           if [ ! -d "${app_path}" ]; then
             echo "Missing app bundle at ${app_path}" >&2
@@ -218,28 +152,6 @@ jobs:
           hash="$(shasum -a 256 "${zip_path}" | awk '{print $1}')"
           printf '%s  %s\n' "${hash}" "$(basename "${zip_path}")" > "${sha_path}"
 
-      - name: Upload staged release assets
-        if: startsWith(github.ref, 'refs/tags/') && runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-assets-${{ runner.os }}
-          path: |
-            dist/Ableton-HUD-${{ github.ref_name }}-mac-universal.zip
-            dist/Ableton-HUD-${{ github.ref_name }}-mac-universal.zip.sha256
-          if-no-files-found: error
-
-  publish-release:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: release-build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download staged release assets
-        uses: actions/download-artifact@v4
-        with:
-          pattern: release-assets-*
-          merge-multiple: true
-          path: release-assets
-
       - name: Create immutable GitHub Release
         shell: bash
         env:
@@ -248,17 +160,22 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          mapfile -t release_files < <(find release-assets -maxdepth 1 -type f -print | sort)
+          release_files=(
+            "dist/Ableton-HUD-${TAG}-mac-universal.zip"
+            "dist/Ableton-HUD-${TAG}-mac-universal.zip.sha256"
+          )
 
           if gh release view "${TAG}" >/dev/null 2>&1; then
             echo "Release ${TAG} already exists; immutability enabled, refusing to modify." >&2
             exit 1
           fi
 
-          if [ "${#release_files[@]}" -eq 0 ]; then
-            echo "No staged release assets found for ${TAG}" >&2
-            exit 1
-          fi
+          for release_file in "${release_files[@]}"; do
+            if [ ! -f "${release_file}" ]; then
+              echo "Missing release asset ${release_file}" >&2
+              exit 1
+            fi
+          done
 
           gh release create "${TAG}" "${release_files[@]}" \
             --title "${TAG}" \
