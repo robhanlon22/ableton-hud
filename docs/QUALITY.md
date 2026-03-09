@@ -69,9 +69,6 @@ Use this file as the source of truth for validation routing and reporting.
   - on Windows CI, uses a native screen-region capture helper and forces the
     app into dark appearance so smoke artifacts can include dark HUD window
     chrome
-  - manual `workflow_dispatch` runs can enable `debug_windows_e2e` to open a
-    detached `tmate` session during the Windows E2E job for runner-side
-    debugging
   - on macOS CI, grants Screen Recording to the screenshot tools before the
     Playwright run and forces the app into dark appearance so smoke artifacts
     can include dark native window chrome
@@ -79,6 +76,18 @@ Use this file as the source of truth for validation routing and reporting.
     playing, stopped, disconnected, remaining, and compact
   - uploads Windows/macOS Playwright blob reports on successful runs
   - keeps Windows/macOS runs visibly disambiguated in the merged report
+- `Runner SSH Debugging`
+  - reusable detached SSH debug step lives at
+    [.github/actions/debug-tmate/action.yml](/Users/rob/Developer/aosc/.github/actions/debug-tmate/action.yml)
+  - insert it into any job only when needed, for example:
+    ```yaml
+    - name: Debug runner with tmate
+      if: ${{ github.event_name == 'workflow_dispatch' }}
+      uses: ./.github/actions/debug-tmate
+      timeout-minutes: 30
+    ```
+  - the action defaults to detached mode and actor-limited access; callers can
+    override those via `with:`
 - `Build`
   - runs release validation builds on `windows-latest` and `macos-latest`
   - runs on pull requests, `main`, and `v*` tags

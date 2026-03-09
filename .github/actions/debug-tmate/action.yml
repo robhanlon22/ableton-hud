@@ -1,0 +1,21 @@
+name: Debug With Tmate
+description: Open a detached tmate session for manual SSH debugging.
+
+inputs:
+  detached:
+    description: Whether to keep the job running while the tmate session is available.
+    required: false
+    default: "true"
+  limit_access_to_actor:
+    description: Whether to limit SSH access to the workflow trigger actor.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Start tmate session
+      uses: mxschmitt/action-tmate@v3
+      with:
+        detached: ${{ inputs.detached }}
+        limit-access-to-actor: ${{ inputs.limit_access_to_actor }}
