@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import io
 import json
 import re
@@ -216,7 +217,20 @@ def download_screenshots(
         raise RuntimeError(f"Missing expected smoke screenshot attachments: {missing_list}")
 
 
-def render_readme_table() -> str:
+def build_cache_tokens(screenshot_dir: Path) -> dict[tuple[str, str], str]:
+    """Build stable cache-busting tokens from the screenshot file contents."""
+
+    tokens: dict[tuple[str, str], str] = {}
+    for spec in SCREENSHOT_SPECS:
+        for project_name in PROJECT_LABELS:
+            screenshot_path = screenshot_dir / f"hud-{spec.slug}-{project_name}.png"
+            tokens[(spec.slug, project_name)] = hashlib.sha256(
+                screenshot_path.read_bytes(),
+            ).hexdigest()[:12]
+    return tokens
+
+
+def render_readme_table(cache_tokens: dict[tuple[str, str], str]) -> str:
     """Render the README screenshot table."""
 
     lines = [
@@ -237,11 +251,15 @@ def render_readme_table() -> str:
             ],
         )
         for project_name, project_label in PROJECT_LABELS.items():
+            cache_token = cache_tokens[(spec.slug, project_name)]
             lines.extend(
                 [
                     "    <td>",
                     "      <img",
-                    f"        src=\"docs/screenshots/hud-{spec.slug}-{project_name}.png\"",
+                    (
+                        "        src=\"docs/screenshots/"
+                        f"hud-{spec.slug}-{project_name}.png?v={cache_token}\""
+                    ),
                     f"        alt=\"{spec.alt_prefix} on {project_label}\"",
                     f"        width=\"{spec.width}\"",
                     "      />",
@@ -255,7 +273,7 @@ def render_readme_table() -> str:
     return "\n".join(lines)
 
 
-def rewrite_readme(readme_path: Path) -> None:
+def rewrite_readme(readme_path: Path, screenshot_dir: Path) -> None:
     """Rewrite the README screenshot table in place."""
 
     contents = readme_path.read_text(encoding="utf-8")
@@ -266,7 +284,11 @@ def rewrite_readme(readme_path: Path) -> None:
             "README_SCREENSHOT_TABLE_START and README_SCREENSHOT_TABLE_END.",
         )
 
-    updated_contents = TABLE_PATTERN.sub(render_readme_table(), contents, count=1)
+    updated_contents = TABLE_PATTERN.sub(
+        render_readme_table(build_cache_tokens(screenshot_dir)),
+        contents,
+        count=1,
+    )
     readme_path.write_text(updated_contents, encoding="utf-8")
 
 
@@ -293,7 +315,7 @@ def main() -> int:
 
     screenshot_dir.mkdir(parents=True, exist_ok=True)
     download_screenshots(args.report_url, attachment_paths, screenshot_dir)
-    rewrite_readme(readme_path)
+    rewrite_readme(readme_path, screenshot_dir)
     remove_legacy_screenshots(screenshot_dir)
 
     print(f"Refreshed screenshots in {screenshot_dir}")
