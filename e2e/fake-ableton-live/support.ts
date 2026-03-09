@@ -240,7 +240,7 @@ export const DEFAULT_SNAPSHOT: FakeLiveSnapshot = {
             loopEnd: DEFAULT_CLIP_LENGTH_BEATS,
             looping: false,
             loopStart: 0,
-            name: "Build",
+            name: "Clip A",
             playingPosition: 0,
           },
           hasClip: true,

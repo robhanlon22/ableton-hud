@@ -17,9 +17,7 @@ it("renders clip and counter text", async () => {
   await render(<HudSurface {...properties} />);
 
   // assert
-  await expect
-    .element(page.getByTestId("clip-pill"))
-    .toHaveTextContent("Build");
+  await expect.element(page.getByTestId("clip-pill")).toHaveTextContent("Clip");
   await expect
     .element(page.getByTestId("track-pill"))
     .toHaveTextContent("Kick");

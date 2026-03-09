@@ -154,7 +154,7 @@ export const makeHudState = (overrides: Partial<HudState> = {}): HudState => ({
   ...createDefaultHudState(),
   clipColor: 0x11_22_33,
   clipIndex: 1,
-  clipName: "Build",
+  clipName: "Clip A",
   connected: true,
   counterText: "1:1:1",
   isDownbeat: false,

@@ -17,11 +17,11 @@ const FULL_DETAILS_WINDOW_SIZE = {
   width: 540,
 };
 const RELAUNCH_WINDOW_SIZE_STABILITY_ATTEMPTS = 50;
-const BASS_TRACK_COLOR = 0xff_88_00;
-const HOOK_SCENE_COLOR = 0x00_aa_66;
-const LEAD_CLIP_COLOR = 0x7f_00_ff;
-const LEAD_CLIP_LENGTH_BEATS = 32;
-const LEAD_PLAYING_POSITION_BEATS = 9.5;
+const TRACK_COLOR = 0xff_88_00;
+const SCENE_COLOR = 0x00_aa_66;
+const CLIP_COLOR = 0x7f_00_ff;
+const CLIP_LENGTH_BEATS = 32;
+const CLIP_PLAYING_POSITION_BEATS = 9.5;
 const CLIP_A_PLAYING_POSITION_BEATS = 2.5;
 const CLIP_B_PLAYING_POSITION_BEATS = 9.75;
 
@@ -281,31 +281,31 @@ test("renders fake transport payload from websocket server", async () => {
     await waitForHudBootstrap(app);
 
     fakeServer.setTrack({
-      color: BASS_TRACK_COLOR,
-      name: "Bass",
+      color: TRACK_COLOR,
+      name: "Track",
     });
     fakeServer.setScene({
-      color: HOOK_SCENE_COLOR,
-      name: "Hook",
+      color: SCENE_COLOR,
+      name: "Scene",
     });
     fakeServer.setClip({
-      color: LEAD_CLIP_COLOR,
-      length: LEAD_CLIP_LENGTH_BEATS,
-      loopEnd: LEAD_CLIP_LENGTH_BEATS,
+      color: CLIP_COLOR,
+      length: CLIP_LENGTH_BEATS,
+      loopEnd: CLIP_LENGTH_BEATS,
       loopStart: 0,
-      name: "Lead",
-      playingPosition: LEAD_PLAYING_POSITION_BEATS,
+      name: "Clip",
+      playingPosition: CLIP_PLAYING_POSITION_BEATS,
     });
     fakeServer.setSong({
-      currentSongTime: LEAD_PLAYING_POSITION_BEATS,
+      currentSongTime: CLIP_PLAYING_POSITION_BEATS,
       isPlaying: true,
     });
     await fakeServer.stabilize();
 
     await expect(app.page.getByTestId("counter-text")).not.toHaveText("0:0:0");
-    await expect(app.page.getByTestId("clip-pill")).toContainText("Lead");
-    await expect(app.page.getByTestId("track-pill")).toContainText("Bass");
-    await expect(app.page.getByTestId("scene-pill")).toContainText("Hook");
+    await expect(app.page.getByTestId("clip-pill")).toContainText("Clip");
+    await expect(app.page.getByTestId("track-pill")).toContainText("Track");
+    await expect(app.page.getByTestId("scene-pill")).toContainText("Scene");
   } finally {
     await closeCurrentHudApp(app);
   }

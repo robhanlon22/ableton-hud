@@ -70,18 +70,18 @@ async function renderDisconnectedHudState(app: RunningHudApp): Promise<void> {
 async function renderPlayingHudState(app: RunningHudApp): Promise<void> {
   fakeServer.setTrack({
     color: SMOKE_TRACK_COLOR,
-    name: "Bass",
+    name: "Track",
   });
   fakeServer.setScene({
     color: REMAINING_CLIP_COLOR,
-    name: "Hook",
+    name: "Scene",
   });
   fakeServer.setClip({
     color: COMPACT_CLIP_COLOR,
     length: SMOKE_CLIP_LENGTH_BEATS,
     loopEnd: SMOKE_CLIP_LENGTH_BEATS,
     loopStart: 0,
-    name: "Lead",
+    name: "Clip",
     playingPosition: PLAYING_POSITION_BEATS,
   });
   fakeServer.setSong({
@@ -91,9 +91,9 @@ async function renderPlayingHudState(app: RunningHudApp): Promise<void> {
   await fakeServer.stabilize();
 
   await expect(app.page.locator("[aria-label='Playing']")).toBeVisible();
-  await expect(app.page.getByTestId("track-pill")).toContainText("Bass");
-  await expect(app.page.getByTestId("scene-pill")).toContainText("Hook");
-  await expect(app.page.getByTestId("clip-pill")).toContainText("Lead");
+  await expect(app.page.getByTestId("track-pill")).toContainText("Track");
+  await expect(app.page.getByTestId("scene-pill")).toContainText("Scene");
+  await expect(app.page.getByTestId("clip-pill")).toContainText("Clip");
 }
 
 /**
@@ -103,18 +103,18 @@ async function renderPlayingHudState(app: RunningHudApp): Promise<void> {
 async function renderStoppedHudState(app: RunningHudApp): Promise<void> {
   fakeServer.setTrack({
     color: SMOKE_TRACK_COLOR,
-    name: "Bass",
+    name: "Track",
   });
   fakeServer.setScene({
     color: REMAINING_CLIP_COLOR,
-    name: "Hook",
+    name: "Scene",
   });
   fakeServer.setClip({
     color: COMPACT_CLIP_COLOR,
     length: SMOKE_CLIP_LENGTH_BEATS,
     loopEnd: SMOKE_CLIP_LENGTH_BEATS,
     loopStart: 0,
-    name: "Lead",
+    name: "Clip",
     playingPosition: PLAYING_POSITION_BEATS,
   });
   fakeServer.setSong({
@@ -124,9 +124,9 @@ async function renderStoppedHudState(app: RunningHudApp): Promise<void> {
   await fakeServer.stabilize();
 
   await expect(app.page.locator("[aria-label='Stopped']")).toBeVisible();
-  await expect(app.page.getByTestId("track-pill")).toContainText("Bass");
-  await expect(app.page.getByTestId("scene-pill")).toContainText("Hook");
-  await expect(app.page.getByTestId("clip-pill")).toContainText("Lead");
+  await expect(app.page.getByTestId("track-pill")).toContainText("Track");
+  await expect(app.page.getByTestId("scene-pill")).toContainText("Scene");
+  await expect(app.page.getByTestId("clip-pill")).toContainText("Clip");
 }
 
 test.beforeEach(async () => {

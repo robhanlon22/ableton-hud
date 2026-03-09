@@ -14,7 +14,7 @@ export const makeNamedHudState = (
 ): HudState => ({
   ...createDefaultHudState(),
   clipIndex: 1,
-  clipName: "Build",
+  clipName: "Clip",
   connected: true,
   counterText: "2:3:4",
   isPlaying: true,
