@@ -1,5 +1,9 @@
 # Ableton HUD
 
+[![CI](https://github.com/robhanlon22/ableton-hud/actions/workflows/ci.yml/badge.svg)](https://github.com/robhanlon22/ableton-hud/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/robhanlon22/ableton-hud/graph/badge.svg?token=RQD6XR5RGA)](https://codecov.io/gh/robhanlon22/ableton-hud)
+[![Playwright Report](https://img.shields.io/badge/Playwright%20Report-GitHub%20Pages-0969da)](https://robhanlon22.github.io/ableton-hud/)
+
 A small desktop HUD for Ableton Live that shows the current clip position in
 `Bar:Beat:16th` and stays readable in an always-on-top window.
 
