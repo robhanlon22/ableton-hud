@@ -87,4 +87,6 @@
 - `docs/QUALITY.md`
 - `docs/product-specs/*`
 - When workflow, scripts, architecture, or test contracts change, update the affected docs in the same patch.
-- `pre-commit run --all-files` must pass after doc/process changes.
+- The pre-commit gate must pass after doc/process changes. If you are
+  committing immediately, a successful `git commit` hook run counts;
+  otherwise run `pre-commit run --all-files` manually.

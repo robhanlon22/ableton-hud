@@ -21,7 +21,8 @@ come from the Playwright smoke report.
 1. Run `scripts/refresh_readme_screenshots.py` from the repo root.
 2. Review the updated files under `docs/screenshots/` and the screenshot table
    near the top of `README.md`.
-3. Run `pre-commit run --all-files`.
+3. Make sure the pre-commit gate passes. If you are committing immediately,
+   rely on the `git commit` hook; otherwise run `pre-commit run --all-files`.
 
 ## What the script does
 
@@ -57,5 +58,6 @@ Run:
 python3 .agents/skills/refresh-readme-screenshots/scripts/refresh_readme_screenshots.py
 python3 /Users/rob/.codex/skills/.system/skill-creator/scripts/quick_validate.py \
   .agents/skills/refresh-readme-screenshots
+# Skip this if you are committing immediately and relying on the commit hook.
 pre-commit run --all-files
 ```

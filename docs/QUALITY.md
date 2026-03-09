@@ -4,15 +4,19 @@ Use this file as the source of truth for validation routing and reporting.
 
 ## Gate Selection
 
+### Shared rule
+
+- The pre-commit gate must pass for these changes.
+- If you are committing immediately, a successful `git commit` hook run counts.
+- Otherwise run `pre-commit run --all-files`.
+
 ### Docs or harness changes
 
-- Run `pre-commit run --all-files`
 - CI lint runs the same command with `SKIP=test-suite` because `pnpm test`
   already has a dedicated CI job.
 
 ### Electron runtime, preload, renderer bridge, or e2e harness changes
 
-- Run `pre-commit run --all-files`
 - Run `pnpm test` or `pnpm run test:e2e` locally when you need faster feedback
   than waiting for CI.
 - `pnpm test` shuffles file order and intra-file test order; rerun with
@@ -21,7 +25,6 @@ Use this file as the source of truth for validation routing and reporting.
 
 ### Release-surface changes
 
-- Run `pre-commit run --all-files`
 - Then run the explicit release validation you need, such as `pnpm run dist:mac`.
 
 ### Pre-commit breakdown
@@ -127,4 +130,6 @@ Use this file as the source of truth for validation routing and reporting.
 - The agent-facing contract spans `AGENTS.md`, `README.md`, `ARCHITECTURE.md`,
   `docs/QUALITY.md`, and `docs/product-specs/*`.
 - When this contract changes, update the relevant docs in the same patch and
-  rerun `pre-commit run --all-files`.
+  make sure the pre-commit gate passes. If you are committing immediately, a
+  successful `git commit` hook run counts; otherwise run
+  `pre-commit run --all-files` manually.
