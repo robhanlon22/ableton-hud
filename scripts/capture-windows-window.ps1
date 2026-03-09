@@ -41,10 +41,6 @@ public static class WindowCapture {
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
-
     public static void ThrowLastWin32Error(string operation) {
         int errorCode = Marshal.GetLastWin32Error();
         throw new InvalidOperationException(
@@ -79,14 +75,13 @@ public static class WindowCapture {
 
         using (Bitmap bitmap = new Bitmap(width, height)) {
             using (Graphics graphics = Graphics.FromImage(bitmap)) {
-                IntPtr hdc = graphics.GetHdc();
-                try {
-                    if (!PrintWindow(hwnd, hdc, 0)) {
-                        ThrowLastWin32Error("PrintWindow");
-                    }
-                } finally {
-                    graphics.ReleaseHdc(hdc);
-                }
+                graphics.CopyFromScreen(
+                    bounds.Left,
+                    bounds.Top,
+                    0,
+                    0,
+                    new Size(width, height)
+                );
             }
 
             bitmap.Save(outputPath, ImageFormat.Png);

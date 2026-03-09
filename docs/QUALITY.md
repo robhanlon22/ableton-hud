@@ -66,10 +66,12 @@ Use this file as the source of truth for validation routing and reporting.
   - runs `pnpm run test:e2e` on `windows-latest` and `macos-latest`
   - captures HUD screenshots on CI and uploads `test-results/playwright`
     as a workflow artifact on every run
-  - on Windows CI, uses a native `PrintWindow` helper and forces the app into
-    dark appearance so smoke artifacts can include dark HUD window chrome
+  - on Windows CI, uses a native screen-region capture helper and forces the
+    app into dark appearance so smoke artifacts can include dark HUD window
+    chrome
   - manual `workflow_dispatch` runs can enable `debug_windows_e2e` to open a
-    `tmate` session during the Windows E2E job for runner-side debugging
+    detached `tmate` session during the Windows E2E job for runner-side
+    debugging
   - on macOS CI, grants Screen Recording to the screenshot tools before the
     Playwright run and forces the app into dark appearance so smoke artifacts
     can include dark native window chrome

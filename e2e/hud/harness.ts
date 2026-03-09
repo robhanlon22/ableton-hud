@@ -365,8 +365,8 @@ async function captureMacOsWindowScreenshot(
 }
 
 /**
- * Captures the current Windows HUD window via `PrintWindow` so native frame
- * chrome is included in the screenshot artifact.
+ * Captures the current Windows HUD window from the on-screen desktop so native
+ * frame chrome is included in the screenshot artifact.
  * @param app - Running app handles produced by {@link launchHudApp}.
  * @param screenshotPath - Destination path for the screenshot artifact.
  * @returns Whether a native-window screenshot was captured.
@@ -415,7 +415,7 @@ async function captureWindowsWindowScreenshot(
   } catch (error) {
     logNativeWindowCaptureFallback(
       "Windows",
-      "native PrintWindow capture failed",
+      "native screen-region capture failed",
       error,
     );
     return false;
