@@ -20,6 +20,8 @@ const ASCII_DIGIT_ZERO_CODE_POINT = 48;
 const ASCII_LOWERCASE_Z_CODE_POINT = 122;
 const ASCII_LOWERCASE_A_CODE_POINT = 97;
 const SCREENSHOT_ARTIFACT_INDEX_WIDTH = 2;
+const SCREENSHOT_FRAME_SETTLE_RAF_COUNT = 2;
+const SCREENSHOT_FRAME_SETTLE_DELAY_MS = 100;
 const WINDOW_SIZE_STABILITY_ATTEMPTS = 25;
 const WINDOW_SIZE_STABILITY_REQUIRED_MATCHES = 2;
 const WINDOW_SIZE_STABILITY_WAIT_MS = 100;
@@ -274,6 +276,7 @@ async function attachHudScreenshot(
   const screenshotPath = testInfo.outputPath(
     `${String(artifactIndex).padStart(SCREENSHOT_ARTIFACT_INDEX_WIDTH, "0")}-${slugifyArtifactLabel(attachmentLabel)}.png`,
   );
+  await settleHudScreenshotFrame(app);
   await captureHudScreenshot(app, screenshotPath);
   await testInfo.attach(attachmentLabel, {
     contentType: "image/png",
@@ -505,6 +508,30 @@ async function readMainWindowMediaSourceId(
       ? undefined
       : mainWindow?.getMediaSourceId();
   });
+}
+
+/**
+ * Waits for the renderer and compositor to present the latest HUD state before
+ * capturing a screenshot artifact.
+ * @param app - Running app handles produced by {@link launchHudApp}.
+ */
+async function settleHudScreenshotFrame(app: RunningHudApp): Promise<void> {
+  await expect(app.page.getByTestId("hud-root")).toBeVisible();
+  await app.page.evaluate(async () => {
+    await document.fonts.ready;
+    for (
+      let frameIndex = 0;
+      frameIndex < SCREENSHOT_FRAME_SETTLE_RAF_COUNT;
+      frameIndex += 1
+    ) {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve();
+        });
+      });
+    }
+  });
+  await app.page.waitForTimeout(SCREENSHOT_FRAME_SETTLE_DELAY_MS);
 }
 
 /**
