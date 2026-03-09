@@ -268,14 +268,14 @@ const modeControlProperties = (
   if (mode === "elapsed") {
     return {
       buttonClassName:
-        "h-8 w-full rounded-sm border border-ableton-accent bg-zinc-900 text-[10px] uppercase tracking-[0.08em] text-ableton-accent transition-colors hover:bg-zinc-800",
+        "h-8 w-full rounded-sm border border-ableton-accent bg-zinc-900 text-[10px] tracking-[0.08em] text-ableton-accent transition-colors hover:bg-zinc-800",
       tooltipContent: "Show remaining time",
     };
   }
 
   return {
     buttonClassName:
-      "h-8 w-full rounded-sm border border-emerald-400/75 bg-emerald-400/18 text-[10px] uppercase tracking-[0.08em] text-emerald-200 transition-colors hover:bg-emerald-400/28",
+      "h-8 w-full rounded-sm border border-emerald-400/75 bg-emerald-400/18 text-[10px] tracking-[0.08em] text-emerald-200 transition-colors hover:bg-emerald-400/28",
     tooltipContent: "Show elapsed time",
   };
 };

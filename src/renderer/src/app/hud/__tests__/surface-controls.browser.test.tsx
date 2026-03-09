@@ -72,6 +72,9 @@ it("renders remaining mode label", async () => {
   await expect
     .element(page.getByTestId("mode-toggle"))
     .toHaveTextContent("Remaining");
+  await expect
+    .element(page.getByTestId("mode-toggle"))
+    .not.toHaveClass(/uppercase/);
   await expect.element(page.getByText("Show elapsed time")).toBeVisible();
   await page.getByTestId("counter-text").hover();
 });

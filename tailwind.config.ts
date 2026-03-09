@@ -29,20 +29,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        mono: [
-          "Atkinson Hyperlegible Mono",
-          "SF Mono",
-          "IBM Plex Mono",
-          "Menlo",
-          "monospace",
-        ],
-        ui: [
-          "Atkinson Hyperlegible Next",
-          "Avenir Next",
-          "Helvetica Neue",
-          "Segoe UI",
-          "sans-serif",
-        ],
+        mono: ["var(--hud-font-mono)"],
+        ui: ["var(--hud-font-ui)"],
       },
     },
   },
