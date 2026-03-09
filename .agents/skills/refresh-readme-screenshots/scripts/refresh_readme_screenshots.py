@@ -129,68 +129,88 @@ def extract_report_archive(html: str) -> bytes:
     raise RuntimeError("Could not find an embedded Playwright report archive.")
 
 
-def load_report(html: str) -> dict[str, object]:
-    """Load report.json from the embedded zip archive."""
+def load_report_bundle(
+    html: str,
+) -> tuple[dict[str, object], dict[str, dict[str, object]]]:
+    """Load report.json plus detailed per-file payloads from the embedded archive."""
 
     archive_bytes = extract_report_archive(html)
     with ZipFile(io.BytesIO(archive_bytes)) as archive:
-        return json.loads(archive.read("report.json"))
+        report = json.loads(archive.read("report.json"))
+        detailed_files: dict[str, dict[str, object]] = {}
+        for name in archive.namelist():
+            if name == "report.json":
+                continue
+            payload = json.loads(archive.read(name))
+            if not isinstance(payload, dict):
+                continue
+            file_name = payload.get("fileName")
+            if isinstance(file_name, str):
+                detailed_files[file_name] = payload
+        return report, detailed_files
 
 
-def extract_attachment_paths(report: dict[str, object]) -> dict[tuple[str, str], str]:
+def extract_attachment_paths(
+    report: dict[str, object],
+    detailed_files: dict[str, dict[str, object]],
+) -> dict[tuple[str, str], str]:
     """Extract smoke screenshot attachment paths keyed by project and title."""
 
     attachment_paths: dict[tuple[str, str], str] = {}
-    files = report.get("files")
-    if not isinstance(files, list):
+    report_files = report.get("files")
+    if not isinstance(report_files, list):
         raise RuntimeError("Playwright report is missing the files list.")
 
-    for file_entry in files:
-        if not isinstance(file_entry, dict):
+    smoke_file = detailed_files.get(SCREENSHOT_FILE)
+    if smoke_file is None:
+        for file_entry in report_files:
+            if isinstance(file_entry, dict) and file_entry.get("fileName") == SCREENSHOT_FILE:
+                smoke_file = file_entry
+                break
+
+    if smoke_file is None:
+        raise RuntimeError(f"Playwright report is missing {SCREENSHOT_FILE}.")
+
+    tests = smoke_file.get("tests")
+    if not isinstance(tests, list):
+        raise RuntimeError(f"Playwright report is missing tests for {SCREENSHOT_FILE}.")
+
+    for test in tests:
+        if not isinstance(test, dict):
             continue
-        if file_entry.get("fileName") != SCREENSHOT_FILE:
+        path = test.get("path")
+        if path != list(SCREENSHOT_PATH):
             continue
 
-        tests = file_entry.get("tests")
-        if not isinstance(tests, list):
+        project_name = test.get("projectName")
+        title = test.get("title")
+        if not isinstance(project_name, str) or not isinstance(title, str):
             continue
 
-        for test in tests:
-            if not isinstance(test, dict):
-                continue
-            path = test.get("path")
-            if path != list(SCREENSHOT_PATH):
-                continue
+        results = test.get("results")
+        if not isinstance(results, list):
+            continue
 
-            project_name = test.get("projectName")
-            title = test.get("title")
-            if not isinstance(project_name, str) or not isinstance(title, str):
+        attachment_path: str | None = None
+        for result in results:
+            if not isinstance(result, dict):
                 continue
-
-            results = test.get("results")
-            if not isinstance(results, list):
+            attachments = result.get("attachments")
+            if not isinstance(attachments, list):
                 continue
-
-            attachment_path: str | None = None
-            for result in results:
-                if not isinstance(result, dict):
+            for attachment in attachments:
+                if not isinstance(attachment, dict):
                     continue
-                attachments = result.get("attachments")
-                if not isinstance(attachments, list):
-                    continue
-                for attachment in attachments:
-                    if not isinstance(attachment, dict):
-                        continue
-                    content_type = attachment.get("contentType")
-                    path_value = attachment.get("path")
-                    if content_type == "image/png" and isinstance(path_value, str):
-                        attachment_path = path_value
-                        break
-                if attachment_path is not None:
+                content_type = attachment.get("contentType")
+                path_value = attachment.get("path")
+                if content_type == "image/png" and isinstance(path_value, str):
+                    attachment_path = path_value
                     break
-
             if attachment_path is not None:
-                attachment_paths[(project_name, title)] = attachment_path
+                break
+
+        if attachment_path is not None:
+            attachment_paths[(project_name, title)] = attachment_path
 
     return attachment_paths
 
@@ -310,8 +330,8 @@ def main() -> int:
     readme_path = repo_root / "README.md"
 
     html = fetch_text(args.report_url)
-    report = load_report(html)
-    attachment_paths = extract_attachment_paths(report)
+    report, detailed_files = load_report_bundle(html)
+    attachment_paths = extract_attachment_paths(report, detailed_files)
 
     screenshot_dir.mkdir(parents=True, exist_ok=True)
     download_screenshots(args.report_url, attachment_paths, screenshot_dir)
