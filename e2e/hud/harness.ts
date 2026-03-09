@@ -517,20 +517,16 @@ async function readMainWindowMediaSourceId(
  */
 async function settleHudScreenshotFrame(app: RunningHudApp): Promise<void> {
   await expect(app.page.getByTestId("hud-root")).toBeVisible();
-  await app.page.evaluate(async () => {
+  await app.page.evaluate(async (frameCount) => {
     await document.fonts.ready;
-    for (
-      let frameIndex = 0;
-      frameIndex < SCREENSHOT_FRAME_SETTLE_RAF_COUNT;
-      frameIndex += 1
-    ) {
+    for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
       await new Promise<void>((resolve) => {
         requestAnimationFrame(() => {
           resolve();
         });
       });
     }
-  });
+  }, SCREENSHOT_FRAME_SETTLE_RAF_COUNT);
   await app.page.waitForTimeout(SCREENSHOT_FRAME_SETTLE_DELAY_MS);
 }
 
