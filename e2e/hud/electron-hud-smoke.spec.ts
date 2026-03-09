@@ -10,6 +10,7 @@ import {
 } from "./harness";
 
 const COMPACT_CLIP_COLOR = 0xff_88_00;
+const DISCONNECTED_SNAPSHOT_HOLD_MS = 600;
 const PLAYING_POSITION_BEATS = 9.5;
 const REMAINING_CLIP_COLOR = 0x00_aa_66;
 const SMOKE_CLIP_LENGTH_BEATS = 32;
@@ -53,6 +54,13 @@ async function renderDisconnectedHudState(app: RunningHudApp): Promise<void> {
   await expect(app.page.getByTestId("track-pill")).toContainText("-");
   await expect(app.page.getByTestId("scene-pill")).toContainText("-");
   await expect(app.page.getByTestId("clip-pill")).toContainText("-");
+
+  await fakeServer.stop();
+  await app.page.waitForTimeout(DISCONNECTED_SNAPSHOT_HOLD_MS);
+  await expect(app.page.locator("[aria-label='Disconnected']")).toBeVisible();
+  await expect(app.page.getByTestId("status-badge")).toContainText(
+    "Disconnected",
+  );
 }
 
 /**
