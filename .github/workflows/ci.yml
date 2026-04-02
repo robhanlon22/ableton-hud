@@ -275,7 +275,7 @@ jobs:
     steps:
       - name: Deploy GitHub Pages site
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
