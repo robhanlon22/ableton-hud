@@ -43,7 +43,7 @@ it("throws when hudApi is missing from the global runtime", () => {
   const hudApiReader = readHudApiFromRuntime;
 
   // assert
-  expect(hudApiReader).toThrowError(
+  expect(hudApiReader).toThrow(
     "hudApi is unavailable in the renderer context.",
   );
 });
@@ -56,7 +56,7 @@ it("throws when hudApi is present but not an object", () => {
   const hudApiReader = readHudApiFromRuntime;
 
   // assert
-  expect(hudApiReader).toThrowError(
+  expect(hudApiReader).toThrow(
     "hudApi is unavailable in the renderer context.",
   );
 });
@@ -71,7 +71,7 @@ it("throws when hudApi does not expose the full preload contract", () => {
   const hudApiReader = readHudApiFromRuntime;
 
   // assert
-  expect(hudApiReader).toThrowError(
+  expect(hudApiReader).toThrow(
     "hudApi is unavailable in the renderer context.",
   );
 });

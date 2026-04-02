@@ -53,10 +53,10 @@ test("exports shared HUD and timing contracts", () => {
   const hudMode: HudMode = hudState.mode;
 
   // act
-  assertType<CounterParts>(counterParts);
-  assertType<ClipTimingMeta>(clipTiming);
-  assertType<TimingGrid>(timingGrid);
-  assertType<HudState>(hudState);
+  assertType(counterParts);
+  assertType(clipTiming);
+  assertType(timingGrid);
+  assertType(hudState);
   assertType<HudMode>(hudMode);
 
   // assert

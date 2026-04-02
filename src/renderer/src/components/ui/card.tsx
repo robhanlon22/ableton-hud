@@ -1,5 +1,6 @@
+import type * as React from "react";
+
 import { cn } from "@renderer/lib/utilities";
-import * as React from "react";
 
 /**
  * Renders the base card container.

@@ -1,6 +1,7 @@
+import type * as React from "react";
+
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { cn } from "@renderer/lib/utilities";
-import * as React from "react";
 
 /**
  * Props for the shared Radix-backed tooltip wrapper.
