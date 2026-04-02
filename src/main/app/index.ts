@@ -15,8 +15,8 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const moduleFilePath = fileURLToPath(import.meta.url);
+const moduleDirectoryPath = path.dirname(moduleFilePath);
 const E2E_SESSION_DATA_DIRECTORY_NAME = "session-data";
 const MAX_PORT_NUMBER = 65_535;
 
@@ -327,7 +327,7 @@ async function loadRenderer(win: BrowserWindow): Promise<void> {
     process.env.ELECTRON_RENDERER_URL ?? process.env.VITE_DEV_SERVER_URL;
   await (rendererUrl
     ? win.loadURL(rendererUrl)
-    : win.loadFile(path.join(__dirname, "../renderer/index.html")));
+    : win.loadFile(path.join(moduleDirectoryPath, "../renderer/index.html")));
 }
 
 /**
@@ -475,9 +475,9 @@ function resolvePreCompactBounds(
  */
 function resolvePreloadPath(): string {
   const preloadCandidates = [
-    path.join(__dirname, "../preload/index.cjs"),
-    path.join(__dirname, "../preload/index.js"),
-    path.join(__dirname, "../preload/index.mjs"),
+    path.join(moduleDirectoryPath, "../preload/index.cjs"),
+    path.join(moduleDirectoryPath, "../preload/index.js"),
+    path.join(moduleDirectoryPath, "../preload/index.mjs"),
   ];
   const preloadPath =
     preloadCandidates.find((candidate) => existsSync(candidate)) ??
