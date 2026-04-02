@@ -138,7 +138,7 @@ jobs:
 
       - name: Upload Playwright artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-artifacts-${{ matrix.report_tag }}
           path: test-results/playwright
@@ -146,7 +146,7 @@ jobs:
 
       - name: Upload Playwright blob report
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-blob-report-${{ matrix.report_tag }}
           path: blob-report
@@ -195,7 +195,7 @@ jobs:
 
       - name: Upload tagged Windows release assets
         if: runner.os == 'Windows' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-assets-windows
           path: |
@@ -214,7 +214,7 @@ jobs:
 
       - name: Upload tagged macOS release assets
         if: runner.os == 'macOS' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-assets-macos
           path: |
@@ -238,7 +238,7 @@ jobs:
         uses: ./.github/actions/setup-ci
 
       - name: Download Playwright blob reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: downloaded-blob-report
           pattern: playwright-blob-report-*
@@ -290,13 +290,13 @@ jobs:
       contents: write
     steps:
       - name: Download tagged macOS release assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-assets-macos
           path: release-assets/macos
 
       - name: Download tagged Windows release assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-assets-windows
           path: release-assets/windows
