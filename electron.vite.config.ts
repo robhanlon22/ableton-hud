@@ -2,7 +2,6 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "electron-vite";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 const projectRootDirectory = fileURLToPath(new URL(".", import.meta.url));
 
@@ -16,12 +15,9 @@ export default defineConfig({
         },
       },
     },
-    plugins: [
-      tsconfigPaths({
-        projects: ["tsconfig.json"],
-        root: projectRootDirectory,
-      }),
-    ],
+    resolve: {
+      tsconfigPaths: true,
+    },
   },
   preload: {
     build: {
@@ -36,25 +32,19 @@ export default defineConfig({
         },
       },
     },
-    plugins: [
-      tsconfigPaths({
-        projects: ["tsconfig.json"],
-        root: projectRootDirectory,
-      }),
-    ],
+    resolve: {
+      tsconfigPaths: true,
+    },
   },
   renderer: {
     base: "./",
     build: {
       outDir: "out/renderer",
     },
-    plugins: [
-      tsconfigPaths({
-        projects: ["tsconfig.json"],
-        root: projectRootDirectory,
-      }),
-      react(),
-    ],
+    plugins: [react()],
+    resolve: {
+      tsconfigPaths: true,
+    },
     root: "src/renderer",
   },
 });
