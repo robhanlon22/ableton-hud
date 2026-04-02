@@ -1,10 +1,7 @@
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
-import { fileURLToPath } from "node:url";
-import tsconfigPaths from "vite-tsconfig-paths";
 import { defineConfig } from "vitest/config";
 
-const projectRootDirectory = fileURLToPath(new URL(".", import.meta.url));
 const defaultVitestSeed = Date.now();
 
 /**
@@ -27,13 +24,10 @@ export default defineConfig({
   optimizeDeps: {
     include: ["react-dom/client"],
   },
-  plugins: [
-    tsconfigPaths({
-      projects: ["tsconfig.json"],
-      root: projectRootDirectory,
-    }),
-    react(),
-  ],
+  plugins: [react()],
+  resolve: {
+    tsconfigPaths: true,
+  },
   test: {
     clearMocks: true,
     coverage: {
