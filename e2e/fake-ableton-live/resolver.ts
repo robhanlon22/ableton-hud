@@ -73,11 +73,9 @@ export function resolveChildren(
   }
 
   const clipSlotChildren = resolveClipSlotChildren(snapshot, path, child);
-  if (clipSlotChildren) {
-    return selectByIndex(clipSlotChildren, index);
-  }
-
-  return resolveClipChildren(snapshot, path, child) ?? [];
+  return clipSlotChildren
+    ? selectByIndex(clipSlotChildren, index)
+    : (resolveClipChildren(snapshot, path, child) ?? []);
 }
 
 /**
@@ -96,16 +94,12 @@ export function resolveGet(
     return snapshot.selectedTrackId;
   }
 
-  if (path === LIVE_SET_PATH) {
-    return resolveSongProperty(snapshot.song, property);
-  }
-
-  return (
-    resolveTrackProperty(snapshot, path, property) ??
-    resolveSceneProperty(snapshot, path, property) ??
-    resolveClipSlotProperty(snapshot, path, property) ??
-    resolveClipProperty(snapshot, path, property)
-  );
+  return path === LIVE_SET_PATH
+    ? resolveSongProperty(snapshot.song, property)
+    : (resolveTrackProperty(snapshot, path, property) ??
+        resolveSceneProperty(snapshot, path, property) ??
+        resolveClipSlotProperty(snapshot, path, property) ??
+        resolveClipProperty(snapshot, path, property));
 }
 
 /**
@@ -192,11 +186,11 @@ const resolveClipChildren = (
 
   const { slotIndex, trackIndex } = indexes;
   const slot = snapshot.tracks.at(trackIndex)?.clipSlots.at(slotIndex);
-  if (!slot?.hasClip) {
-    return [EMPTY_CLIP_CHILD];
-  }
-
-  return [createRawClip(slot.clip, trackIndex, slotIndex)];
+  return [
+    slot?.hasClip
+      ? createRawClip(slot.clip, trackIndex, slotIndex)
+      : EMPTY_CLIP_CHILD,
+  ];
 };
 
 /**
@@ -248,14 +242,10 @@ const resolveClipSlotProperty = (
   property: string,
 ): boolean | undefined => {
   const indexes = parseClipSlotIndexes(path);
-  if (!indexes || property !== "has_clip") {
-    return undefined;
-  }
-
-  return (
-    snapshot.tracks.at(indexes.trackIndex)?.clipSlots.at(indexes.slotIndex)
-      ?.hasClip ?? false
-  );
+  return indexes && property === "has_clip"
+    ? (snapshot.tracks.at(indexes.trackIndex)?.clipSlots.at(indexes.slotIndex)
+        ?.hasClip ?? false)
+    : undefined;
 };
 
 /**
@@ -440,10 +430,7 @@ const parsePathIndexes = (
  * @returns The original list or a single-item slice.
  */
 const selectByIndex = <T>(items: T[], index?: number): T[] => {
-  if (index === undefined) {
-    return items;
-  }
-  return items.slice(index, index + 1);
+  return index === undefined ? items : items.slice(index, index + 1);
 };
 
 /**

@@ -6,7 +6,7 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@12.11.2",
   "scripts": {
     "dev": "electron-vite dev",
     "dev:debug": "sh ./scripts/dev-debug.sh",
@@ -17,7 +17,7 @@
     "test": "vitest run --coverage",
     "test:e2e": "pnpm run build && playwright test -c playwright.electron.config.ts",
     "test:e2e:headed": "pnpm run build && playwright test -c playwright.electron.config.ts --headed",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node ./node_modules/@typescript/native/bin/tsc --noEmit",
     "dist:mac": "pnpm run build && electron-builder --mac dir --universal",
     "dist:win": "pnpm run build && electron-builder --win nsis --x64 --publish never"
   },
@@ -49,7 +49,7 @@
     ]
   },
   "devDependencies": {
-    "@eslint-react/eslint-plugin": "^4.2.1",
+    "@eslint-react/eslint-plugin": "^5.0.0",
     "@eslint/compat": "^2.0.3",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.59.1",
@@ -58,32 +58,33 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "@vitejs/plugin-react": "^6.0.1",
-    "@vitest/browser": "^4.1.2",
-    "@vitest/browser-playwright": "^4.1.2",
-    "@vitest/coverage-v8": "^4.1.2",
+    "@vitest/browser": "^5.0.4",
+    "@vitest/browser-playwright": "^5.0.4",
+    "@vitest/coverage-v8": "^5.0.4",
     "autoprefixer": "^10.4.27",
-    "electron": "^41.1.1",
+    "electron": "^44.0.0",
     "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
     "eslint": "^10.1.0",
-    "eslint-plugin-jsdoc": "^62.9.0",
-    "eslint-plugin-n": "^17.24.0",
+    "eslint-plugin-jsdoc": "^65.0.0",
+    "eslint-plugin-n": "^18.0.0",
     "eslint-plugin-perfectionist": "^5.7.0",
     "eslint-plugin-regexp": "^3.1.0",
     "eslint-plugin-sonarjs": "^4.0.2",
     "eslint-plugin-tsdoc": "^0.5.2",
-    "eslint-plugin-unicorn": "^64.0.0",
+    "eslint-plugin-unicorn": "^78.0.0",
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.4.0",
     "playwright": "^1.59.1",
     "postcss": "^8.5.8",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.2.2",
-    "typescript": "^6.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.58.0",
     "vite": "^8.0.3",
-    "vitest": "^4.1.2",
+    "vitest": "^5.0.4",
     "vitest-browser-react": "^2.1.0"
   },
   "dependencies": {
@@ -99,5 +100,8 @@
     "tailwind-merge": "^3.5.0",
     "ws": "^8.20.0",
     "zod": "^4.3.6"
+  },
+  "engines": {
+    "node": "^22.22.2 || >=24.15.0"
   }
 }

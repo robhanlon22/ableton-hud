@@ -318,10 +318,7 @@ export function toUtf8String(payload: unknown): string {
     });
     return Buffer.concat(buffers).toString("utf8");
   }
-  if (Buffer.isBuffer(payload)) {
-    return payload.toString("utf8");
-  }
-  return "";
+  return Buffer.isBuffer(payload) ? payload.toString("utf8") : "";
 }
 
 /**
@@ -333,8 +330,7 @@ export function toWireString(value: unknown): string {
   if (typeof value === "string") {
     return value;
   }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  return "";
+  return typeof value === "number" || typeof value === "boolean"
+    ? String(value)
+    : "";
 }

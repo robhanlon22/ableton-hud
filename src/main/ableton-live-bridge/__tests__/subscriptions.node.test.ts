@@ -312,11 +312,9 @@ it("subscribes clip observers and applies clip updates", async () => {
         return resolved(1);
       }
 
-      if (property === "loop_end") {
-        return resolved(INITIAL_CLIP_LOOP_END);
-      }
-
-      return resolved(LOOPING_ENABLED);
+      return property === "loop_end"
+        ? resolved(INITIAL_CLIP_LOOP_END)
+        : resolved(LOOPING_ENABLED);
     }),
     observe: vi.fn((property: ClipProperty, listener: Observer) => {
       listeners.set(property, listener);
@@ -404,11 +402,7 @@ it("ignores clip updates after the active clip changes or the token shifts", asy
         bridge.selectedTrackToken += 1;
       }
 
-      if (property === "name") {
-        return resolved({ bad: true });
-      }
-
-      return resolved(1);
+      return property === "name" ? resolved({ bad: true }) : resolved(1);
     }),
     observe: vi.fn((property: ClipProperty, listener: Observer) => {
       listeners.set(property, listener);

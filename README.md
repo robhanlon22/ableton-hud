@@ -137,6 +137,8 @@ A small desktop HUD for Ableton Live that shows the current clip position in
 
 ### 1. Download and launch the app
 
+macOS builds require macOS 13 (Ventura) or later.
+
 Grab the latest release from GitHub Releases:
 
 - macOS:
@@ -224,8 +226,8 @@ If the HUD launches but shows a disconnected state, jump to
 
 ### Requirements
 
-- Node.js 22+
-- pnpm 10+
+- Node.js 22.22.2+ on the 22.x release line, or 24.15.0+ on the 24.x release line
+- pnpm 12.11.2, as pinned in `package.json`
 - Ableton Live plus Max for Live if you want to test against a real Live
   session
 
@@ -269,6 +271,8 @@ pre-commit run --all-files
 Useful notes:
 
 - `pnpm run lint` is the zero-warning lint gate.
+- `pnpm run typecheck` uses TypeScript 7's native compiler. ESLint uses the
+  TypeScript 6 compatibility API installed under the `typescript` package name.
 - `pnpm test` randomizes file order and in-file test order.
 - Reproduce a shuffled Vitest run with
   `VITEST_SEQUENCE_SEED=<seed> pnpm test`.

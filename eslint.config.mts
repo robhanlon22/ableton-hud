@@ -8,7 +8,6 @@ import perfectionist from "eslint-plugin-perfectionist";
 import regexp from "eslint-plugin-regexp";
 import { configs as sonarjsConfigs } from "eslint-plugin-sonarjs";
 import tsdoc from "eslint-plugin-tsdoc";
-import unicorn from "eslint-plugin-unicorn";
 import unusedImports from "eslint-plugin-unused-imports";
 import { defineConfig, includeIgnoreFile } from "eslint/config";
 import globals from "globals";
@@ -18,6 +17,8 @@ import tseslint from "typescript-eslint";
 
 // eslint-disable-next-line n/no-missing-import -- false positive for the local custom rule module in flat config
 import arrangeActAssertRule from "./eslint-rules/arrange-act-assert.js";
+// eslint-disable-next-line n/no-missing-import -- false positive for the local policy module in flat config
+import unicornPolicy from "./eslint-rules/unicorn-policy.js";
 
 const { dirname, resolve } = path;
 const __filename = fileURLToPath(import.meta.url);
@@ -102,7 +103,7 @@ export default defineConfig([
   perfectionist.configs["recommended-natural"],
   scopeConfig(sonarjsConfigs.recommended, codeFiles),
   scopeConfig(regexp.configs.recommended, codeFiles),
-  scopeConfig(unicorn.configs.recommended, codeFiles),
+  scopeConfig(unicornPolicy, codeFiles),
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
   scopeConfig(eslintPluginN.configs["flat/recommended"], nodeRuntimeFiles),

@@ -95,11 +95,9 @@ it("applies the selected track and wires observer updates", async () => {
         return resolved("Bass");
       }
 
-      if (property === "color") {
-        return resolved(INITIAL_TRACK_COLOR);
-      }
-
-      return resolved(INITIAL_PLAYING_SLOT_INDEX);
+      return resolved(
+        property === "color" ? INITIAL_TRACK_COLOR : INITIAL_PLAYING_SLOT_INDEX,
+      );
     }),
     observe: vi.fn((property: TrackProperty, listener: Observer) => {
       listeners.set(property, listener);

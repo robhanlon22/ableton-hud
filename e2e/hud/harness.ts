@@ -463,15 +463,12 @@ function formatCaptureError(error: unknown): string | undefined {
  */
 function isAsciiArtifactCharacter(character: string): boolean {
   const codePoint = character.codePointAt(0);
-  if (codePoint === undefined) {
-    return false;
-  }
-
   return (
-    (codePoint >= ASCII_DIGIT_ZERO_CODE_POINT &&
+    codePoint !== undefined &&
+    ((codePoint >= ASCII_DIGIT_ZERO_CODE_POINT &&
       codePoint <= ASCII_DIGIT_NINE_CODE_POINT) ||
-    (codePoint >= ASCII_LOWERCASE_A_CODE_POINT &&
-      codePoint <= ASCII_LOWERCASE_Z_CODE_POINT)
+      (codePoint >= ASCII_LOWERCASE_A_CODE_POINT &&
+        codePoint <= ASCII_LOWERCASE_Z_CODE_POINT))
   );
 }
 
