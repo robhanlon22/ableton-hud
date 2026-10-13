@@ -63,7 +63,7 @@
     "@vitest/browser-playwright": "^5.0.0",
     "@vitest/coverage-v8": "^5.0.0",
     "autoprefixer": "^10.4.27",
-    "electron": "^41.1.1",
+    "electron": "^44.0.0",
     "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
     "eslint": "^10.1.0",
