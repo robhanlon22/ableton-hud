@@ -6,7 +6,7 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "packageManager": "pnpm@10.34.7",
+  "packageManager": "pnpm@12.11.2",
   "scripts": {
     "dev": "electron-vite dev",
     "dev:debug": "sh ./scripts/dev-debug.sh",
