@@ -139,7 +139,7 @@ describe("PrefStore save", () => {
     });
 
     // assert
-    expect(getPathMock.mock.calls.length).toBe(getPathCallCountBeforeSave);
+    expect(getPathMock.mock.calls).toHaveLength(getPathCallCountBeforeSave);
     expect(mkdirMock).toHaveBeenCalled();
     expect(writeFileMock).toHaveBeenCalledWith(
       path.join(TEST_E2E_HOME, "hud-preferences.json"),
