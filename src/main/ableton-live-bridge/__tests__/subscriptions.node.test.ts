@@ -344,7 +344,7 @@ it("subscribes clip observers and applies clip updates", async () => {
   // assert
   expect(bridge.clipName).toBe("Clip B");
   expect(bridge.clipColor).toBe(CLIP_COLOR);
-  expect(bridge.clipMeta.length).toBe(CLIP_LENGTH);
+  expect(bridge.clipMeta).toHaveLength(CLIP_LENGTH);
   expect(bridge.clipMeta.loopStart).toBe(CLIP_LOOP_START);
   expect(bridge.clipMeta.loopEnd).toBe(CLIP_END);
   expect(bridge.clipMeta.looping).toBe(false);

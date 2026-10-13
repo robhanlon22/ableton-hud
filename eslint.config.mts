@@ -1,7 +1,6 @@
 import type { Linter } from "eslint";
 
 import reactPlugin from "@eslint-react/eslint-plugin";
-import { includeIgnoreFile } from "@eslint/compat";
 import js from "@eslint/js";
 import jsdoc from "eslint-plugin-jsdoc";
 import eslintPluginN from "eslint-plugin-n";
@@ -11,7 +10,7 @@ import { configs as sonarjsConfigs } from "eslint-plugin-sonarjs";
 import tsdoc from "eslint-plugin-tsdoc";
 import unicorn from "eslint-plugin-unicorn";
 import unusedImports from "eslint-plugin-unused-imports";
-import { defineConfig } from "eslint/config";
+import { defineConfig, includeIgnoreFile } from "eslint/config";
 import globals from "globals";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -284,7 +283,7 @@ export default defineConfig([
     ignores: rendererSourceIgnores,
     rules: {
       "@eslint-react/no-unused-props": "error",
-      "@eslint-react/prefer-destructuring-assignment": "error",
+      "prefer-destructuring": ["error", { array: false, object: true }],
     },
   },
   {

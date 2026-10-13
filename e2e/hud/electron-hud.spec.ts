@@ -371,6 +371,7 @@ test("automatically reconnects after an unexpected live socket drop", async () =
 });
 
 test.describe("Fullscreen overlay policy", () => {
+  // Fullscreen workspace policy is macOS-specific.
   test.skip(
     process.platform !== "darwin",
     "Fullscreen workspace policy is macOS-specific.",
