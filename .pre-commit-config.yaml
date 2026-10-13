@@ -12,9 +12,9 @@ repos:
         entry: pnpm run lint:fix
         files: \.(?:[cm]?js|jsx|[cm]?ts|tsx)$
       - id: tsc-noemit
-        name: tsc --noEmit
+        name: pnpm run typecheck
         language: system
-        entry: pnpm exec tsc --noEmit
+        entry: pnpm run typecheck
         pass_filenames: false
         always_run: true
       - id: validate-harness-docs

@@ -26,15 +26,15 @@ function findSectionComments(sourceCode, body) {
       continue;
     }
 
-    if (match[1] === "arrange" && arrangeComment === undefined) {
+    if (arrangeComment === undefined && match[1] === "arrange") {
       arrangeComment = comment;
       continue;
     }
-    if (match[1] === "act" && actComment === undefined) {
+    if (actComment === undefined && match[1] === "act") {
       actComment = comment;
       continue;
     }
-    if (match[1] === "assert" && assertComment === undefined) {
+    if (assertComment === undefined && match[1] === "assert") {
       assertComment = comment;
     }
   }

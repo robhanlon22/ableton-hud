@@ -120,11 +120,9 @@ it("filters invalid Live surface shapes and non-function cleanups", async () => 
   // arrange
   const { harness, session: bridge } = await createSession();
   harness.instance.song.child = vi.fn((child: "scenes" | "tracks") => {
-    if (child === "tracks") {
-      return resolved({ bad: true });
-    }
-
-    return resolved({ get: vi.fn(() => resolved("x")) });
+    return child === "tracks"
+      ? resolved({ bad: true })
+      : resolved({ get: vi.fn(() => resolved("x")) });
   });
   harness.instance.song.children = vi.fn(() => {
     return resolved([createLiveTrack(), { bad: true }]);

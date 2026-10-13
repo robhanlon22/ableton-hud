@@ -872,11 +872,7 @@ export class BridgeSession {
    */
   private isActiveClip(track: number, clip: number): boolean {
     const activeClip = this.activeClip;
-    if (activeClip === undefined) {
-      return false;
-    }
-
-    return activeClip.track === track && activeClip.clip === clip;
+    return activeClip?.track === track && activeClip.clip === clip;
   }
 
   /**
@@ -1273,8 +1269,7 @@ function disconnectLiveClient(liveClient: LiveClient): void {
 
 /**
  * Swallows observer cleanup failures during teardown.
- * @returns `undefined`.
  */
 function ignoreObserverCleanupError(): void {
-  return undefined;
+  return;
 }

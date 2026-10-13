@@ -45,11 +45,9 @@ export function getHudApi(): HudApi {
  * @returns Whether the candidate exposes the preload HUD API shape.
  */
 function isHudApi(candidate: unknown): candidate is HudApi {
-  if (!candidate || typeof candidate !== "object") {
-    return false;
-  }
-
   return (
+    candidate !== null &&
+    typeof candidate === "object" &&
     "getInitialState" in candidate &&
     "onHudState" in candidate &&
     "setCompactView" in candidate &&

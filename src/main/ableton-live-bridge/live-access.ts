@@ -333,11 +333,11 @@ function hasNamedMethod(value: object, methodName: string): boolean {
   }
 
   const prototypeCandidate: unknown = Object.getPrototypeOf(value);
-  if (prototypeCandidate === null || typeof prototypeCandidate !== "object") {
-    return false;
-  }
-
-  return hasNamedMethod(prototypeCandidate, methodName);
+  return (
+    prototypeCandidate !== null &&
+    typeof prototypeCandidate === "object" &&
+    hasNamedMethod(prototypeCandidate, methodName)
+  );
 }
 
 /**

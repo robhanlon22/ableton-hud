@@ -426,9 +426,9 @@ const statusIcon = (status: StatusKind): React.JSX.Element => {
   if (status === "playing") {
     return <Play aria-hidden className="h-3.5 w-3.5 fill-current" />;
   }
-  if (status === "stopped") {
-    return <Square aria-hidden className="h-3 w-3 fill-current" />;
-  }
-
-  return <WifiOff aria-hidden className="h-3.5 w-3.5" />;
+  return status === "stopped" ? (
+    <Square aria-hidden className="h-3 w-3 fill-current" />
+  ) : (
+    <WifiOff aria-hidden className="h-3.5 w-3.5" />
+  );
 };

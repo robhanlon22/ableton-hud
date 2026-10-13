@@ -1,4 +1,4 @@
-/* eslint-disable unicorn/prevent-abbreviations */
+/* eslint-disable unicorn/name-replacements */
 
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
@@ -76,10 +76,9 @@ const linkExpectations = [
 async function pathExists(relativePath, expectedType) {
   try {
     const details = await stat(path.join(repoRoot, relativePath));
-    if (expectedType === "directory") {
-      return details.isDirectory();
-    }
-    return details.isFile();
+    return expectedType === "directory"
+      ? details.isDirectory()
+      : details.isFile();
   } catch {
     return false;
   }

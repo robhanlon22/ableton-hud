@@ -44,15 +44,11 @@ export function resolveLivePort(value: string | undefined): number {
   }
 
   const parsed = Number.parseInt(value, 10);
-  if (
-    !Number.isInteger(parsed) ||
+  return !Number.isInteger(parsed) ||
     parsed < MIN_PORT_NUMBER ||
     parsed > MAX_PORT_NUMBER
-  ) {
-    return DEFAULT_BRIDGE_PORT;
-  }
-
-  return parsed;
+    ? DEFAULT_BRIDGE_PORT
+    : parsed;
 }
 
 /**
@@ -84,11 +80,9 @@ export function toBoolean(value: unknown): boolean {
  */
 export function toColorValue(value: unknown): number | undefined {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return undefined;
-  }
-
-  return (Math.round(parsed) >>> 0) & MAX_RGB_COLOR;
+  return Number.isFinite(parsed)
+    ? (Math.round(parsed) >>> 0) & MAX_RGB_COLOR
+    : undefined;
 }
 
 /**
@@ -122,16 +116,12 @@ export function toStringValue(value: unknown): string {
     return value;
   }
 
-  if (
-    typeof value === "number" ||
+  return typeof value === "number" ||
     typeof value === "boolean" ||
     typeof value === "bigint" ||
     typeof value === "symbol"
-  ) {
-    return String(value);
-  }
-
-  return "";
+    ? String(value)
+    : "";
 }
 
 /**
@@ -251,10 +241,9 @@ function toRecord(value: unknown): Record<string, unknown> {
     return {};
   }
 
-  const record: Record<string, unknown> = {};
-  for (const [key, entryValue] of Object.entries(value)) {
-    record[key] = entryValue;
-  }
+  const record: Record<string, unknown> = Object.fromEntries(
+    Object.entries(value),
+  );
   return record;
 }
 

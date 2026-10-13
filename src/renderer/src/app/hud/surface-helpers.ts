@@ -155,11 +155,7 @@ export function statusKind(state: HudState): StatusKind {
   if (!state.connected) {
     return "disconnected";
   }
-  if (state.isPlaying) {
-    return "playing";
-  }
-
-  return "stopped";
+  return state.isPlaying ? "playing" : "stopped";
 }
 
 /**
@@ -171,11 +167,7 @@ export function statusLabel(status: StatusKind): string {
   if (status === "playing") {
     return "Playing";
   }
-  if (status === "stopped") {
-    return "Stopped";
-  }
-
-  return "Disconnected";
+  return status === "stopped" ? "Stopped" : "Disconnected";
 }
 
 /**
@@ -251,11 +243,9 @@ function panelFlashClass(
   if (state.isLastBar) {
     return "border-[#7a4f54] bg-[#32252a]";
   }
-  if (state.isDownbeat) {
-    return "border-[#546a4b] bg-[#2a3327]";
-  }
-
-  return "border-[#4a5a45] bg-[#272f25]";
+  return state.isDownbeat
+    ? "border-[#546a4b] bg-[#2a3327]"
+    : "border-[#4a5a45] bg-[#272f25]";
 }
 
 /**
@@ -282,11 +272,8 @@ function relativeLuminance(color: number): number {
  */
 function srgbToLinear(channel: number): number {
   const normalizedChannel = channel / SRGB_CHANNEL_DIVISOR;
-  if (normalizedChannel <= SRGB_LINEAR_THRESHOLD) {
-    return normalizedChannel / SRGB_LINEAR_DIVISOR;
-  }
-
-  return (
-    ((normalizedChannel + SRGB_GAMMA_OFFSET) / SRGB_GAMMA_SCALE) ** SRGB_GAMMA
-  );
+  return normalizedChannel <= SRGB_LINEAR_THRESHOLD
+    ? normalizedChannel / SRGB_LINEAR_DIVISOR
+    : ((normalizedChannel + SRGB_GAMMA_OFFSET) / SRGB_GAMMA_SCALE) **
+        SRGB_GAMMA;
 }

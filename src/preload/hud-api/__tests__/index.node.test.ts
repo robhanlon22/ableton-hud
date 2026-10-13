@@ -99,11 +99,9 @@ function getHudStateListener(): HudStateListener {
  * @returns Whether the value is a HUD API implementation.
  */
 function isHudApi(value: unknown): value is HudApi {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
   return (
+    value !== null &&
+    typeof value === "object" &&
     "getInitialState" in value &&
     "onHudState" in value &&
     "setCompactView" in value &&
@@ -135,10 +133,9 @@ describe("preload hudApi exposure", () => {
     // arrange
     const statePayload = createStatePayload();
     invokeMock.mockImplementation((channel: string) => {
-      if (channel === "hud:get-initial-state") {
-        return Promise.resolve(statePayload);
-      }
-      return Promise.resolve();
+      return channel === "hud:get-initial-state"
+        ? Promise.resolve(statePayload)
+        : Promise.resolve();
     });
 
     // act

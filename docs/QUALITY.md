@@ -33,10 +33,15 @@ Use this file as the source of truth for validation routing and reporting.
   - `node ./scripts/validate-harness-docs.mjs`
   - `pnpm exec prettier --write --ignore-unknown`
   - `pnpm run lint:fix`
-  - `pnpm exec tsc --noEmit`
+  - `pnpm run typecheck`
 - `pnpm test`
   - runs Vitest with shuffled file and test order
   - replay a specific order with `VITEST_SEQUENCE_SEED=<seed> pnpm test`
+
+`pnpm run typecheck` invokes the TypeScript 7 native compiler explicitly.
+The `typescript` dependency aliases `@typescript/typescript6` so ESLint and
+other tools retain the TypeScript 6 compiler API, following TypeScript's
+[documented compatibility setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6-0).
 
 ### Manual lint commands
 

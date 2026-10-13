@@ -95,11 +95,9 @@ it("emits song-time updates only when the beat-derived HUD state changes", async
       return resolved(BOOTSTRAP_DENOMINATOR);
     }
 
-    if (property === "is_playing") {
-      return resolved(true);
-    }
-
-    return resolved(FIRST_SONG_TIME);
+    return property === "is_playing"
+      ? resolved(true)
+      : resolved(FIRST_SONG_TIME);
   });
   bridge.access.safeSongViewGet = vi.fn(() => resolved(INITIAL_SELECTED_TRACK));
   vi.spyOn(bridge, "handleSelectedTrack").mockImplementation(
@@ -205,11 +203,9 @@ it("bootstraps observers and applies callback updates", async () => {
       return resolved(BOOTSTRAP_DENOMINATOR);
     }
 
-    if (property === "is_playing") {
-      return resolved("true");
-    }
-
-    return resolved(TRACKING_SONG_TIME);
+    return property === "is_playing"
+      ? resolved("true")
+      : resolved(TRACKING_SONG_TIME);
   });
   bridge.access.safeSongViewGet = vi.fn(() =>
     resolved({ path: "live_set tracks 2" }),
@@ -248,11 +244,9 @@ it("returns early from bootstrap when the epoch changes after selected-track loo
       return resolved(BOOTSTRAP_DENOMINATOR);
     }
 
-    if (property === "is_playing") {
-      return resolved(true);
-    }
-
-    return resolved(TRACKING_SONG_TIME);
+    return property === "is_playing"
+      ? resolved(true)
+      : resolved(TRACKING_SONG_TIME);
   });
   bridge.access.safeSongViewGet = vi.fn(() => {
     bridge.connectionEpoch += 1;
@@ -281,11 +275,9 @@ it("returns early from bootstrap when the epoch changes during selected-track re
       return resolved(BOOTSTRAP_DENOMINATOR);
     }
 
-    if (property === "is_playing") {
-      return resolved(true);
-    }
-
-    return resolved(TRACKING_SONG_TIME);
+    return property === "is_playing"
+      ? resolved(true)
+      : resolved(TRACKING_SONG_TIME);
   });
   bridge.access.safeSongViewGet = vi.fn(() =>
     resolved({ path: "live_set tracks 2" }),

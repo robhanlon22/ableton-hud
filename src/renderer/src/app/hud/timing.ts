@@ -15,8 +15,7 @@ export function flashDuration(
   if (state.isLastBar && state.isDownbeat) {
     return DOWNBEAT_LAST_BAR_FLASH_MS;
   }
-  if (state.isLastBar || state.isDownbeat) {
-    return EMPHASIZED_FLASH_MS;
-  }
-  return STANDARD_FLASH_MS;
+  return state.isLastBar || state.isDownbeat
+    ? EMPHASIZED_FLASH_MS
+    : STANDARD_FLASH_MS;
 }

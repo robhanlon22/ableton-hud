@@ -67,10 +67,7 @@ export class PrefStore {
     try {
       const raw = await readFile(this.path, "utf8");
       const parsed = PrefsSchema.safeParse(JSON.parse(raw));
-      if (!parsed.success) {
-        return { ...DEFAULT_PREFS };
-      }
-      return parsed.data;
+      return parsed.success ? parsed.data : { ...DEFAULT_PREFS };
     } catch {
       return { ...DEFAULT_PREFS };
     }

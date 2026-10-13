@@ -88,16 +88,16 @@ interface HudAppState {
  * @returns The current HUD state and UI callbacks.
  */
 export const useHudAppState = (): HudAppState => {
-  // eslint-disable-next-line unicorn/prevent-abbreviations -- React ref identifiers should end in `Ref`.
+  // eslint-disable-next-line unicorn/name-replacements -- React ref identifiers should end in `Ref`.
   const compactPanelElementRef = useRef<HTMLDivElement>(null);
   const [hudState, setHudState] = useState<HudState>(() =>
     createDefaultHudState(),
   );
   const [isCompactView, setIsCompactView] = useState(false);
   const [isFlashActive, setIsFlashActive] = useState(false);
-  // eslint-disable-next-line unicorn/prevent-abbreviations -- React ref identifiers must end in `Ref`.
+  // eslint-disable-next-line unicorn/name-replacements -- React ref identifiers must end in `Ref`.
   const lastFlashTokenReferenceRef = useRef(-1);
-  // eslint-disable-next-line unicorn/prevent-abbreviations -- React ref identifiers must end in `Ref`.
+  // eslint-disable-next-line unicorn/name-replacements -- React ref identifiers must end in `Ref`.
   const lastCompactSizeReferenceRef = useRef<CompactSize | undefined>(
     undefined,
   );
