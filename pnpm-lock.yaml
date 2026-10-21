@@ -88,8 +88,8 @@ importers:
         specifier: ^10.4.27
         version: 10.4.27(postcss@8.5.23)
       electron:
-        specifier: ^41.1.1
-        version: 41.10.6
+        specifier: ^44.0.0
+        version: 44.9.3
       electron-builder:
         specifier: ^26.8.1
         version: 26.8.1(electron-builder-squirrel-windows@26.8.1)
@@ -2033,8 +2033,8 @@ packages:
     resolution: {integrity: sha512-bO3y10YikuUwUuDUQRM4KfwNkKhnpVO7IPdbsrejwN9/AABJzzTQ4GeHwyzNSrVO+tEH3/Np255a3sVZpZDjvg==}
     engines: {node: '>=8.0.0'}
 
-  electron@41.10.6:
-    resolution: {integrity: sha512-NEB7QnVpT2p8S9U5jOCPAtCyhl1WjRT/ODvJP6ec1/dZRUmf/EjYVOBb/dthCmJh4bISqpAroGJ/xRRxX7VwJw==}
+  electron@44.9.3:
+    resolution: {integrity: sha512-Cv9/yMnZxNWsMlIe8T4v//NKHdUvbeyoTJoXE3BIcRxus2meeFaO9h/P3zB5d4cBXum51IgAYrT2QjpIDWKpJA==}
     engines: {node: '>= 22.12.0'}
     hasBin: true
 
@@ -4088,7 +4088,7 @@ snapshots:
       node-gyp: 11.5.0
       ora: 5.4.1
       read-binary-file-arch: 1.0.6
-      semver: 7.7.4
+      semver: 7.8.5
       tar: 7.5.13
       yargs: 17.7.2
     transitivePeerDependencies:
@@ -4542,7 +4542,7 @@ snapshots:
 
   '@npmcli/fs@4.0.0':
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.5
 
   '@oxc-project/types@0.133.0': {}
 
@@ -5728,7 +5728,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron@41.10.6:
+  electron@44.9.3:
     dependencies:
       '@electron-internal/extract-zip': 1.0.5
       '@electron/get': 5.1.0
@@ -5851,7 +5851,7 @@ snapshots:
   eslint-compat-utils@0.5.1(eslint@10.12.0(jiti@2.6.1)):
     dependencies:
       eslint: 10.12.0(jiti@2.6.1)
-      semver: 7.7.4
+      semver: 7.8.5
 
   eslint-plugin-es-x@7.8.0(eslint@10.12.0(jiti@2.6.1)):
     dependencies:
@@ -6313,7 +6313,7 @@ snapshots:
       es6-error: 4.1.1
       matcher: 3.0.0
       roarr: 2.15.4
-      semver: 7.7.4
+      semver: 7.8.5
       serialize-error: 7.0.1
     optional: true
 
@@ -6844,14 +6844,14 @@ snapshots:
 
   node-abi@4.28.0:
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.5
 
   node-addon-api@1.7.2:
     optional: true
 
   node-api-version@0.2.1:
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.5
 
   node-gyp@11.5.0:
     dependencies:
@@ -6861,7 +6861,7 @@ snapshots:
       make-fetch-happen: 14.0.3
       nopt: 8.1.0
       proc-log: 5.0.0
-      semver: 7.7.4
+      semver: 7.8.5
       tar: 7.5.13
       tinyglobby: 0.2.17
       which: 5.0.0
