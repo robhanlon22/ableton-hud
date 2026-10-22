@@ -40,7 +40,7 @@ importers:
         version: 3.5.0
       ws:
         specifier: ^8.20.0
-        version: 8.21.0
+        version: 8.22.0
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -71,7 +71,7 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       '@types/ws':
         specifier: ^8.18.1
-        version: 8.18.1
+        version: 8.18.2
       '@vitejs/plugin-react':
         specifier: ^6.0.1
         version: 6.0.1(vite@8.0.16(@types/node@25.9.9)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.1))
@@ -1435,8 +1435,8 @@ packages:
   '@types/verror@1.10.11':
     resolution: {integrity: sha512-RlDm9K7+o5stv0Co8i8ZRGxDbrTxhJtgjqjFyVh/tXQyl/rYtTKlnTvZ88oSTeYREWurwx20Js4kTuKCsFkUtg==}
 
-  '@types/ws@8.18.1':
-    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
+  '@types/ws@8.18.2':
+    resolution: {integrity: sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==}
 
   '@typescript-eslint/eslint-plugin@8.71.2':
     resolution: {integrity: sha512-K72/pvT7qpm8q3k8G5u93NCSN1RcLxX5h7Gw0bQpbMXviBHeY6Nx1WEwmk9wP+eKTSQ8ecxvcgt/ZX/rB938xQ==}
@@ -3491,11 +3491,11 @@ packages:
     resolution: {integrity: sha512-LgO3D9yZJjApUiuUfl9iFAwrtaX4+lok3wJIqttGoKCHlWUqHqbQpnxCf82L8FjgKsh4iGo78hqJwgL8F6To2A==}
     engines: {node: '>=14.0.0'}
 
-  tldts-core@7.4.18:
-    resolution: {integrity: sha512-KI2PKvCmvQI/xD6ypPqkU0i7oxNXR/O58RLRaHR4svsgVUQ2JE/XC8BtMbG6PSehD27I8sZJRcC1ASnCy6lp3g==}
+  tldts-core@7.4.19:
+    resolution: {integrity: sha512-goNXV6Ho9TIOfpJZanTd6CKG5DyYgYAL+k+22T0SLh8l6+KHIfBUPFuePuSZv05UttIaaLmI9tb7TmGIdK5AkQ==}
 
-  tldts@7.4.18:
-    resolution: {integrity: sha512-somxA8xKAUzlAxl0TX/jMSYIbRNFIVGnI96pVGJPeMc5BsHmfVXn6mOJT6U++ELnl04eGfzpfcEuZe8WiASkXg==}
+  tldts@7.4.19:
+    resolution: {integrity: sha512-48dH6aSpQnpbzDUc4vIQZ1VjB8tkK+e8c1yx05/SZK+rkssgjEOlxDd/yU8/a4vGYQ9vRgJr9dwMq9TJ0b3X2Q==}
     hasBin: true
 
   tmp-promise@3.0.3:
@@ -3566,6 +3566,10 @@ packages:
 
   undici@7.30.0:
     resolution: {integrity: sha512-dkrQXeHSaoamnItlYbmzG0wFYrM0ZwDxCIg0A7aKjTyyhh9svRzCNFEzV+Vm05/yehjCzjDZ31KXfGEjYSztDQ==}
+    engines: {node: '>=20.18.1'}
+
+  undici@7.30.1:
+    resolution: {integrity: sha512-03KrMbjIFDWQR5RNPrSw3bd1r12JpyFQl9/yxjUbJtqkjmllqC5lFjZh6ujeuJCKr8EOQvRW872Oy/az+nLYxg==}
     engines: {node: '>=20.18.1'}
 
   unique-filename@4.0.0:
@@ -3750,8 +3754,8 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
-  ws@8.21.0:
-    resolution: {integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==}
+  ws@8.22.0:
+    resolution: {integrity: sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -4960,7 +4964,7 @@ snapshots:
   '@types/verror@1.10.11':
     optional: true
 
-  '@types/ws@8.18.1':
+  '@types/ws@8.18.2':
     dependencies:
       '@types/node': 25.9.9
 
@@ -5136,7 +5140,7 @@ snapshots:
       sirv: 3.0.2
       tinyrainbow: 3.2.0
       vitest: 4.1.11(@types/node@25.9.9)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@28.1.0)(vite@8.0.16(@types/node@25.9.9)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.1))
-      ws: 8.21.0
+      ws: 8.22.0
     transitivePeerDependencies:
       - bufferutil
       - msw
@@ -6526,7 +6530,7 @@ snapshots:
       saxes: 6.0.0
       symbol-tree: 3.2.4
       tough-cookie: 6.0.2
-      undici: 7.30.0
+      undici: 7.30.1
       w3c-xmlserializer: 5.0.0
       webidl-conversions: 8.0.1
       whatwg-mimetype: 5.0.0
@@ -7319,12 +7323,12 @@ snapshots:
 
   tinyrainbow@3.2.0: {}
 
-  tldts-core@7.4.18:
+  tldts-core@7.4.19:
     optional: true
 
-  tldts@7.4.18:
+  tldts@7.4.19:
     dependencies:
-      tldts-core: 7.4.18
+      tldts-core: 7.4.19
     optional: true
 
   tmp-promise@3.0.3:
@@ -7342,7 +7346,7 @@ snapshots:
 
   tough-cookie@6.0.2:
     dependencies:
-      tldts: 7.4.18
+      tldts: 7.4.19
     optional: true
 
   tr46@6.0.0:
@@ -7391,6 +7395,9 @@ snapshots:
   undici-types@7.24.6: {}
 
   undici@7.30.0:
+    optional: true
+
+  undici@7.30.1:
     optional: true
 
   unique-filename@4.0.0:
@@ -7532,7 +7539,7 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  ws@8.21.0: {}
+  ws@8.22.0: {}
 
   xml-name-validator@5.0.0:
     optional: true
